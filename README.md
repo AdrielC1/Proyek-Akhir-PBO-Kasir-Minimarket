@@ -1,0 +1,108 @@
+# SI-RITEL (Sistem Informasi Kasir & Inventaris Ritel)
+
+Aplikasi desktop kasir (*Point of Sale*) dan manajemen inventaris ritel berbasis **Java Swing** dan **PostgreSQL** untuk Tugas Proyek Pemrograman Berorientasi Objek (PBO) dengan arsitektur **MVC + DAO**.
+
+---
+
+## Teknologi
+
+- **Bahasa:** Java (JDK 17+)
+- **Antarmuka Grafis:** Java Swing (`javax.swing.*`, `java.awt.*`)
+- **Database:** PostgreSQL
+- **Driver JDBC:** `pgJDBC` (`lib/postgresql-42.7.14.jar`)
+- **Arsitektur:** MVC + DAO (`config`, `exception`, `model`, `dao`, `controller`, `view`)
+
+---
+
+## Struktur Proyek Saat Ini
+
+```text
+Proyek PBO SI-RITEL/
+├── README.md
+├── docs/
+│   ├── AGENTS.md                          # Aturan arsitektur, OOP, UI, & pembagian modul
+│   ├── Database_Schema.md                 # Skema DDL PostgreSQL, seed data, & panduan query DAO
+│   └── Java_Class_Schema_Architecture.md  # Rancangan paket, class diagram, & spesifikasi kelas
+├── lib/
+│   └── postgresql-42.7.14.jar             # Driver JDBC PostgreSQL
+└── src/
+    └── com/
+        └── siritel/
+            ├── Main.java                  # Entry point aplikasi
+            ├── config/
+            │   └── DatabaseConnection.java
+            └── view/
+                ├── MainFrame.java         # Frame utama dengan sidebar navigasi (CardLayout)
+                ├── KasirView.java
+                ├── ManajemenProdukView.java
+                ├── ManajemenPenggunaView.java
+                ├── RiwayatTransaksiView.java
+                ├── LaporanPenjualanView.java
+                └── PlaceholderSupport.java
+```
+
+> **Status saat ini:** Fondasi koneksi database (`DatabaseConnection`), entry point (`Main`), `MainFrame` dengan sidebar navigasi, serta 5 halaman placeholder kosong sudah tersedia dan siap dijalankan. Implementasi layer `model`, `dao`, `controller`, `exception`, dan isi masing-masing halaman mengikuti rancangan di folder `docs/`.
+
+---
+
+## Fitur & Rancangan OOP
+
+Mengacu pada [docs/AGENTS.md](docs/AGENTS.md) dan [docs/Java_Class_Schema_Architecture.md](docs/Java_Class_Schema_Architecture.md), sistem ini dirancang mencakup:
+
+- **Enkapsulasi & Validasi:** Atribut model bersifat `private`/`protected` dengan validasi nilai pada setter (melempar `IllegalArgumentException` jika tidak valid).
+- **Pewarisan & Abstraksi:** Abstract class `Produk` dengan subclass `Makanan`, `Minuman`, dan `Elektronik`, serta interface `Printable` pada `Transaksi` dan `LaporanPenjualan`.
+- **Polimorfisme:**
+  - *Overriding* `hitungPajak()` sesuai jenis produk.
+  - *Overloading* `cariProduk(...)` pada `ProdukController`.
+- **Custom Exception:** `StokTidakCukupException` untuk validasi stok saat transaksi.
+- **Inventaris Multi-Batch (FEFO):** Pemotongan stok otomatis berdasarkan tanggal kedaluwarsa terdekat (*First Expired, First Out*) dalam transaksi database atomik.
+- **5 Halaman Utama + Kontrol Akses:**
+  - `Kasir`
+  - `Manajemen Produk` (produk & batch stok)
+  - `Manajemen Pengguna` (Admin & Kasir)
+  - `Riwayat Transaksi`
+  - `Laporan Penjualan`
+
+### Pembagian Modul Tim
+
+- **Modul 1 (Fondasi, Auth & User):** `DatabaseConnection`, `Main`, `Pengguna`, `PenggunaDAO`, `AuthController`, `LoginView`, `MainFrame`, `ManajemenPenggunaView`
+- **Modul 2 (Katalog Produk, Polimorfisme & Batch):** `Produk`, `Makanan`, `Minuman`, `Elektronik`, `BatchProduk`, `ProdukDAO`, `ProdukController`, `ManajemenProdukView`
+- **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`
+
+---
+
+## Persiapan Database
+
+1. Siapkan database PostgreSQL dan jalankan skrip DDL serta *seed data* yang ada di [docs/Database_Schema.md](docs/Database_Schema.md) (mengaktifkan ekstensi `pgcrypto` dan membuat tabel `pengguna`, `produk`, `batch_produk`, `transaksi`, dan `item_transaksi`).
+2. Pastikan konfigurasi `URL`, `USER`, dan `PASSWORD` di [src/com/siritel/config/DatabaseConnection.java](src/com/siritel/config/DatabaseConnection.java) sesuai dengan server PostgreSQL yang digunakan.
+
+---
+
+## Cara Menjalankan Aplikasi
+
+### 1. Lewat Terminal (PowerShell)
+
+Jalankan perintah berikut dari folder root proyek:
+
+```powershell
+# Compile seluruh source Java ke folder out
+New-Item -ItemType Directory -Force -Path out | Out-Null
+$files = Get-ChildItem -Path src -Filter *.java -Recurse | ForEach-Object { $_.FullName }
+javac -d out -cp "lib\postgresql-42.7.14.jar" $files
+
+# Jalankan aplikasi
+java -cp "out;lib\postgresql-42.7.14.jar" com.siritel.Main
+```
+
+### 2. Lewat IDE
+
+- **Eclipse:** Pastikan `lib/postgresql-42.7.14.jar` sudah ditambahkan ke *Java Build Path* → klik kanan `Main.java` → **Run As** → **Java Application**.
+- **VS Code / Antigravity IDE:** Pastikan ekstensi Java aktif dan `lib/postgresql-42.7.14.jar` terdaftar di *Referenced Libraries*, buka `src/com/siritel/Main.java`, lalu klik tombol **Run**.
+
+---
+
+## Dokumentasi Terkait
+
+- [Panduan Pengembangan & Aturan Kode (AGENTS.md)](docs/AGENTS.md)
+- [Skema Database PostgreSQL](docs/Database_Schema.md)
+- [Arsitektur & Class Diagram Java](docs/Java_Class_Schema_Architecture.md)
