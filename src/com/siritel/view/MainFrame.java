@@ -2,6 +2,9 @@ package com.siritel.view;
 
 import com.siritel.controller.AuthController;
 import com.siritel.model.Pengguna;
+import com.siritel.view.ui.ButtonVariant;
+import com.siritel.view.ui.RoundedButton;
+import com.siritel.view.ui.UITheme;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -32,16 +35,16 @@ import javax.swing.SwingConstants;
  * Jendela utama aplikasi SI-RITEL dengan restyle sidebar terang modern sesuai referensi visual.
  */
 public class MainFrame extends JFrame {
-    private static final Color SIDEBAR_BG = Color.WHITE;
-    private static final Color SIDEBAR_BORDER = new Color(226, 232, 240);
+    private static final Color SIDEBAR_BG = UITheme.CARD_BG;
+    private static final Color SIDEBAR_BORDER = UITheme.BORDER_DEFAULT;
     private static final Color BTN_TEXT = new Color(71, 85, 105);
-    private static final Color BTN_HOVER_BG = new Color(241, 245, 249);
-    private static final Color BTN_ACTIVE_BG = new Color(239, 246, 255);
-    private static final Color BTN_ACTIVE_TEXT = new Color(37, 99, 235);
-    private static final Color HEADER_BG = Color.WHITE;
-    private static final Color HEADER_BORDER = new Color(226, 232, 240);
-    private static final Color TEXT_DARK = new Color(15, 23, 42);
-    private static final Color TEXT_MUTED = new Color(100, 116, 139);
+    private static final Color BTN_HOVER_BG = UITheme.BG_HOVER;
+    private static final Color BTN_ACTIVE_BG = UITheme.PRIMARY_SOFT_BG;
+    private static final Color BTN_ACTIVE_TEXT = UITheme.PRIMARY_BLUE;
+    private static final Color HEADER_BG = UITheme.CARD_BG;
+    private static final Color HEADER_BORDER = UITheme.BORDER_DEFAULT;
+    private static final Color TEXT_DARK = UITheme.TEXT_MAIN;
+    private static final Color TEXT_MUTED = UITheme.TEXT_MUTED;
 
     private record NavItem(String key, String label, JPanel panel) {
     }
@@ -274,17 +277,10 @@ public class MainFrame extends JFrame {
         userProfileLabel.setForeground(new Color(30, 41, 59));
         rightBar.add(userProfileLabel);
 
-        // Tombol Keluar bergaya referensi visual
-        JButton btnKeluar = new JButton("Keluar");
-        btnKeluar.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        btnKeluar.setForeground(new Color(71, 85, 105));
-        btnKeluar.setBackground(Color.WHITE);
-        btnKeluar.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1, true),
-                BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        ));
-        btnKeluar.setFocusPainted(false);
-        btnKeluar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        // Tombol Keluar bergaya standar UI SI-RITEL
+        RoundedButton btnKeluar = new RoundedButton("Keluar", ButtonVariant.OUTLINE, UITheme.SMALL_RADIUS);
+        btnKeluar.setFont(UITheme.font(Font.PLAIN, 12f));
+        btnKeluar.setPreferredSize(new Dimension(74, 32));
         btnKeluar.addActionListener(e -> {
             AuthController.logout();
             dispose();

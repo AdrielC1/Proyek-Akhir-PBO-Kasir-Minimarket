@@ -1,5 +1,7 @@
 package com.siritel.view;
 
+import com.siritel.view.ui.UITheme;
+
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -14,9 +16,9 @@ import javax.swing.SwingConstants;
  * Helper internal untuk menyusun tampilan placeholder seragam pada panel halaman yang masih kosong.
  */
 final class PlaceholderSupport {
-    private static final Color BG_COLOR = new Color(248, 250, 252);
-    private static final Color TITLE_COLOR = new Color(30, 41, 59);
-    private static final Color SUBTITLE_COLOR = new Color(100, 116, 139);
+    private static final Color BG_COLOR = UITheme.BG_PAGE;
+    private static final Color TITLE_COLOR = UITheme.TEXT_MAIN;
+    private static final Color SUBTITLE_COLOR = UITheme.TEXT_MUTED;
 
     private PlaceholderSupport() {
     }
@@ -32,7 +34,7 @@ final class PlaceholderSupport {
         gbc.insets = new Insets(0, 0, 8, 0);
 
         JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        titleLabel.setFont(UITheme.font(Font.BOLD, 22f));
         titleLabel.setForeground(TITLE_COLOR);
         panel.add(titleLabel, gbc);
 
@@ -40,7 +42,7 @@ final class PlaceholderSupport {
         gbc.insets = new Insets(0, 0, 0, 0);
 
         JLabel subtitleLabel = new JLabel(subtitle, SwingConstants.CENTER);
-        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        subtitleLabel.setFont(UITheme.font(Font.PLAIN, 13f));
         subtitleLabel.setForeground(SUBTITLE_COLOR);
         panel.add(subtitleLabel, gbc);
     }

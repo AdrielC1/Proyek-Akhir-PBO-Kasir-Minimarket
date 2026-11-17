@@ -2,11 +2,14 @@ package com.siritel.view;
 
 import com.siritel.controller.AuthController;
 import com.siritel.model.Pengguna;
-import com.siritel.view.UiStyleSupport.ButtonVariant;
-import com.siritel.view.UiStyleSupport.RoundedBorder;
-import com.siritel.view.UiStyleSupport.RoundedButton;
-import com.siritel.view.UiStyleSupport.ToastManager;
-import com.siritel.view.UiStyleSupport.ToastType;
+import com.siritel.view.ui.ButtonVariant;
+import com.siritel.view.ui.ModernModal;
+import com.siritel.view.ui.RoundedBorder;
+import com.siritel.view.ui.RoundedButton;
+import com.siritel.view.ui.RoundedCardPanel;
+import com.siritel.view.ui.ToastManager;
+import com.siritel.view.ui.ToastType;
+import com.siritel.view.ui.UITheme;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -48,10 +51,10 @@ import javax.swing.table.DefaultTableModel;
  * tabel utama melebar penuh secara default, dan panel kanan Tambah/Ubah muncul saat diperlukan.
  */
 public class ManajemenPenggunaView extends JPanel {
-    private static final Color BADGE_ADMIN_BG = new Color(219, 234, 254);
-    private static final Color BADGE_ADMIN_FG = new Color(29, 78, 216);
-    private static final Color BADGE_KASIR_BG = new Color(204, 251, 241);
-    private static final Color BADGE_KASIR_FG = new Color(15, 118, 110);
+    private static final Color BADGE_ADMIN_BG = UITheme.BADGE_BLUE_BG;
+    private static final Color BADGE_ADMIN_FG = UITheme.BADGE_BLUE_FG;
+    private static final Color BADGE_KASIR_BG = UITheme.BADGE_TEAL_BG;
+    private static final Color BADGE_KASIR_FG = UITheme.BADGE_TEAL_FG;
 
     private final AuthController authController = new AuthController();
     private final ToastManager toastManager = new ToastManager(this);
@@ -88,7 +91,7 @@ public class ManajemenPenggunaView extends JPanel {
 
     public ManajemenPenggunaView() {
         setLayout(new BorderLayout(14, 0));
-        setBackground(UiStyleSupport.BG_PANEL);
+        setBackground(UITheme.BG_PAGE);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
         defaultEchoChar = txtPassword.getEchoChar();
@@ -117,21 +120,21 @@ public class ManajemenPenggunaView extends JPanel {
     }
 
     private JPanel buildTableCard() {
-        JPanel mainCard = UiStyleSupport.createRoundedCardPanel(new BorderLayout(0, 12), 14);
+        JPanel mainCard = new RoundedCardPanel(new BorderLayout(0, 12));
         mainCard.setBorder(BorderFactory.createEmptyBorder(15, 16, 14, 16));
 
         mainCard.add(buildTopToolbar(), BorderLayout.NORTH);
 
         JScrollPane scrollPane = new JScrollPane(tablePengguna);
         scrollPane.getViewport().setBackground(Color.WHITE);
-        scrollPane.setBorder(new RoundedBorder(UiStyleSupport.BORDER_COLOR, 10, new Insets(1, 1, 1, 1)));
+        scrollPane.setBorder(new RoundedBorder(UITheme.BORDER_DEFAULT, 10, new Insets(1, 1, 1, 1)));
         mainCard.add(scrollPane, BorderLayout.CENTER);
 
         JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
         footer.setBorder(BorderFactory.createEmptyBorder(4, 2, 0, 2));
         lblRingkasanTabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        lblRingkasanTabel.setForeground(UiStyleSupport.TEXT_MUTED);
+        lblRingkasanTabel.setForeground(UITheme.TEXT_MUTED);
         footer.add(lblRingkasanTabel, BorderLayout.WEST);
         mainCard.add(footer, BorderLayout.SOUTH);
 
@@ -146,7 +149,7 @@ public class ManajemenPenggunaView extends JPanel {
 
         JLabel lblSection = new JLabel("Daftar Akun Pengguna");
         lblSection.setFont(new Font("SansSerif", Font.BOLD, 14));
-        lblSection.setForeground(UiStyleSupport.TEXT_DARK);
+        lblSection.setForeground(UITheme.TEXT_MAIN);
         gbc.gridx = 0;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -173,7 +176,7 @@ public class ManajemenPenggunaView extends JPanel {
     }
 
     private JPanel buildSideEditorCard() {
-        JPanel sidePanel = UiStyleSupport.createRoundedCardPanel(new BorderLayout(), 14);
+        JPanel sidePanel = new RoundedCardPanel(new BorderLayout());
         sidePanel.setPreferredSize(new Dimension(320, 0));
         sidePanel.setMinimumSize(new Dimension(300, 0));
 
@@ -181,16 +184,16 @@ public class ManajemenPenggunaView extends JPanel {
         JPanel headerWrapper = new JPanel(new BorderLayout(8, 0));
         headerWrapper.setOpaque(false);
         headerWrapper.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, UiStyleSupport.BORDER_COLOR),
+                BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_DEFAULT),
                 BorderFactory.createEmptyBorder(14, 16, 12, 12)
         ));
 
         JPanel titleGroup = new JPanel(new GridLayout(2, 1, 0, 2));
         titleGroup.setOpaque(false);
         lblFormTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
-        lblFormTitle.setForeground(UiStyleSupport.TEXT_DARK);
+        lblFormTitle.setForeground(UITheme.TEXT_MAIN);
         lblFormSubtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        lblFormSubtitle.setForeground(UiStyleSupport.TEXT_MUTED);
+        lblFormSubtitle.setForeground(UITheme.TEXT_MUTED);
         titleGroup.add(lblFormTitle);
         titleGroup.add(lblFormSubtitle);
         headerWrapper.add(titleGroup, BorderLayout.CENTER);
@@ -207,7 +210,7 @@ public class ManajemenPenggunaView extends JPanel {
 
         // Isi Form di ScrollPane Vertikal
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBackground(UiStyleSupport.CARD_BG);
+        form.setBackground(UITheme.CARD_BG);
         form.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -221,27 +224,27 @@ public class ManajemenPenggunaView extends JPanel {
         // 1. Username
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 4, 0);
-        form.add(createFieldLabel("Username *"), gbc);
+        form.add(UITheme.createFieldLabel("Username *"), gbc);
 
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 10, 0);
-        styleInputField(txtUsername);
+        UITheme.styleInputField(txtUsername);
         form.add(txtUsername, gbc);
 
         // 2. Nama Lengkap
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 4, 0);
-        form.add(createFieldLabel("Nama Lengkap *"), gbc);
+        form.add(UITheme.createFieldLabel("Nama Lengkap *"), gbc);
 
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 10, 0);
-        styleInputField(txtNamaLengkap);
+        UITheme.styleInputField(txtNamaLengkap);
         form.add(txtNamaLengkap, gbc);
 
         // 3. Role Akses (JRadioButton dalam ButtonGroup sesuai AGENTS.md)
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 5, 0);
-        form.add(createFieldLabel("Role Akses *"), gbc);
+        form.add(UITheme.createFieldLabel("Role Akses *"), gbc);
 
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 10, 0);
@@ -251,8 +254,8 @@ public class ManajemenPenggunaView extends JPanel {
         rbKasir.setOpaque(false);
         rbAdmin.setFont(new Font("SansSerif", Font.PLAIN, 13));
         rbKasir.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        rbAdmin.setForeground(UiStyleSupport.TEXT_DARK);
-        rbKasir.setForeground(UiStyleSupport.TEXT_DARK);
+        rbAdmin.setForeground(UITheme.TEXT_MAIN);
+        rbKasir.setForeground(UITheme.TEXT_MAIN);
         rbAdmin.setFocusPainted(false);
         rbKasir.setFocusPainted(false);
         rbAdmin.setSelected(true);
@@ -266,13 +269,13 @@ public class ManajemenPenggunaView extends JPanel {
         // 4. Password
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 4, 0);
-        form.add(createFieldLabel("Password *"), gbc);
+        form.add(UITheme.createFieldLabel("Password *"), gbc);
 
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 4, 0);
         JPanel passPanel = new JPanel(new BorderLayout(4, 0));
         passPanel.setBackground(Color.WHITE);
-        passPanel.setBorder(new RoundedBorder(UiStyleSupport.INPUT_BORDER, 8, new Insets(1, 4, 1, 6)));
+        passPanel.setBorder(new RoundedBorder(UITheme.BORDER_INPUT, UITheme.SMALL_RADIUS, new Insets(1, 4, 1, 6)));
 
         txtPassword.setFont(new Font("SansSerif", Font.PLAIN, 12));
         txtPassword.setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 4));
@@ -285,7 +288,7 @@ public class ManajemenPenggunaView extends JPanel {
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 16, 0);
         lblPassNote.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        lblPassNote.setForeground(UiStyleSupport.TEXT_MUTED);
+        lblPassNote.setForeground(UITheme.TEXT_MUTED);
         form.add(lblPassNote, gbc);
 
         // 5. Tombol Aksi Form (Hapus | Batal | Simpan)
@@ -319,7 +322,7 @@ public class ManajemenPenggunaView extends JPanel {
         scroll.setBorder(null);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.getVerticalScrollBar().setUnitIncrement(14);
-        scroll.getViewport().setBackground(UiStyleSupport.CARD_BG);
+        scroll.getViewport().setBackground(UITheme.CARD_BG);
         sidePanel.add(scroll, BorderLayout.CENTER);
 
         return sidePanel;
@@ -332,7 +335,7 @@ public class ManajemenPenggunaView extends JPanel {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(UiStyleSupport.TEXT_MUTED);
+                g2.setColor(UITheme.TEXT_MUTED);
                 int cx = getWidth() / 2;
                 int cy = getHeight() / 2;
                 g2.drawOval(cx - 7, cy - 4, 14, 8);
@@ -361,19 +364,19 @@ public class ManajemenPenggunaView extends JPanel {
         tablePengguna.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tablePengguna.setRowHeight(42);
         tablePengguna.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        tablePengguna.setForeground(UiStyleSupport.TEXT_DARK);
-        tablePengguna.setGridColor(new Color(241, 245, 249));
-        tablePengguna.setSelectionBackground(UiStyleSupport.PRIMARY_BLUE_SOFT);
-        tablePengguna.setSelectionForeground(UiStyleSupport.TEXT_DARK);
+        tablePengguna.setForeground(UITheme.TEXT_MAIN);
+        tablePengguna.setGridColor(UITheme.BG_HOVER);
+        tablePengguna.setSelectionBackground(UITheme.PRIMARY_SOFT_BG);
+        tablePengguna.setSelectionForeground(UITheme.TEXT_MAIN);
         tablePengguna.setShowVerticalLines(false);
         tablePengguna.getTableHeader().setReorderingAllowed(false);
 
         tablePengguna.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 11));
-        tablePengguna.getTableHeader().setBackground(new Color(248, 250, 252));
-        tablePengguna.getTableHeader().setForeground(UiStyleSupport.TEXT_MUTED);
+        tablePengguna.getTableHeader().setBackground(UITheme.BG_PAGE);
+        tablePengguna.getTableHeader().setForeground(UITheme.TEXT_MUTED);
         tablePengguna.getTableHeader().setPreferredSize(new Dimension(0, 38));
         tablePengguna.getTableHeader().setBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, UiStyleSupport.BORDER_COLOR)
+                BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_DEFAULT)
         );
 
         DefaultTableCellRenderer idRenderer = new DefaultTableCellRenderer() {
@@ -383,7 +386,7 @@ public class ManajemenPenggunaView extends JPanel {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 setHorizontalAlignment(SwingConstants.CENTER);
                 setFont(new Font("SansSerif", Font.BOLD, 12));
-                setForeground(UiStyleSupport.TEXT_MUTED);
+                setForeground(UITheme.TEXT_MUTED);
                 setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
                 return this;
             }
@@ -395,7 +398,7 @@ public class ManajemenPenggunaView extends JPanel {
                                                            boolean hasFocus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 setFont(new Font("SansSerif", Font.BOLD, 12));
-                setForeground(isSelected ? UiStyleSupport.PRIMARY_BLUE : UiStyleSupport.TEXT_DARK);
+                setForeground(isSelected ? UITheme.PRIMARY_BLUE : UITheme.TEXT_MAIN);
                 setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
                 return this;
             }
@@ -569,9 +572,9 @@ public class ManajemenPenggunaView extends JPanel {
                 );
             }
         } catch (IllegalArgumentException ex) {
-            UiStyleSupport.showErrorModal(this, "Kesalahan Validasi", ex.getMessage());
+            ModernModal.error(this, "Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
-            UiStyleSupport.showErrorModal(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
+            ModernModal.error(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
         }
     }
 
@@ -588,7 +591,7 @@ public class ManajemenPenggunaView extends JPanel {
         int id = penggunaTerpilih.getId();
         String username = penggunaTerpilih.getUsername();
 
-        boolean disetujui = UiStyleSupport.showConfirmModal(
+        boolean disetujui = ModernModal.confirm(
                 this,
                 "Hapus Pengguna",
                 "Yakin ingin menghapus akun '" + username + "' (ID: " + id + ")?",
@@ -609,9 +612,9 @@ public class ManajemenPenggunaView extends JPanel {
                     ToastType.SUCCESS
             );
         } catch (IllegalArgumentException ex) {
-            UiStyleSupport.showErrorModal(this, "Aksi Ditolak", ex.getMessage());
+            ModernModal.error(this, "Aksi Ditolak", ex.getMessage());
         } catch (SQLException ex) {
-            UiStyleSupport.showErrorModal(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
+            ModernModal.error(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
         }
     }
 
@@ -654,7 +657,7 @@ public class ManajemenPenggunaView extends JPanel {
                 repaint();
             }
         } catch (SQLException ex) {
-            UiStyleSupport.showErrorModal(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
+            ModernModal.error(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
         } finally {
             isRefreshingTable = false;
         }
@@ -666,18 +669,5 @@ public class ManajemenPenggunaView extends JPanel {
         btn.setPreferredSize(size);
         btn.setMinimumSize(size);
         btn.setMaximumSize(size);
-    }
-
-    private static JLabel createFieldLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.BOLD, 12));
-        label.setForeground(UiStyleSupport.TEXT_SLATE);
-        return label;
-    }
-
-    private static void styleInputField(JTextField field) {
-        field.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        field.setPreferredSize(new Dimension(0, 32));
-        field.setBorder(new RoundedBorder(UiStyleSupport.INPUT_BORDER, 8, new Insets(4, 10, 4, 10)));
     }
 }

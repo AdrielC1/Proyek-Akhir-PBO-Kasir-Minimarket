@@ -63,14 +63,22 @@ Kode yang dihasilkan **wajib** mempertahankan penerapan OOP berikut agar lulus r
 ## 5. Standar Antarmuka Grafis (Java Swing)
 
 1. **Layout Manager:** Dilarang menggunakan `null` layout (`setLayout(null)`). Gunakan kombinasi `BorderLayout`, `GridBagLayout`, `GridLayout`, dan `FlowLayout` agar tampilan responsif saat jendela di-resize.
-2. **Variasi Komponen Input (Wajib Ada):**
+2. **Paket UI Terpusat (`com.siritel.view.ui`) — WAJIB:** Seluruh halaman pada paket `com.siritel.view` (`LoginView`, `MainFrame`, Modul 1, Modul 2, dan Modul 3: `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`, dll.) **wajib** menggunakan komponen dan token tema dari `com.siritel.view.ui` (jangan membuat komponen tombol/kartu/modal/datepicker rounded lokal di masing-masing View agar desain konsisten dan kode View tetap ringkas):
+   * **Tema & Helper Input (`UITheme`):** Gunakan palet warna (`BG_PAGE`, `CARD_BG`, `TEXT_MAIN`, `TEXT_LABEL`, `TEXT_MUTED`, `BORDER_DEFAULT`, `BORDER_INPUT`, `PRIMARY_BLUE`, `TEAL`, `DANGER`, `BADGE_*`), tipografi (`UITheme.font(...)`), konstanta radius (`CARD_RADIUS`, `PANEL_RADIUS`, `BUTTON_RADIUS`, `SMALL_RADIUS`), serta helper `UITheme.createFieldLabel(...)`, `UITheme.styleInputField(...)`, `UITheme.styleNumericSpinner(...)`, dan `UITheme.createPlaceholderField(...)`.
+   * **Tombol (`RoundedButton` + `ButtonVariant`):** Seluruh tombol aksi wajib memakai `RoundedButton` (`PRIMARY`, `TEAL`, `DANGER`, `OUTLINE`, `DANGER_OUTLINE`, `GHOST`) — dilarang memakai `new JButton(...)` polos untuk tombol toolbar, aksi form, atau tombol header (`Keluar`).
+   * **Kartu & Border (`RoundedCardPanel` + `RoundedBorder`):** Bungkus panel konten utama dan panel samping form di atas latar `UITheme.BG_PAGE` menggunakan `RoundedCardPanel`, serta gunakan `RoundedBorder` untuk scroll/tabel/pembungkus input.
+   * **Dropdown (`RoundedComboBoxUI`):** Gunakan `RoundedComboBoxUI.apply(combo, radius)` untuk setiap `JComboBox` agar sudut membulat dan bebas kotak fokus bawaan Win32.
+   * **Pemilih Tanggal (`ModernDatePicker`):** Gunakan `ModernDatePicker` untuk input tanggal (termasuk tanggal batch pada Modul 2 dan filter rentang periode tanggal pada Laporan Penjualan Modul 3).
+   * **Notifikasi & Modal (`ToastManager` + `ModernModal`):** Gunakan `ToastManager` (pojok kanan atas, non-blocking) untuk feedback sukses/info ringan, serta `ModernModal.confirm(...)` / `ModernModal.error(...)` untuk dialog konfirmasi dan galat agar tampil seragam dengan kartu membulat modern.
+   * **Komponen Khusus Login:** `RoundedTextField`, `RoundedPasswordField`, dan `InlineAlertPanel` pada `com.siritel.view.ui` digunakan untuk layar autentikasi.
+3. **Variasi Komponen Input (Wajib Ada):**
    * `JTextField` & `JPasswordField` (kode, nama, harga, username, password, nominal bayar).
    * `JComboBox` (pilihan jenis produk: `MAKANAN`, `MINUMAN`, `ELEKTRONIK` dan filter pencarian).
    * `JRadioButton` (pilihan role `Admin` / `Kasir` pada `ManajemenPenggunaView`).
    * `JCheckBox` (opsi `Minuman Dingin` pada `ManajemenProdukView`).
-   * `JSpinner` (input angka untuk `beratGram`, `volumeMl`, `bulanGaransi`, `stokBatch`, `kuantitas`, serta `SpinnerDateModel` dengan `JSpinner.DateEditor` untuk `tglKadaluarsa` dan filter periode laporan).
-3. **Konfirmasi Destruktif:** Setiap aksi hapus (`delete`) pada `ManajemenProdukView` dan `ManajemenPenggunaView` wajib menampilkan `JOptionPane.showConfirmDialog` terlebih dahulu.
-4. **Kontrol Hak Akses (`MainFrame`):**
+   * `JSpinner` / `ModernDatePicker` (input angka untuk `beratGram`, `volumeMl`, `bulanGaransi`, `stokBatch`, `kuantitas`, serta `ModernDatePicker` / `SpinnerDateModel` untuk tanggal masuk/kadaluarsa dan filter periode laporan).
+4. **Konfirmasi Destruktif:** Setiap aksi hapus (`delete`) pada `ManajemenProdukView`, `ManajemenPenggunaView`, maupun modul lainnya wajib menampilkan dialog konfirmasi (`ModernModal.confirm(...)`) terlebih dahulu.
+5. **Kontrol Hak Akses (`MainFrame`):**
    * Role `Admin` dapat mengakses seluruh 6 halaman (`Kasir`, `Manajemen Produk & Batch`, `Manajemen Pengguna`, `Riwayat Transaksi`, `Laporan Penjualan`, plus tombol `Logout`).
    * Role `Kasir` hanya dapat mengakses `Kasir`, `Riwayat Transaksi`, dan `Logout`.
 
