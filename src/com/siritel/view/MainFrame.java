@@ -8,9 +8,13 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -25,18 +29,19 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 /**
- * Jendela utama aplikasi SI-RITEL dengan sidebar navigasi dan area konten berbasis CardLayout.
+ * Jendela utama aplikasi SI-RITEL dengan restyle sidebar terang modern sesuai referensi visual.
  */
 public class MainFrame extends JFrame {
-    private static final Color SIDEBAR_BG = new Color(30, 41, 59);
-    private static final Color SIDEBAR_DIVIDER = new Color(51, 65, 85);
-    private static final Color BTN_HOVER_BG = new Color(51, 65, 85);
-    private static final Color BTN_ACTIVE_BG = new Color(37, 99, 235);
-    private static final Color BTN_LOGOUT_BG = new Color(220, 38, 38);
-    private static final Color TEXT_LIGHT = new Color(226, 232, 240);
-    private static final Color TEXT_MUTED = new Color(148, 163, 184);
+    private static final Color SIDEBAR_BG = Color.WHITE;
+    private static final Color SIDEBAR_BORDER = new Color(226, 232, 240);
+    private static final Color BTN_TEXT = new Color(71, 85, 105);
+    private static final Color BTN_HOVER_BG = new Color(241, 245, 249);
+    private static final Color BTN_ACTIVE_BG = new Color(239, 246, 255);
+    private static final Color BTN_ACTIVE_TEXT = new Color(37, 99, 235);
     private static final Color HEADER_BG = Color.WHITE;
     private static final Color HEADER_BORDER = new Color(226, 232, 240);
+    private static final Color TEXT_DARK = new Color(15, 23, 42);
+    private static final Color TEXT_MUTED = new Color(100, 116, 139);
 
     private record NavItem(String key, String label, JPanel panel) {
     }
@@ -59,8 +64,8 @@ public class MainFrame extends JFrame {
 
         setTitle("SI-RITEL — Sistem Informasi Kasir & Inventaris Ritel");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1120, 680);
-        setMinimumSize(new Dimension(880, 560));
+        setSize(1180, 720);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
@@ -119,8 +124,9 @@ public class MainFrame extends JFrame {
 
     private JPanel buildSidebar(List<NavItem> navItems) {
         JPanel sidebar = new JPanel(new BorderLayout());
-        sidebar.setPreferredSize(new Dimension(245, 0));
+        sidebar.setPreferredSize(new Dimension(250, 0));
         sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, SIDEBAR_BORDER));
 
         sidebar.add(buildBrandHeader(), BorderLayout.NORTH);
 
@@ -139,42 +145,82 @@ public class MainFrame extends JFrame {
         navWrapper.add(navList, BorderLayout.NORTH);
         sidebar.add(navWrapper, BorderLayout.CENTER);
 
-        sidebar.add(buildLogoutSection(), BorderLayout.SOUTH);
-
         return sidebar;
     }
 
     private JPanel buildBrandHeader() {
-        JPanel brandPanel = new JPanel(new GridLayout(0, 1, 0, 2));
+        JPanel brandPanel = new JPanel(new BorderLayout(12, 0));
         brandPanel.setBackground(SIDEBAR_BG);
         brandPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, SIDEBAR_DIVIDER),
-                BorderFactory.createEmptyBorder(18, 16, 16, 16)
+                BorderFactory.createMatteBorder(0, 0, 1, 0, SIDEBAR_BORDER),
+                BorderFactory.createEmptyBorder(18, 16, 18, 16)
         ));
 
-        JLabel title = new JLabel("SI-RITEL");
-        title.setFont(new Font("SansSerif", Font.BOLD, 18));
-        title.setForeground(Color.WHITE);
+        JPanel iconBox = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(239, 246, 255));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.setColor(new Color(219, 234, 254));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
 
-        JLabel subtitle = new JLabel("Kasir & Inventaris Ritel");
-        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                g2.setColor(new Color(37, 99, 235));
+                int cx = getWidth() / 2;
+                int cy = getHeight() / 2;
+                g2.drawRoundRect(cx - 8, cy - 5, 16, 13, 3, 3);
+                g2.drawArc(cx - 4, cy - 10, 8, 8, 0, 180);
+                g2.dispose();
+            }
+        };
+        iconBox.setPreferredSize(new Dimension(38, 38));
+        iconBox.setOpaque(false);
+
+        JPanel textPanel = new JPanel(new GridLayout(2, 1, 0, 2));
+        textPanel.setOpaque(false);
+
+        JLabel title = new JLabel("SI-RITEL");
+        title.setFont(new Font("SansSerif", Font.BOLD, 16));
+        title.setForeground(TEXT_DARK);
+
+        JLabel subtitle = new JLabel("Kasir Ritel Modern");
+        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 11));
         subtitle.setForeground(TEXT_MUTED);
 
-        brandPanel.add(title);
-        brandPanel.add(subtitle);
+        textPanel.add(title);
+        textPanel.add(subtitle);
+
+        brandPanel.add(iconBox, BorderLayout.WEST);
+        brandPanel.add(textPanel, BorderLayout.CENTER);
         return brandPanel;
     }
 
     private JButton createSidebarButton(NavItem item) {
-        JButton button = new JButton(item.label());
+        JButton button = new JButton(item.label()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                // Indikator titik biru aktif di sisi kanan tombol jika sedang dipilih
+                if (item.key().equals(activeKey)) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(BTN_ACTIVE_TEXT);
+                    int dy = getHeight() / 2;
+                    g2.fillOval(getWidth() - 18, dy - 3, 6, 6);
+                    g2.dispose();
+                }
+            }
+        };
         button.setHorizontalAlignment(SwingConstants.LEFT);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        button.setForeground(TEXT_LIGHT);
+        button.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        button.setForeground(BTN_TEXT);
         button.setBackground(SIDEBAR_BG);
         button.setOpaque(true);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        button.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 24));
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         button.addActionListener(e -> navigateTo(item.key()));
@@ -197,35 +243,6 @@ public class MainFrame extends JFrame {
         return button;
     }
 
-    private JPanel buildLogoutSection() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(SIDEBAR_BG);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, SIDEBAR_DIVIDER),
-                BorderFactory.createEmptyBorder(12, 12, 16, 12)
-        ));
-
-        JButton btnLogout = new JButton("Logout");
-        btnLogout.setHorizontalAlignment(SwingConstants.CENTER);
-        btnLogout.setFont(new Font("SansSerif", Font.BOLD, 13));
-        btnLogout.setForeground(Color.WHITE);
-        btnLogout.setBackground(BTN_LOGOUT_BG);
-        btnLogout.setOpaque(true);
-        btnLogout.setBorderPainted(false);
-        btnLogout.setFocusPainted(false);
-        btnLogout.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
-        btnLogout.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-        btnLogout.addActionListener(e -> {
-            AuthController.logout();
-            dispose();
-            new LoginView().setVisible(true);
-        });
-
-        panel.add(btnLogout, BorderLayout.CENTER);
-        return panel;
-    }
-
     private JPanel buildMainArea(List<NavItem> navItems) {
         JPanel mainArea = new JPanel(new BorderLayout());
 
@@ -236,17 +253,46 @@ public class MainFrame extends JFrame {
                 BorderFactory.createEmptyBorder(14, 24, 14, 24)
         ));
 
-        pageHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        pageHeaderLabel.setForeground(SIDEBAR_BG);
-        headerBar.add(pageHeaderLabel, BorderLayout.WEST);
+        // Area Judul Halaman di Kiri
+        JPanel titleBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        titleBox.setOpaque(false);
+        pageHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        pageHeaderLabel.setForeground(TEXT_DARK);
+        titleBox.add(pageHeaderLabel);
+        headerBar.add(titleBox, BorderLayout.WEST);
 
+        // Area Profil & Tombol Keluar di Kanan
+        JPanel rightBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
+        rightBar.setOpaque(false);
+
+        // Header tetap berformat "nama (role)" sesuai spesifikasi Adaptasi Wajib
         String userDisplay = (penggunaAktif != null)
                 ? penggunaAktif.getNamaLengkap() + " (" + penggunaAktif.getRole() + ")"
                 : "Tamu";
         userProfileLabel.setText(userDisplay);
-        userProfileLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        userProfileLabel.setForeground(new Color(71, 85, 105));
-        headerBar.add(userProfileLabel, BorderLayout.EAST);
+        userProfileLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        userProfileLabel.setForeground(new Color(30, 41, 59));
+        rightBar.add(userProfileLabel);
+
+        // Tombol Keluar bergaya referensi visual
+        JButton btnKeluar = new JButton("Keluar");
+        btnKeluar.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        btnKeluar.setForeground(new Color(71, 85, 105));
+        btnKeluar.setBackground(Color.WHITE);
+        btnKeluar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(226, 232, 240), 1, true),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        btnKeluar.setFocusPainted(false);
+        btnKeluar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnKeluar.addActionListener(e -> {
+            AuthController.logout();
+            dispose();
+            new LoginView().setVisible(true);
+        });
+        rightBar.add(btnKeluar);
+
+        headerBar.add(rightBar, BorderLayout.EAST);
 
         for (NavItem item : navItems) {
             pageTitles.put(item.key(), item.label());
@@ -273,8 +319,9 @@ public class MainFrame extends JFrame {
             boolean isActive = entry.getKey().equals(key);
             JButton button = entry.getValue();
             button.setBackground(isActive ? BTN_ACTIVE_BG : SIDEBAR_BG);
-            button.setForeground(isActive ? Color.WHITE : TEXT_LIGHT);
-            button.setFont(new Font("SansSerif", isActive ? Font.BOLD : Font.PLAIN, 14));
+            button.setForeground(isActive ? BTN_ACTIVE_TEXT : BTN_TEXT);
+            button.setFont(new Font("SansSerif", isActive ? Font.BOLD : Font.PLAIN, 13));
+            button.repaint();
         }
     }
 }
