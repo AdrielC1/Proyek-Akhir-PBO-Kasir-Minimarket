@@ -19,13 +19,14 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 /**
- * Jendela Login SI-RITEL dengan restyle tampilan modern sesuai referensi visual.
+ * Jendela Login SI-RITEL dengan penanganan eksepsi lengkap (Fase 2).
  */
 public class LoginView extends JFrame {
     private static final Color BG_PAGE = new Color(241, 245, 249);
@@ -154,7 +155,6 @@ public class LoginView extends JFrame {
                 g2.setColor(new Color(100, 116, 139));
                 int cx = getWidth() / 2;
                 int cy = getHeight() / 2;
-                // Sketsa mata
                 g2.drawOval(cx - 7, cy - 4, 14, 8);
                 g2.fillOval(cx - 2, cy - 2, 4, 4);
                 if (isPasswordVisible) {
@@ -207,20 +207,29 @@ public class LoginView extends JFrame {
         // Set default button ke Masuk agar tombol Enter langsung berfungsi
         getRootPane().setDefaultButton(btnLogin);
 
-        // Action Listener Tombol Login
+        // Action Listener Tombol Login dengan Penanganan Eksepsi Lengkap (Fase 2)
         btnLogin.addActionListener(e -> {
             String username = txtUsername.getText();
             String password = new String(txtPassword.getPassword());
 
-            // FASE-1: tanpa penanganan eksepsi
             try {
                 Pengguna user = authController.login(username, password);
-                // FASE-1: tanpa penanganan eksepsi
                 dispose();
                 new MainFrame(user).setVisible(true);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Kesalahan Login",
+                        JOptionPane.ERROR_MESSAGE
+                );
             } catch (SQLException ex) {
-                // FASE-1: tanpa penanganan eksepsi
-                ex.printStackTrace();
+                JOptionPane.showMessageDialog(
+                        this,
+                        AuthController.pesanSqlError(ex),
+                        "Kesalahan Database",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         });
     }
