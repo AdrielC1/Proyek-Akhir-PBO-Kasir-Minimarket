@@ -6,6 +6,11 @@ import com.siritel.model.Elektronik;
 import com.siritel.model.Makanan;
 import com.siritel.model.Minuman;
 import com.siritel.model.Produk;
+import com.siritel.view.UiStyleSupport.ButtonVariant;
+import com.siritel.view.UiStyleSupport.RoundedBorder;
+import com.siritel.view.UiStyleSupport.RoundedButton;
+import com.siritel.view.UiStyleSupport.ToastManager;
+import com.siritel.view.UiStyleSupport.ToastType;
 
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -13,7 +18,6 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -26,11 +30,6 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.Window;
-import java.awt.event.ActionEvent;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.math.BigDecimal;
@@ -45,33 +44,24 @@ import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JLayeredPane;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
-import javax.swing.RootPaneContainer;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import javax.swing.border.AbstractBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.plaf.basic.BasicComboBoxUI;
@@ -103,25 +93,18 @@ public class ManajemenProdukView extends JPanel {
     private static final Color BADGE_MINUMAN_FG = new Color(29, 78, 216);
     private static final Color BADGE_ELEKTRONIK_BG = new Color(243, 232, 255);
     private static final Color BADGE_ELEKTRONIK_FG = new Color(126, 34, 206);
-    private static final Color SUCCESS_GREEN = new Color(22, 163, 74);
-    private static final Color SUCCESS_SOFT_BG = new Color(220, 252, 231);
-    private static final Color DANGER_SOFT_BG = new Color(254, 226, 226);
 
     private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
     private static final DateTimeFormatter DATE_DISPLAY_FMT =
             DateTimeFormatter.ofPattern("dd MMM yyyy", ID_LOCALE);
 
     private final ProdukController produkController = new ProdukController();
+    private final ToastManager toastManager = new ToastManager(this);
     private List<Produk> daftarProdukSaatIni = new ArrayList<>();
     private List<BatchProduk> daftarBatchSaatIni = new ArrayList<>();
     private Produk produkTerpilih;
     private boolean isRefreshingTable = false;
     private boolean isUpdatingFilters = false;
-
-    // State Toast Notifikasi Kanan Atas
-    private JPanel activeToast;
-    private Timer toastTimer;
-    private JLayeredPane hookedToastPane;
 
     // Toolbar & Katalog Kiri
     private final JTextField txtCari = createPlaceholderField("Cari kode atau nama produk...");
@@ -221,7 +204,7 @@ public class ManajemenProdukView extends JPanel {
     }
 
     private JPanel buildCatalogCard() {
-        JPanel card = createRoundedCardPanel(new BorderLayout(0, 10), 14);
+        JPanel card = UiStyleSupport.createRoundedCardPanel(new BorderLayout(0, 10), 14);
         card.setBorder(BorderFactory.createEmptyBorder(15, 16, 14, 16));
 
         // Toolbar Atas (2 baris agar responsif di 960px maupun 1180px)
@@ -340,7 +323,7 @@ public class ManajemenProdukView extends JPanel {
     }
 
     private JPanel buildSideEditorCard() {
-        JPanel sidePanel = createRoundedCardPanel(new BorderLayout(), 14);
+        JPanel sidePanel = UiStyleSupport.createRoundedCardPanel(new BorderLayout(), 14);
         sidePanel.setPreferredSize(new Dimension(320, 0));
         sidePanel.setMinimumSize(new Dimension(300, 0));
 
@@ -845,7 +828,7 @@ public class ManajemenProdukView extends JPanel {
         btnTabDetail.addActionListener(e -> pilihTab("DETAIL"));
         btnTabBatch.addActionListener(e -> {
             if (produkTerpilih == null) {
-                showToast(
+                toastManager.show(
                         "Produk Belum Dipilih",
                         "Simpan atau pilih produk terlebih dahulu untuk mengelola batch stok.",
                         ToastType.INFO
@@ -954,9 +937,9 @@ public class ManajemenProdukView extends JPanel {
             Integer selectedId = (produkTerpilih != null) ? produkTerpilih.getId() : null;
             tampilkanDaftarProduk(hasil, selectedId);
         } catch (IllegalArgumentException ex) {
-            showErrorModal("Kesalahan Validasi", ex.getMessage());
+            UiStyleSupport.showErrorModal(this, "Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
-            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
+            UiStyleSupport.showErrorModal(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -965,7 +948,7 @@ public class ManajemenProdukView extends JPanel {
             List<Produk> list = produkController.daftarProduk();
             tampilkanDaftarProduk(list, selectProductId);
         } catch (SQLException ex) {
-            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
+            UiStyleSupport.showErrorModal(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1130,7 +1113,7 @@ public class ManajemenProdukView extends JPanel {
                 if (produkTerpilih != null) {
                     pilihTab("BATCH");
                 }
-                showToast(
+                toastManager.show(
                         "Produk Ditambahkan",
                         "Silakan tambahkan batch stok awal pada tab Batch Stok.",
                         ToastType.SUCCESS
@@ -1138,22 +1121,22 @@ public class ManajemenProdukView extends JPanel {
             } else {
                 produkController.ubahProduk(produkBaru);
                 muatDataTabel(produkBaru.getId());
-                showToast(
+                toastManager.show(
                         "Produk Diperbarui",
                         "Data produk berhasil disimpan.",
                         ToastType.SUCCESS
                 );
             }
         } catch (IllegalArgumentException ex) {
-            showErrorModal("Kesalahan Validasi", ex.getMessage());
+            UiStyleSupport.showErrorModal(this, "Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
-            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
+            UiStyleSupport.showErrorModal(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
     private void hapusProdukTerpilih() {
         if (produkTerpilih == null) {
-            showToast(
+            toastManager.show(
                     "Produk Belum Dipilih",
                     "Pilih baris produk yang ingin dihapus terlebih dahulu.",
                     ToastType.INFO
@@ -1161,7 +1144,8 @@ public class ManajemenProdukView extends JPanel {
             return;
         }
 
-        boolean disetujui = showConfirmModal(
+        boolean disetujui = UiStyleSupport.showConfirmModal(
+                this,
                 "Hapus Produk",
                 "Yakin ingin menghapus '" + produkTerpilih.getNama()
                         + "' (" + produkTerpilih.getKode() + ")? Seluruh batch stok produk ini juga akan terhapus.",
@@ -1177,15 +1161,15 @@ public class ManajemenProdukView extends JPanel {
             produkController.hapusProduk(produkTerpilih.getId());
             tutupSidePanel();
             muatDataTabel(null);
-            showToast(
+            toastManager.show(
                     "Produk Dihapus",
                     "Produk '" + namaDihapus + "' berhasil dihapus.",
                     ToastType.SUCCESS
             );
         } catch (IllegalArgumentException ex) {
-            showErrorModal("Aksi Ditolak", ex.getMessage());
+            UiStyleSupport.showErrorModal(this, "Aksi Ditolak", ex.getMessage());
         } catch (SQLException ex) {
-            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
+            UiStyleSupport.showErrorModal(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1212,15 +1196,15 @@ public class ManajemenProdukView extends JPanel {
             dateKadaluarsaPicker.setDate(LocalDate.now().plusDays(30));
             muatDataTabel(produkTerpilih.getId());
             pilihTab("BATCH");
-            showToast(
+            toastManager.show(
                     "Batch Ditambahkan",
                     "Stok masuk sebanyak " + stokBatch + " unit berhasil dicatat.",
                     ToastType.SUCCESS
             );
         } catch (IllegalArgumentException ex) {
-            showErrorModal("Kesalahan Validasi", ex.getMessage());
+            UiStyleSupport.showErrorModal(this, "Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
-            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
+            UiStyleSupport.showErrorModal(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1234,7 +1218,8 @@ public class ManajemenProdukView extends JPanel {
         }
 
         BatchProduk target = daftarBatchSaatIni.get(row);
-        boolean disetujui = showConfirmModal(
+        boolean disetujui = UiStyleSupport.showConfirmModal(
+                this,
                 "Hapus Batch Stok",
                 "Hapus batch stok (" + target.getStokBatch() + " unit, masuk "
                         + DATE_DISPLAY_FMT.format(target.getTglMasuk()) + ")?",
@@ -1249,9 +1234,9 @@ public class ManajemenProdukView extends JPanel {
             produkController.hapusBatch(target.getId());
             muatDataTabel(produkTerpilih.getId());
             pilihTab("BATCH");
-            showToast("Batch Dihapus", "Batch stok berhasil dihapus.", ToastType.SUCCESS);
+            toastManager.show("Batch Dihapus", "Batch stok berhasil dihapus.", ToastType.SUCCESS);
         } catch (SQLException ex) {
-            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
+            UiStyleSupport.showErrorModal(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1376,585 +1361,6 @@ public class ManajemenProdukView extends JPanel {
         btn.setFocusPainted(false);
         btn.setOpaque(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    }
-
-    private enum ToastType {
-        SUCCESS,
-        INFO,
-        ERROR
-    }
-
-    /**
-     * Menampilkan toast notifikasi modern di pojok kanan atas jendela utama.
-     */
-    private void showToast(String title, String message, ToastType type) {
-        Window win = SwingUtilities.getWindowAncestor(this);
-        if (!(win instanceof RootPaneContainer rpc)) {
-            return;
-        }
-        JLayeredPane layeredPane = rpc.getLayeredPane();
-        if (layeredPane == null) {
-            return;
-        }
-
-        tutupToastAktif();
-
-        if (hookedToastPane != layeredPane) {
-            hookedToastPane = layeredPane;
-            layeredPane.addComponentListener(new ComponentAdapter() {
-                @Override
-                public void componentResized(ComponentEvent e) {
-                    posisikanToastAktif();
-                }
-            });
-        }
-
-        Color iconBg;
-        Color iconFg;
-        Color accentBorder;
-        if (type == ToastType.SUCCESS) {
-            iconBg = SUCCESS_SOFT_BG;
-            iconFg = SUCCESS_GREEN;
-            accentBorder = new Color(187, 247, 208);
-        } else if (type == ToastType.ERROR) {
-            iconBg = DANGER_SOFT_BG;
-            iconFg = DANGER_RED;
-            accentBorder = new Color(254, 202, 202);
-        } else {
-            iconBg = PRIMARY_BLUE_SOFT;
-            iconFg = PRIMARY_BLUE;
-            accentBorder = new Color(191, 219, 254);
-        }
-
-        JPanel toastCard = new JPanel(new BorderLayout(10, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(15, 23, 42, 18));
-                g2.fillRoundRect(2, 3, getWidth() - 3, getHeight() - 3, 12, 12);
-                g2.setColor(CARD_BG);
-                g2.fillRoundRect(0, 0, getWidth() - 3, getHeight() - 4, 12, 12);
-                g2.setColor(accentBorder);
-                g2.drawRoundRect(0, 0, getWidth() - 3, getHeight() - 4, 12, 12);
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        toastCard.setOpaque(false);
-        toastCard.setBorder(BorderFactory.createEmptyBorder(11, 13, 14, 12));
-
-        JPanel iconBadge = createStatusIconBadge(type == ToastType.SUCCESS ? "CHECK"
-                : (type == ToastType.ERROR ? "ALERT" : "INFO"), iconBg, iconFg, 30);
-        JPanel iconWrap = new JPanel(new GridBagLayout());
-        iconWrap.setOpaque(false);
-        iconWrap.add(iconBadge);
-        toastCard.add(iconWrap, BorderLayout.WEST);
-
-        JPanel textCol = new JPanel(new GridBagLayout());
-        textCol.setOpaque(false);
-        GridBagConstraints tg = new GridBagConstraints();
-        tg.gridx = 0;
-        tg.weightx = 1.0;
-        tg.fill = GridBagConstraints.HORIZONTAL;
-
-        JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(new Font("SansSerif", Font.BOLD, 12));
-        lblTitle.setForeground(TEXT_DARK);
-        tg.gridy = 0;
-        tg.insets = new Insets(0, 0, 2, 0);
-        textCol.add(lblTitle, tg);
-
-        JTextArea txtMsg = createWrappedModalMessage(message, 12, TEXT_SLATE);
-        tg.gridy = 1;
-        tg.insets = new Insets(0, 0, 0, 0);
-        textCol.add(txtMsg, tg);
-        toastCard.add(textCol, BorderLayout.CENTER);
-
-        RoundedButton btnClose = new RoundedButton("\u00D7", ButtonVariant.GHOST, 8);
-        btnClose.setFont(new Font("SansSerif", Font.BOLD, 14));
-        btnClose.setPreferredSize(new Dimension(24, 24));
-        btnClose.addActionListener(e -> tutupToastAktif());
-        JPanel closeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        closeWrap.setOpaque(false);
-        closeWrap.add(btnClose);
-        toastCard.add(closeWrap, BorderLayout.EAST);
-
-        int toastWidth = 345;
-        toastCard.setSize(toastWidth, 72);
-        txtMsg.setSize(new Dimension(toastWidth - 96, Short.MAX_VALUE));
-        int prefH = Math.max(62, toastCard.getPreferredSize().height);
-        toastCard.setSize(toastWidth, prefH);
-
-        activeToast = toastCard;
-        layeredPane.add(toastCard, JLayeredPane.POPUP_LAYER);
-        posisikanToastAktif();
-        layeredPane.repaint();
-
-        toastTimer = new Timer(3600, e -> tutupToastAktif());
-        toastTimer.setRepeats(false);
-        toastTimer.start();
-    }
-
-    private void posisikanToastAktif() {
-        if (activeToast == null || hookedToastPane == null) {
-            return;
-        }
-        int paneW = hookedToastPane.getWidth();
-        if (paneW <= 0) {
-            return;
-        }
-        int x = Math.max(16, paneW - activeToast.getWidth() - 20);
-        int y = 72;
-        activeToast.setLocation(x, y);
-        activeToast.revalidate();
-        activeToast.repaint();
-    }
-
-    private void tutupToastAktif() {
-        if (toastTimer != null) {
-            toastTimer.stop();
-            toastTimer = null;
-        }
-        if (activeToast != null && hookedToastPane != null) {
-            hookedToastPane.remove(activeToast);
-            hookedToastPane.repaint();
-            activeToast = null;
-        }
-    }
-
-    /**
-     * Menampilkan modal dialog konfirmasi modern dengan backdrop gelap redup.
-     */
-    private boolean showConfirmModal(String title, String message, String confirmText) {
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        if (owner == null) {
-            return false;
-        }
-        final boolean[] confirmed = {false};
-        JDialog dialog = createModernModalDialog(owner, title);
-
-        JPanel card = buildModalCardShell(
-                title,
-                message,
-                "WARNING",
-                DANGER_SOFT_BG,
-                DANGER_RED,
-                dialog::dispose
-        );
-
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        btnRow.setOpaque(false);
-
-        RoundedButton btnCancel = new RoundedButton("Batal", ButtonVariant.OUTLINE, 10);
-        btnCancel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        btnCancel.setPreferredSize(new Dimension(82, 36));
-        btnCancel.addActionListener(e -> dialog.dispose());
-
-        RoundedButton btnOk = new RoundedButton(confirmText, ButtonVariant.DANGER, 10);
-        btnOk.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnOk.setPreferredSize(new Dimension(100, 36));
-        btnOk.addActionListener(e -> {
-            confirmed[0] = true;
-            dialog.dispose();
-        });
-
-        btnRow.add(btnCancel);
-        btnRow.add(btnOk);
-        card.add(btnRow, BorderLayout.SOUTH);
-
-        dialog.setContentPane(card);
-        dialog.getRootPane().setDefaultButton(btnOk);
-        tampilkanModalDenganBackdrop(owner, dialog);
-        return confirmed[0];
-    }
-
-    /**
-     * Menampilkan modal dialog error / validasi modern dengan backdrop gelap redup.
-     */
-    private void showErrorModal(String title, String message) {
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        if (owner == null) {
-            return;
-        }
-        JDialog dialog = createModernModalDialog(owner, title);
-
-        JPanel card = buildModalCardShell(
-                title,
-                message,
-                "ALERT",
-                DANGER_SOFT_BG,
-                DANGER_RED,
-                dialog::dispose
-        );
-
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        btnRow.setOpaque(false);
-
-        RoundedButton btnTutup = new RoundedButton("Mengerti", ButtonVariant.PRIMARY, 10);
-        btnTutup.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnTutup.setPreferredSize(new Dimension(96, 36));
-        btnTutup.addActionListener(e -> dialog.dispose());
-        btnRow.add(btnTutup);
-        card.add(btnRow, BorderLayout.SOUTH);
-
-        dialog.setContentPane(card);
-        dialog.getRootPane().setDefaultButton(btnTutup);
-        tampilkanModalDenganBackdrop(owner, dialog);
-    }
-
-    private JDialog createModernModalDialog(Window owner, String title) {
-        JDialog dialog = new JDialog(owner, title, Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setUndecorated(true);
-        try {
-            dialog.setBackground(new Color(0, 0, 0, 0));
-        } catch (UnsupportedOperationException | IllegalArgumentException ignored) {
-        }
-        dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "CLOSE_MODAL");
-        dialog.getRootPane().getActionMap().put("CLOSE_MODAL", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dialog.dispose();
-            }
-        });
-        return dialog;
-    }
-
-    private JPanel buildModalCardShell(String title, String message, String iconKind,
-                                       Color iconBg, Color iconFg, Runnable onClose) {
-        JPanel card = new JPanel(new BorderLayout(0, 16)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(CARD_BG);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
-                g2.setColor(BORDER_COLOR);
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        card.setOpaque(false);
-        card.setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
-
-        JPanel body = new JPanel(new BorderLayout(14, 0));
-        body.setOpaque(false);
-
-        JPanel iconWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 2));
-        iconWrap.setOpaque(false);
-        iconWrap.add(createStatusIconBadge(iconKind, iconBg, iconFg, 38));
-        body.add(iconWrap, BorderLayout.WEST);
-
-        JPanel textCol = new JPanel(new GridBagLayout());
-        textCol.setOpaque(false);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        JPanel titleBar = new JPanel(new BorderLayout(8, 0));
-        titleBar.setOpaque(false);
-        JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(new Font("SansSerif", Font.BOLD, 15));
-        lblTitle.setForeground(TEXT_DARK);
-        titleBar.add(lblTitle, BorderLayout.CENTER);
-
-        RoundedButton btnClose = new RoundedButton("\u00D7", ButtonVariant.GHOST, 8);
-        btnClose.setFont(new Font("SansSerif", Font.BOLD, 16));
-        btnClose.setPreferredSize(new Dimension(26, 26));
-        btnClose.addActionListener(e -> onClose.run());
-        titleBar.add(btnClose, BorderLayout.EAST);
-
-        gbc.gridy = 0;
-        gbc.insets = new Insets(0, 0, 6, 0);
-        textCol.add(titleBar, gbc);
-
-        JTextArea txtMsg = createWrappedModalMessage(message, 13, TEXT_SLATE);
-        txtMsg.setSize(new Dimension(300, Short.MAX_VALUE));
-        gbc.gridy = 1;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        textCol.add(txtMsg, gbc);
-
-        body.add(textCol, BorderLayout.CENTER);
-        card.add(body, BorderLayout.CENTER);
-        return card;
-    }
-
-    private void tampilkanModalDenganBackdrop(Window owner, JDialog dialog) {
-        dialog.pack();
-        int width = Math.max(380, Math.min(430, dialog.getPreferredSize().width));
-        dialog.setSize(width, dialog.getPreferredSize().height);
-        dialog.setLocationRelativeTo(owner);
-
-        if (owner instanceof RootPaneContainer rpc) {
-            Component prevGlass = rpc.getGlassPane();
-            JPanel backdrop = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    g.setColor(new Color(15, 23, 42, 95));
-                    g.fillRect(0, 0, getWidth(), getHeight());
-                }
-            };
-            backdrop.setOpaque(false);
-            rpc.setGlassPane(backdrop);
-            backdrop.setVisible(true);
-            try {
-                dialog.setVisible(true);
-            } finally {
-                backdrop.setVisible(false);
-                rpc.setGlassPane(prevGlass);
-            }
-        } else {
-            dialog.setVisible(true);
-        }
-    }
-
-    private static JTextArea createWrappedModalMessage(String message, int fontSize, Color color) {
-        JTextArea area = new JTextArea(message);
-        area.setEditable(false);
-        area.setFocusable(false);
-        area.setOpaque(false);
-        area.setLineWrap(true);
-        area.setWrapStyleWord(true);
-        area.setFont(new Font("SansSerif", Font.PLAIN, fontSize));
-        area.setForeground(color);
-        area.setBorder(null);
-        return area;
-    }
-
-    private static JPanel createStatusIconBadge(String kind, Color bg, Color fg, int size) {
-        JPanel badge = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(bg);
-                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
-
-                g2.setColor(fg);
-                g2.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                int cx = getWidth() / 2;
-                int cy = getHeight() / 2;
-
-                if ("CHECK".equals(kind)) {
-                    g2.drawPolyline(
-                            new int[]{cx - 5, cx - 1, cx + 6},
-                            new int[]{cy, cy + 4, cy - 4},
-                            3
-                    );
-                } else if ("INFO".equals(kind)) {
-                    g2.fillOval(cx - 1, cy - 6, 3, 3);
-                    g2.drawLine(cx, cy - 1, cx, cy + 5);
-                } else if ("WARNING".equals(kind)) {
-                    g2.drawPolygon(
-                            new int[]{cx, cx - 8, cx + 8},
-                            new int[]{cy - 7, cy + 6, cy + 6},
-                            3
-                    );
-                    g2.drawLine(cx, cy - 2, cx, cy + 2);
-                    g2.fillOval(cx - 1, cy + 3, 2, 2);
-                } else {
-                    g2.drawLine(cx, cy - 5, cx, cy + 1);
-                    g2.fillOval(cx - 1, cy + 4, 3, 3);
-                }
-                g2.dispose();
-            }
-        };
-        badge.setPreferredSize(new Dimension(size, size));
-        badge.setMinimumSize(new Dimension(size, size));
-        badge.setOpaque(false);
-        return badge;
-    }
-
-    private static JPanel createRoundedCardPanel(java.awt.LayoutManager layout, int radius) {
-        JPanel panel = new JPanel(layout) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(CARD_BG);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
-                g2.setColor(BORDER_COLOR);
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        panel.setOpaque(false);
-        return panel;
-    }
-
-    private enum ButtonVariant {
-        PRIMARY,
-        DANGER,
-        OUTLINE,
-        DANGER_OUTLINE,
-        GHOST
-    }
-
-    /**
-     * Tombol kustom dengan sudut membulat (rounded), efek hover/pressed, dan status disabled yang kontras.
-     */
-    private static class RoundedButton extends JButton {
-        private final ButtonVariant variant;
-        private final int radius;
-        private boolean hovered = false;
-        private boolean pressed = false;
-
-        RoundedButton(String text, ButtonVariant variant, int radius) {
-            super(text);
-            this.variant = variant;
-            this.radius = radius;
-            setContentAreaFilled(false);
-            setBorderPainted(false);
-            setFocusPainted(false);
-            setOpaque(false);
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-            addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseEntered(MouseEvent e) {
-                    hovered = true;
-                    repaint();
-                }
-
-                @Override
-                public void mouseExited(MouseEvent e) {
-                    hovered = false;
-                    pressed = false;
-                    repaint();
-                }
-
-                @Override
-                public void mousePressed(MouseEvent e) {
-                    if (isEnabled()) {
-                        pressed = true;
-                        repaint();
-                    }
-                }
-
-                @Override
-                public void mouseReleased(MouseEvent e) {
-                    pressed = false;
-                    repaint();
-                }
-            });
-        }
-
-        @Override
-        public void setEnabled(boolean enabled) {
-            super.setEnabled(enabled);
-            setCursor(Cursor.getPredefinedCursor(enabled ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
-            repaint();
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-            Color bg;
-            Color border = null;
-            Color fg;
-
-            if (!isEnabled()) {
-                bg = new Color(241, 245, 249);
-                border = new Color(226, 232, 240);
-                fg = new Color(100, 116, 139);
-            } else {
-                switch (variant) {
-                    case PRIMARY -> {
-                        bg = pressed ? new Color(30, 64, 175)
-                                : hovered ? new Color(29, 78, 216) : PRIMARY_BLUE;
-                        fg = Color.WHITE;
-                    }
-                    case DANGER -> {
-                        bg = pressed ? new Color(153, 27, 27)
-                                : hovered ? new Color(185, 28, 28) : DANGER_RED;
-                        fg = Color.WHITE;
-                    }
-                    case DANGER_OUTLINE -> {
-                        bg = pressed ? new Color(254, 226, 226)
-                                : hovered ? new Color(254, 242, 242) : Color.WHITE;
-                        border = hovered ? new Color(239, 68, 68) : new Color(252, 165, 165);
-                        fg = DANGER_RED;
-                    }
-                    case GHOST -> {
-                        bg = pressed ? new Color(226, 232, 240)
-                                : hovered ? new Color(241, 245, 249) : new Color(0, 0, 0, 0);
-                        fg = hovered ? TEXT_DARK : TEXT_MUTED;
-                    }
-                    default -> {
-                        bg = pressed ? new Color(241, 245, 249)
-                                : hovered ? new Color(248, 250, 252) : Color.WHITE;
-                        border = hovered ? new Color(148, 163, 184) : INPUT_BORDER;
-                        fg = hovered ? TEXT_DARK : TEXT_SLATE;
-                    }
-                }
-            }
-
-            int w = getWidth();
-            int h = getHeight();
-            if (bg.getAlpha() > 0) {
-                g2.setColor(bg);
-                g2.fillRoundRect(0, 0, w - 1, h - 1, radius, radius);
-            }
-            if (border != null) {
-                g2.setColor(border);
-                g2.drawRoundRect(0, 0, w - 1, h - 1, radius, radius);
-            }
-
-            String text = getText();
-            if (text != null && !text.isEmpty()) {
-                g2.setFont(getFont());
-                FontMetrics fm = g2.getFontMetrics();
-                int tx = (w - fm.stringWidth(text)) / 2;
-                int ty = (h - fm.getHeight()) / 2 + fm.getAscent();
-                g2.setColor(fg);
-                g2.drawString(text, tx, ty);
-            }
-
-            g2.dispose();
-        }
-    }
-
-    /**
-     * Border melengkung anti-aliased untuk komponen input dan kontainer.
-     */
-    private static class RoundedBorder extends AbstractBorder {
-        private final Color color;
-        private final int radius;
-        private final Insets padding;
-
-        RoundedBorder(Color color, int radius, Insets padding) {
-            this.color = color;
-            this.radius = radius;
-            this.padding = padding;
-        }
-
-        @Override
-        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(color);
-            g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
-            g2.dispose();
-        }
-
-        @Override
-        public Insets getBorderInsets(Component c) {
-            return new Insets(padding.top, padding.left, padding.bottom, padding.right);
-        }
-
-        @Override
-        public Insets getBorderInsets(Component c, Insets insets) {
-            insets.set(padding.top, padding.left, padding.bottom, padding.right);
-            return insets;
-        }
     }
 
     private static void styleComboBox(JComboBox<String> combo, boolean includeSemua, int radius) {
