@@ -1,14 +1,19 @@
 package com.siritel.view;
 
+import com.siritel.controller.AuthController;
+import com.siritel.model.Pengguna;
+
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,46 +32,94 @@ public class MainFrame extends JFrame {
     private static final Color SIDEBAR_DIVIDER = new Color(51, 65, 85);
     private static final Color BTN_HOVER_BG = new Color(51, 65, 85);
     private static final Color BTN_ACTIVE_BG = new Color(37, 99, 235);
+    private static final Color BTN_LOGOUT_BG = new Color(220, 38, 38);
     private static final Color TEXT_LIGHT = new Color(226, 232, 240);
     private static final Color TEXT_MUTED = new Color(148, 163, 184);
     private static final Color HEADER_BG = Color.WHITE;
     private static final Color HEADER_BORDER = new Color(226, 232, 240);
 
-    private record MenuItem(String key, String label, JPanel panel) {
+    private record NavItem(String key, String label, JPanel panel) {
     }
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel contentCards = new JPanel(cardLayout);
     private final JLabel pageHeaderLabel = new JLabel();
+    private final JLabel userProfileLabel = new JLabel();
     private final Map<String, JButton> sidebarButtons = new LinkedHashMap<>();
     private final Map<String, String> pageTitles = new LinkedHashMap<>();
     private String activeKey;
+    private final Pengguna penggunaAktif;
 
     public MainFrame() {
+        this(AuthController.getPenggunaAktif());
+    }
+
+    public MainFrame(Pengguna penggunaAktif) {
+        this.penggunaAktif = penggunaAktif;
+
         setTitle("SI-RITEL — Sistem Informasi Kasir & Inventaris Ritel");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1080, 660);
-        setMinimumSize(new Dimension(820, 520));
+        setSize(1120, 680);
+        setMinimumSize(new Dimension(880, 560));
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        List<MenuItem> menuItems = List.of(
-                new MenuItem("kasir", "Kasir", new KasirView()),
-                new MenuItem("produk", "Manajemen Produk", new ManajemenProdukView()),
-                new MenuItem("pengguna", "Manajemen Pengguna", new ManajemenPenggunaView()),
-                new MenuItem("riwayat", "Riwayat Transaksi", new RiwayatTransaksiView()),
-                new MenuItem("laporan", "Laporan Penjualan", new LaporanPenjualanView())
-        );
+        List<NavItem> navItems = buildNavItems();
 
-        add(buildSidebar(menuItems), BorderLayout.WEST);
-        add(buildMainArea(menuItems), BorderLayout.CENTER);
+        add(buildSidebar(navItems), BorderLayout.WEST);
+        add(buildMainArea(navItems), BorderLayout.CENTER);
 
-        navigateTo(menuItems.get(0).key());
+        if (!navItems.isEmpty()) {
+            navigateTo(navItems.get(0).key());
+        }
     }
 
-    private JPanel buildSidebar(List<MenuItem> menuItems) {
+    private List<NavItem> buildNavItems() {
+        List<NavItem> items = new ArrayList<>();
+        String role = (penggunaAktif != null && penggunaAktif.getRole() != null)
+                ? penggunaAktif.getRole()
+                : "Admin";
+
+        // Kasir dapat diakses oleh Admin dan Kasir
+        // TODO INTEGRASI: ganti placeholder dengan new KasirView() dari Modul 3
+        items.add(new NavItem("kasir", "Kasir", buatPlaceholder("Kasir")));
+
+        if ("Admin".equalsIgnoreCase(role)) {
+            // TODO INTEGRASI: ganti placeholder dengan new ManajemenProdukView() dari Modul 2
+            items.add(new NavItem("produk", "Manajemen Produk & Batch", buatPlaceholder("Manajemen Produk & Batch")));
+
+            // Modul 1: Manajemen Pengguna
+            items.add(new NavItem("pengguna", "Manajemen Pengguna", new ManajemenPenggunaView()));
+        }
+
+        // Riwayat Transaksi dapat diakses oleh Admin dan Kasir
+        // TODO INTEGRASI: ganti placeholder dengan new RiwayatTransaksiView() dari Modul 3
+        items.add(new NavItem("riwayat", "Riwayat Transaksi", buatPlaceholder("Riwayat Transaksi")));
+
+        if ("Admin".equalsIgnoreCase(role)) {
+            // TODO INTEGRASI: ganti placeholder dengan new LaporanPenjualanView() dari Modul 3
+            items.add(new NavItem("laporan", "Laporan Penjualan", buatPlaceholder("Laporan Penjualan")));
+        }
+
+        return items;
+    }
+
+    private JPanel buatPlaceholder(String judul) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(248, 250, 252));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+
+        JLabel label = new JLabel("Halaman " + judul + ", dikerjakan Anggota 2/3", SwingConstants.CENTER);
+        label.setFont(new Font("SansSerif", Font.BOLD, 18));
+        label.setForeground(new Color(100, 116, 139));
+
+        panel.add(label);
+        return panel;
+    }
+
+    private JPanel buildSidebar(List<NavItem> navItems) {
         JPanel sidebar = new JPanel(new BorderLayout());
-        sidebar.setPreferredSize(new Dimension(235, 0));
+        sidebar.setPreferredSize(new Dimension(245, 0));
         sidebar.setBackground(SIDEBAR_BG);
 
         sidebar.add(buildBrandHeader(), BorderLayout.NORTH);
@@ -75,17 +128,18 @@ public class MainFrame extends JFrame {
         navList.setOpaque(false);
         navList.setBorder(BorderFactory.createEmptyBorder(16, 12, 16, 12));
 
-        for (MenuItem item : menuItems) {
+        for (NavItem item : navItems) {
             JButton button = createSidebarButton(item);
             sidebarButtons.put(item.key(), button);
             navList.add(button);
         }
 
-        // Wrapper agar daftar tombol menempel di atas sidebar tanpa meregang vertikal saat window di-resize.
         JPanel navWrapper = new JPanel(new BorderLayout());
         navWrapper.setOpaque(false);
         navWrapper.add(navList, BorderLayout.NORTH);
         sidebar.add(navWrapper, BorderLayout.CENTER);
+
+        sidebar.add(buildLogoutSection(), BorderLayout.SOUTH);
 
         return sidebar;
     }
@@ -111,7 +165,7 @@ public class MainFrame extends JFrame {
         return brandPanel;
     }
 
-    private JButton createSidebarButton(MenuItem item) {
+    private JButton createSidebarButton(NavItem item) {
         JButton button = new JButton(item.label());
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setFont(new Font("SansSerif", Font.PLAIN, 14));
@@ -143,7 +197,36 @@ public class MainFrame extends JFrame {
         return button;
     }
 
-    private JPanel buildMainArea(List<MenuItem> menuItems) {
+    private JPanel buildLogoutSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(SIDEBAR_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, SIDEBAR_DIVIDER),
+                BorderFactory.createEmptyBorder(12, 12, 16, 12)
+        ));
+
+        JButton btnLogout = new JButton("Logout");
+        btnLogout.setHorizontalAlignment(SwingConstants.CENTER);
+        btnLogout.setFont(new Font("SansSerif", Font.BOLD, 13));
+        btnLogout.setForeground(Color.WHITE);
+        btnLogout.setBackground(BTN_LOGOUT_BG);
+        btnLogout.setOpaque(true);
+        btnLogout.setBorderPainted(false);
+        btnLogout.setFocusPainted(false);
+        btnLogout.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        btnLogout.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        btnLogout.addActionListener(e -> {
+            AuthController.logout();
+            dispose();
+            new LoginView().setVisible(true);
+        });
+
+        panel.add(btnLogout, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel buildMainArea(List<NavItem> navItems) {
         JPanel mainArea = new JPanel(new BorderLayout());
 
         JPanel headerBar = new JPanel(new BorderLayout());
@@ -157,7 +240,15 @@ public class MainFrame extends JFrame {
         pageHeaderLabel.setForeground(SIDEBAR_BG);
         headerBar.add(pageHeaderLabel, BorderLayout.WEST);
 
-        for (MenuItem item : menuItems) {
+        String userDisplay = (penggunaAktif != null)
+                ? penggunaAktif.getNamaLengkap() + " (" + penggunaAktif.getRole() + ")"
+                : "Tamu";
+        userProfileLabel.setText(userDisplay);
+        userProfileLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        userProfileLabel.setForeground(new Color(71, 85, 105));
+        headerBar.add(userProfileLabel, BorderLayout.EAST);
+
+        for (NavItem item : navItems) {
             pageTitles.put(item.key(), item.label());
             contentCards.add(item.panel(), item.key());
         }
