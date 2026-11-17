@@ -7,11 +7,13 @@ import com.siritel.model.Makanan;
 import com.siritel.model.Minuman;
 import com.siritel.model.Produk;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
+import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -22,42 +24,59 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JLayeredPane;
 import javax.swing.JList;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
+import javax.swing.RootPaneContainer;
 import javax.swing.ScrollPaneConstants;
-import javax.swing.SpinnerDateModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.border.AbstractBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.plaf.basic.BasicComboBoxUI;
+import javax.swing.plaf.basic.BasicComboPopup;
+import javax.swing.plaf.basic.ComboPopup;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
@@ -84,9 +103,13 @@ public class ManajemenProdukView extends JPanel {
     private static final Color BADGE_MINUMAN_FG = new Color(29, 78, 216);
     private static final Color BADGE_ELEKTRONIK_BG = new Color(243, 232, 255);
     private static final Color BADGE_ELEKTRONIK_FG = new Color(126, 34, 206);
+    private static final Color SUCCESS_GREEN = new Color(22, 163, 74);
+    private static final Color SUCCESS_SOFT_BG = new Color(220, 252, 231);
+    private static final Color DANGER_SOFT_BG = new Color(254, 226, 226);
 
+    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
     private static final DateTimeFormatter DATE_DISPLAY_FMT =
-            DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.forLanguageTag("id-ID"));
+            DateTimeFormatter.ofPattern("dd MMM yyyy", ID_LOCALE);
 
     private final ProdukController produkController = new ProdukController();
     private List<Produk> daftarProdukSaatIni = new ArrayList<>();
@@ -95,6 +118,11 @@ public class ManajemenProdukView extends JPanel {
     private boolean isRefreshingTable = false;
     private boolean isUpdatingFilters = false;
 
+    // State Toast Notifikasi Kanan Atas
+    private JPanel activeToast;
+    private Timer toastTimer;
+    private JLayeredPane hookedToastPane;
+
     // Toolbar & Katalog Kiri
     private final JTextField txtCari = createPlaceholderField("Cari kode atau nama produk...");
     private final JComboBox<String> cmbFilterJenis =
@@ -102,7 +130,6 @@ public class ManajemenProdukView extends JPanel {
     private final RoundedButton btnCari = new RoundedButton("Cari", ButtonVariant.OUTLINE, 10);
     private final RoundedButton btnTambahProduk = new RoundedButton("+ Tambah Produk", ButtonVariant.PRIMARY, 10);
     private final RoundedButton btnSegarkan = new RoundedButton("Segarkan", ButtonVariant.OUTLINE, 10);
-    private final RoundedButton btnHapusTerpilih = new RoundedButton("Hapus", ButtonVariant.DANGER, 10);
     private final JLabel lblRingkasanTabel = new JLabel("Menampilkan 0 produk");
 
     private final DefaultTableModel produkTableModel;
@@ -143,9 +170,9 @@ public class ManajemenProdukView extends JPanel {
 
     // Tab Batch Stok
     private final JLabel lblBatchInfoProduk = new JLabel("Pilih produk untuk mengelola batch stok");
-    private final JLabel lblInfoKadaluarsaElektronik = new JLabel("Produk elektronik tidak memiliki tanggal kedaluwarsa.");
-    private final JSpinner spnTglMasuk;
-    private final JSpinner spnTglKadaluarsa;
+    private final JLabel lblInfoKadaluarsaElektronik = new JLabel("Elektronik tidak memiliki kedaluwarsa.");
+    private final ModernDatePicker dateMasukPicker = new ModernDatePicker(LocalDate.now(), false);
+    private final ModernDatePicker dateKadaluarsaPicker = new ModernDatePicker(LocalDate.now().plusDays(30), true);
     private final JSpinner spnStokBatch =
             new JSpinner(new SpinnerNumberModel(Integer.valueOf(10), null, Integer.valueOf(1000000), Integer.valueOf(1)));
     private final RoundedButton btnTambahBatch = new RoundedButton("+ Tambah Batch", ButtonVariant.PRIMARY, 10);
@@ -158,9 +185,6 @@ public class ManajemenProdukView extends JPanel {
         setLayout(new BorderLayout(14, 0));
         setBackground(BG_PANEL);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-
-        spnTglMasuk = createDateSpinner(new Date());
-        spnTglKadaluarsa = createDateSpinner(defaultExpiryDate());
 
         // 1. Inisialisasi Tabel Katalog Produk
         String[] productColumns = {"Kode", "Nama Produk", "Jenis", "Harga", "Pajak", "Stok", "Info Spesifik"};
@@ -265,11 +289,9 @@ public class ManajemenProdukView extends JPanel {
         gbc.weightx = 1.0;
         filterPanel.add(txtCari, gbc);
 
-        cmbFilterJenis.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        cmbFilterJenis.setBackground(Color.WHITE);
-        cmbFilterJenis.setMinimumSize(new Dimension(102, 34));
-        cmbFilterJenis.setPreferredSize(new Dimension(120, 34));
-        cmbFilterJenis.setRenderer(new JenisProdukRenderer(true));
+        styleComboBox(cmbFilterJenis, true, 10);
+        cmbFilterJenis.setMinimumSize(new Dimension(112, 34));
+        cmbFilterJenis.setPreferredSize(new Dimension(132, 34));
         gbc.gridx = 1;
         gbc.weightx = 0.0;
         filterPanel.add(cmbFilterJenis, gbc);
@@ -305,30 +327,13 @@ public class ManajemenProdukView extends JPanel {
         card.add(scrollPane, BorderLayout.CENTER);
 
         // Footer Katalog
-        JPanel footer = new JPanel(new GridBagLayout());
+        JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
         footer.setBorder(BorderFactory.createEmptyBorder(4, 2, 0, 2));
-        GridBagConstraints ftGbc = new GridBagConstraints();
-        ftGbc.gridy = 0;
 
         lblRingkasanTabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         lblRingkasanTabel.setForeground(TEXT_MUTED);
-        lblRingkasanTabel.setMinimumSize(new Dimension(60, 20));
-        ftGbc.gridx = 0;
-        ftGbc.weightx = 1.0;
-        ftGbc.fill = GridBagConstraints.HORIZONTAL;
-        ftGbc.insets = new Insets(0, 0, 0, 8);
-        footer.add(lblRingkasanTabel, ftGbc);
-
-        btnHapusTerpilih.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnHapusTerpilih.setPreferredSize(new Dimension(88, 33));
-        btnHapusTerpilih.setMinimumSize(new Dimension(88, 33));
-        btnHapusTerpilih.setEnabled(false);
-        ftGbc.gridx = 1;
-        ftGbc.weightx = 0.0;
-        ftGbc.fill = GridBagConstraints.NONE;
-        ftGbc.insets = new Insets(0, 0, 0, 0);
-        footer.add(btnHapusTerpilih, ftGbc);
+        footer.add(lblRingkasanTabel, BorderLayout.WEST);
 
         card.add(footer, BorderLayout.SOUTH);
         return card;
@@ -440,10 +445,8 @@ public class ManajemenProdukView extends JPanel {
 
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 4, 0);
-        cmbJenis.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        cmbJenis.setBackground(Color.WHITE);
+        styleComboBox(cmbJenis, false, 8);
         cmbJenis.setPreferredSize(new Dimension(0, 32));
-        cmbJenis.setRenderer(new JenisProdukRenderer(false));
         form.add(cmbJenis, gbc);
 
         gbc.gridy = row++;
@@ -613,12 +616,13 @@ public class ManajemenProdukView extends JPanel {
         JPanel colMasuk = new JPanel(new BorderLayout(0, 4));
         colMasuk.setOpaque(false);
         colMasuk.add(createFieldLabel("Tgl Masuk *"), BorderLayout.NORTH);
-        colMasuk.add(spnTglMasuk, BorderLayout.CENTER);
+        colMasuk.add(dateMasukPicker, BorderLayout.CENTER);
 
         JPanel colStok = new JPanel(new BorderLayout(0, 4));
         colStok.setOpaque(false);
         colStok.add(createFieldLabel("Stok Masuk *"), BorderLayout.NORTH);
         styleNumericSpinner(spnStokBatch);
+        spnStokBatch.setPreferredSize(new Dimension(0, 34));
         colStok.add(spnStokBatch, BorderLayout.CENTER);
 
         rowTop.add(colMasuk);
@@ -632,7 +636,7 @@ public class ManajemenProdukView extends JPanel {
 
         gbc.gridy = r++;
         gbc.insets = new Insets(0, 0, 4, 0);
-        addBatchCard.add(spnTglKadaluarsa, gbc);
+        addBatchCard.add(dateKadaluarsaPicker, gbc);
 
         gbc.gridy = r++;
         gbc.insets = new Insets(0, 0, 10, 0);
@@ -831,21 +835,20 @@ public class ManajemenProdukView extends JPanel {
         tableBatch.getColumnModel().getColumn(2).setCellRenderer(stokCell);
         tableBatch.getColumnModel().getColumn(3).setCellRenderer(statusCell);
 
-        tableBatch.getColumnModel().getColumn(0).setPreferredWidth(85);
-        tableBatch.getColumnModel().getColumn(1).setPreferredWidth(88);
-        tableBatch.getColumnModel().getColumn(2).setPreferredWidth(44);
-        tableBatch.getColumnModel().getColumn(3).setPreferredWidth(95);
+        tableBatch.getColumnModel().getColumn(0).setPreferredWidth(78);
+        tableBatch.getColumnModel().getColumn(1).setPreferredWidth(96);
+        tableBatch.getColumnModel().getColumn(2).setPreferredWidth(40);
+        tableBatch.getColumnModel().getColumn(3).setPreferredWidth(78);
     }
 
     private void initActions() {
         btnTabDetail.addActionListener(e -> pilihTab("DETAIL"));
         btnTabBatch.addActionListener(e -> {
             if (produkTerpilih == null) {
-                JOptionPane.showMessageDialog(
-                        this,
+                showToast(
+                        "Produk Belum Dipilih",
                         "Simpan atau pilih produk terlebih dahulu untuk mengelola batch stok.",
-                        "Informasi",
-                        JOptionPane.INFORMATION_MESSAGE
+                        ToastType.INFO
                 );
                 return;
             }
@@ -929,7 +932,6 @@ public class ManajemenProdukView extends JPanel {
         btnBatal.addActionListener(e -> tutupSidePanel());
 
         btnSimpan.addActionListener(e -> simpanProduk());
-        btnHapusTerpilih.addActionListener(e -> hapusProdukTerpilih());
         btnHapusForm.addActionListener(e -> hapusProdukTerpilih());
         btnTambahBatch.addActionListener(e -> tambahBatchBaru());
         btnHapusBatch.addActionListener(e -> hapusBatchTerpilih());
@@ -952,14 +954,9 @@ public class ManajemenProdukView extends JPanel {
             Integer selectedId = (produkTerpilih != null) ? produkTerpilih.getId() : null;
             tampilkanDaftarProduk(hasil, selectedId);
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Kesalahan Validasi", JOptionPane.ERROR_MESSAGE);
+            showErrorModal("Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    ProdukController.pesanSqlError(ex),
-                    "Kesalahan Database",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -968,12 +965,7 @@ public class ManajemenProdukView extends JPanel {
             List<Produk> list = produkController.daftarProduk();
             tampilkanDaftarProduk(list, selectProductId);
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    ProdukController.pesanSqlError(ex),
-                    "Kesalahan Database",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1046,7 +1038,6 @@ public class ManajemenProdukView extends JPanel {
         lblFormTitle.setText("Tambah Produk");
         lblFormSubtitle.setText("Lengkapi data katalog produk baru");
         btnHapusForm.setVisible(false);
-        btnHapusTerpilih.setEnabled(false);
 
         txtKode.setText("");
         txtNama.setText("");
@@ -1074,7 +1065,6 @@ public class ManajemenProdukView extends JPanel {
         lblFormTitle.setText("Ubah Produk");
         lblFormSubtitle.setText(p.getKode() + " \u2022 " + p.getNama());
         btnHapusForm.setVisible(true);
-        btnHapusTerpilih.setEnabled(true);
 
         txtKode.setText(p.getKode());
         txtNama.setText(p.getNama());
@@ -1120,7 +1110,7 @@ public class ManajemenProdukView extends JPanel {
         }
 
         boolean isElektronik = "ELEKTRONIK".equals(p.getJenisProduk());
-        spnTglKadaluarsa.setEnabled(!isElektronik);
+        dateKadaluarsaPicker.setEnabled(!isElektronik);
         lblInfoKadaluarsaElektronik.setVisible(isElektronik);
 
         btnTabBatch.setText("Batch Stok (" + daftarBatchSaatIni.size() + ")");
@@ -1136,81 +1126,66 @@ public class ManajemenProdukView extends JPanel {
 
             if (produkTerpilih == null) {
                 produkController.tambahProduk(produkBaru);
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Produk berhasil ditambahkan. Silakan tambahkan batch stok awal pada tab Batch Stok.",
-                        "Sukses",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
                 muatDataTabel(produkBaru.getId());
                 if (produkTerpilih != null) {
                     pilihTab("BATCH");
                 }
+                showToast(
+                        "Produk Ditambahkan",
+                        "Silakan tambahkan batch stok awal pada tab Batch Stok.",
+                        ToastType.SUCCESS
+                );
             } else {
                 produkController.ubahProduk(produkBaru);
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Data produk berhasil diperbarui.",
-                        "Sukses",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
                 muatDataTabel(produkBaru.getId());
+                showToast(
+                        "Produk Diperbarui",
+                        "Data produk berhasil disimpan.",
+                        ToastType.SUCCESS
+                );
             }
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Kesalahan Validasi", JOptionPane.ERROR_MESSAGE);
+            showErrorModal("Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    ProdukController.pesanSqlError(ex),
-                    "Kesalahan Database",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
     private void hapusProdukTerpilih() {
         if (produkTerpilih == null) {
-            JOptionPane.showMessageDialog(
-                    this,
+            showToast(
+                    "Produk Belum Dipilih",
                     "Pilih baris produk yang ingin dihapus terlebih dahulu.",
-                    "Peringatan",
-                    JOptionPane.WARNING_MESSAGE
+                    ToastType.INFO
             );
             return;
         }
 
-        int konfirmasi = JOptionPane.showConfirmDialog(
-                this,
-                "Apakah Anda yakin ingin menghapus produk '" + produkTerpilih.getNama()
-                        + "' (" + produkTerpilih.getKode() + ")?\nSeluruh batch stok produk ini juga akan terhapus.",
-                "Konfirmasi Hapus Produk",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE
+        boolean disetujui = showConfirmModal(
+                "Hapus Produk",
+                "Yakin ingin menghapus '" + produkTerpilih.getNama()
+                        + "' (" + produkTerpilih.getKode() + ")? Seluruh batch stok produk ini juga akan terhapus.",
+                "Ya, Hapus"
         );
 
-        if (konfirmasi != JOptionPane.YES_OPTION) {
+        if (!disetujui) {
             return;
         }
 
         try {
+            String namaDihapus = produkTerpilih.getNama();
             produkController.hapusProduk(produkTerpilih.getId());
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Produk berhasil dihapus.",
-                    "Sukses",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
             tutupSidePanel();
             muatDataTabel(null);
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Aksi Ditolak", JOptionPane.ERROR_MESSAGE);
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    ProdukController.pesanSqlError(ex),
-                    "Kesalahan Database",
-                    JOptionPane.ERROR_MESSAGE
+            showToast(
+                    "Produk Dihapus",
+                    "Produk '" + namaDihapus + "' berhasil dihapus.",
+                    ToastType.SUCCESS
             );
+        } catch (IllegalArgumentException ex) {
+            showErrorModal("Aksi Ditolak", ex.getMessage());
+        } catch (SQLException ex) {
+            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1220,34 +1195,32 @@ public class ManajemenProdukView extends JPanel {
         }
 
         try {
-            LocalDate tglMasuk = bacaTanggalSpinner(spnTglMasuk, "Tanggal masuk tidak valid.");
+            LocalDate tglMasuk = dateMasukPicker.getDate();
+            if (tglMasuk == null) {
+                throw new IllegalArgumentException("Tanggal masuk tidak boleh kosong.");
+            }
             LocalDate tglKadaluarsa = "ELEKTRONIK".equals(produkTerpilih.getJenisProduk())
                     ? null
-                    : bacaTanggalSpinner(spnTglKadaluarsa, "Tanggal kedaluwarsa tidak valid.");
+                    : dateKadaluarsaPicker.getDate();
             int stokBatch = bacaIntSpinner(spnStokBatch, "Stok batch harus berupa bilangan bulat yang valid.");
 
             BatchProduk batch = new BatchProduk(produkTerpilih.getId(), tglMasuk, tglKadaluarsa, stokBatch);
             produkController.tambahStokBatch(batch);
 
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Batch stok berhasil ditambahkan.",
-                    "Sukses",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-
             spnStokBatch.setValue(10);
+            dateMasukPicker.setDate(LocalDate.now());
+            dateKadaluarsaPicker.setDate(LocalDate.now().plusDays(30));
             muatDataTabel(produkTerpilih.getId());
             pilihTab("BATCH");
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Kesalahan Validasi", JOptionPane.ERROR_MESSAGE);
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    ProdukController.pesanSqlError(ex),
-                    "Kesalahan Database",
-                    JOptionPane.ERROR_MESSAGE
+            showToast(
+                    "Batch Ditambahkan",
+                    "Stok masuk sebanyak " + stokBatch + " unit berhasil dicatat.",
+                    ToastType.SUCCESS
             );
+        } catch (IllegalArgumentException ex) {
+            showErrorModal("Kesalahan Validasi", ex.getMessage());
+        } catch (SQLException ex) {
+            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1261,31 +1234,24 @@ public class ManajemenProdukView extends JPanel {
         }
 
         BatchProduk target = daftarBatchSaatIni.get(row);
-        int konfirmasi = JOptionPane.showConfirmDialog(
-                this,
+        boolean disetujui = showConfirmModal(
+                "Hapus Batch Stok",
                 "Hapus batch stok (" + target.getStokBatch() + " unit, masuk "
                         + DATE_DISPLAY_FMT.format(target.getTglMasuk()) + ")?",
-                "Konfirmasi Hapus Batch",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE
+                "Ya, Hapus"
         );
 
-        if (konfirmasi != JOptionPane.YES_OPTION) {
+        if (!disetujui) {
             return;
         }
 
         try {
             produkController.hapusBatch(target.getId());
-            JOptionPane.showMessageDialog(this, "Batch stok berhasil dihapus.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
             muatDataTabel(produkTerpilih.getId());
             pilihTab("BATCH");
+            showToast("Batch Dihapus", "Batch stok berhasil dihapus.", ToastType.SUCCESS);
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    ProdukController.pesanSqlError(ex),
-                    "Kesalahan Database",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showErrorModal("Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
     }
 
@@ -1375,19 +1341,6 @@ public class ManajemenProdukView extends JPanel {
         throw new IllegalArgumentException(errorMsg);
     }
 
-    private static LocalDate bacaTanggalSpinner(JSpinner spinner, String errorMsg) {
-        try {
-            spinner.commitEdit();
-        } catch (ParseException ex) {
-            throw new IllegalArgumentException(errorMsg);
-        }
-        Object val = spinner.getValue();
-        if (val instanceof Date date) {
-            return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-        }
-        throw new IllegalArgumentException(errorMsg);
-    }
-
     private static void styleNumericSpinner(JSpinner spinner) {
         JSpinner.NumberEditor editor = new JSpinner.NumberEditor(spinner, "#");
         spinner.setEditor(editor);
@@ -1400,17 +1353,6 @@ public class ManajemenProdukView extends JPanel {
         field.setFont(new Font("SansSerif", Font.PLAIN, 12));
         field.setPreferredSize(new Dimension(0, 32));
         field.setBorder(new RoundedBorder(INPUT_BORDER, 8, new Insets(4, 10, 4, 10)));
-    }
-
-    private static JSpinner createDateSpinner(Date initialDate) {
-        SpinnerDateModel model = new SpinnerDateModel(initialDate, null, null, Calendar.DAY_OF_MONTH);
-        JSpinner spinner = new JSpinner(model);
-        JSpinner.DateEditor editor = new JSpinner.DateEditor(spinner, "dd/MM/yyyy");
-        spinner.setEditor(editor);
-        spinner.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        spinner.setPreferredSize(new Dimension(0, 34));
-        spinner.setBorder(new RoundedBorder(INPUT_BORDER, 8, new Insets(1, 4, 1, 4)));
-        return spinner;
     }
 
     private static JLabel createFieldLabel(String text) {
@@ -1436,10 +1378,395 @@ public class ManajemenProdukView extends JPanel {
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    private static Date defaultExpiryDate() {
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_MONTH, 30);
-        return cal.getTime();
+    private enum ToastType {
+        SUCCESS,
+        INFO,
+        ERROR
+    }
+
+    /**
+     * Menampilkan toast notifikasi modern di pojok kanan atas jendela utama.
+     */
+    private void showToast(String title, String message, ToastType type) {
+        Window win = SwingUtilities.getWindowAncestor(this);
+        if (!(win instanceof RootPaneContainer rpc)) {
+            return;
+        }
+        JLayeredPane layeredPane = rpc.getLayeredPane();
+        if (layeredPane == null) {
+            return;
+        }
+
+        tutupToastAktif();
+
+        if (hookedToastPane != layeredPane) {
+            hookedToastPane = layeredPane;
+            layeredPane.addComponentListener(new ComponentAdapter() {
+                @Override
+                public void componentResized(ComponentEvent e) {
+                    posisikanToastAktif();
+                }
+            });
+        }
+
+        Color iconBg;
+        Color iconFg;
+        Color accentBorder;
+        if (type == ToastType.SUCCESS) {
+            iconBg = SUCCESS_SOFT_BG;
+            iconFg = SUCCESS_GREEN;
+            accentBorder = new Color(187, 247, 208);
+        } else if (type == ToastType.ERROR) {
+            iconBg = DANGER_SOFT_BG;
+            iconFg = DANGER_RED;
+            accentBorder = new Color(254, 202, 202);
+        } else {
+            iconBg = PRIMARY_BLUE_SOFT;
+            iconFg = PRIMARY_BLUE;
+            accentBorder = new Color(191, 219, 254);
+        }
+
+        JPanel toastCard = new JPanel(new BorderLayout(10, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(15, 23, 42, 18));
+                g2.fillRoundRect(2, 3, getWidth() - 3, getHeight() - 3, 12, 12);
+                g2.setColor(CARD_BG);
+                g2.fillRoundRect(0, 0, getWidth() - 3, getHeight() - 4, 12, 12);
+                g2.setColor(accentBorder);
+                g2.drawRoundRect(0, 0, getWidth() - 3, getHeight() - 4, 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        toastCard.setOpaque(false);
+        toastCard.setBorder(BorderFactory.createEmptyBorder(11, 13, 14, 12));
+
+        JPanel iconBadge = createStatusIconBadge(type == ToastType.SUCCESS ? "CHECK"
+                : (type == ToastType.ERROR ? "ALERT" : "INFO"), iconBg, iconFg, 30);
+        JPanel iconWrap = new JPanel(new GridBagLayout());
+        iconWrap.setOpaque(false);
+        iconWrap.add(iconBadge);
+        toastCard.add(iconWrap, BorderLayout.WEST);
+
+        JPanel textCol = new JPanel(new GridBagLayout());
+        textCol.setOpaque(false);
+        GridBagConstraints tg = new GridBagConstraints();
+        tg.gridx = 0;
+        tg.weightx = 1.0;
+        tg.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(new Font("SansSerif", Font.BOLD, 12));
+        lblTitle.setForeground(TEXT_DARK);
+        tg.gridy = 0;
+        tg.insets = new Insets(0, 0, 2, 0);
+        textCol.add(lblTitle, tg);
+
+        JTextArea txtMsg = createWrappedModalMessage(message, 12, TEXT_SLATE);
+        tg.gridy = 1;
+        tg.insets = new Insets(0, 0, 0, 0);
+        textCol.add(txtMsg, tg);
+        toastCard.add(textCol, BorderLayout.CENTER);
+
+        RoundedButton btnClose = new RoundedButton("\u00D7", ButtonVariant.GHOST, 8);
+        btnClose.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btnClose.setPreferredSize(new Dimension(24, 24));
+        btnClose.addActionListener(e -> tutupToastAktif());
+        JPanel closeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        closeWrap.setOpaque(false);
+        closeWrap.add(btnClose);
+        toastCard.add(closeWrap, BorderLayout.EAST);
+
+        int toastWidth = 345;
+        toastCard.setSize(toastWidth, 72);
+        txtMsg.setSize(new Dimension(toastWidth - 96, Short.MAX_VALUE));
+        int prefH = Math.max(62, toastCard.getPreferredSize().height);
+        toastCard.setSize(toastWidth, prefH);
+
+        activeToast = toastCard;
+        layeredPane.add(toastCard, JLayeredPane.POPUP_LAYER);
+        posisikanToastAktif();
+        layeredPane.repaint();
+
+        toastTimer = new Timer(3600, e -> tutupToastAktif());
+        toastTimer.setRepeats(false);
+        toastTimer.start();
+    }
+
+    private void posisikanToastAktif() {
+        if (activeToast == null || hookedToastPane == null) {
+            return;
+        }
+        int paneW = hookedToastPane.getWidth();
+        if (paneW <= 0) {
+            return;
+        }
+        int x = Math.max(16, paneW - activeToast.getWidth() - 20);
+        int y = 72;
+        activeToast.setLocation(x, y);
+        activeToast.revalidate();
+        activeToast.repaint();
+    }
+
+    private void tutupToastAktif() {
+        if (toastTimer != null) {
+            toastTimer.stop();
+            toastTimer = null;
+        }
+        if (activeToast != null && hookedToastPane != null) {
+            hookedToastPane.remove(activeToast);
+            hookedToastPane.repaint();
+            activeToast = null;
+        }
+    }
+
+    /**
+     * Menampilkan modal dialog konfirmasi modern dengan backdrop gelap redup.
+     */
+    private boolean showConfirmModal(String title, String message, String confirmText) {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        if (owner == null) {
+            return false;
+        }
+        final boolean[] confirmed = {false};
+        JDialog dialog = createModernModalDialog(owner, title);
+
+        JPanel card = buildModalCardShell(
+                title,
+                message,
+                "WARNING",
+                DANGER_SOFT_BG,
+                DANGER_RED,
+                dialog::dispose
+        );
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        btnRow.setOpaque(false);
+
+        RoundedButton btnCancel = new RoundedButton("Batal", ButtonVariant.OUTLINE, 10);
+        btnCancel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        btnCancel.setPreferredSize(new Dimension(82, 36));
+        btnCancel.addActionListener(e -> dialog.dispose());
+
+        RoundedButton btnOk = new RoundedButton(confirmText, ButtonVariant.DANGER, 10);
+        btnOk.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnOk.setPreferredSize(new Dimension(100, 36));
+        btnOk.addActionListener(e -> {
+            confirmed[0] = true;
+            dialog.dispose();
+        });
+
+        btnRow.add(btnCancel);
+        btnRow.add(btnOk);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        dialog.setContentPane(card);
+        dialog.getRootPane().setDefaultButton(btnOk);
+        tampilkanModalDenganBackdrop(owner, dialog);
+        return confirmed[0];
+    }
+
+    /**
+     * Menampilkan modal dialog error / validasi modern dengan backdrop gelap redup.
+     */
+    private void showErrorModal(String title, String message) {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        if (owner == null) {
+            return;
+        }
+        JDialog dialog = createModernModalDialog(owner, title);
+
+        JPanel card = buildModalCardShell(
+                title,
+                message,
+                "ALERT",
+                DANGER_SOFT_BG,
+                DANGER_RED,
+                dialog::dispose
+        );
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+
+        RoundedButton btnTutup = new RoundedButton("Mengerti", ButtonVariant.PRIMARY, 10);
+        btnTutup.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnTutup.setPreferredSize(new Dimension(96, 36));
+        btnTutup.addActionListener(e -> dialog.dispose());
+        btnRow.add(btnTutup);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        dialog.setContentPane(card);
+        dialog.getRootPane().setDefaultButton(btnTutup);
+        tampilkanModalDenganBackdrop(owner, dialog);
+    }
+
+    private JDialog createModernModalDialog(Window owner, String title) {
+        JDialog dialog = new JDialog(owner, title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        try {
+            dialog.setBackground(new Color(0, 0, 0, 0));
+        } catch (UnsupportedOperationException | IllegalArgumentException ignored) {
+        }
+        dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "CLOSE_MODAL");
+        dialog.getRootPane().getActionMap().put("CLOSE_MODAL", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dialog.dispose();
+            }
+        });
+        return dialog;
+    }
+
+    private JPanel buildModalCardShell(String title, String message, String iconKind,
+                                       Color iconBg, Color iconFg, Runnable onClose) {
+        JPanel card = new JPanel(new BorderLayout(0, 16)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(CARD_BG);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.setColor(BORDER_COLOR);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
+
+        JPanel body = new JPanel(new BorderLayout(14, 0));
+        body.setOpaque(false);
+
+        JPanel iconWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 2));
+        iconWrap.setOpaque(false);
+        iconWrap.add(createStatusIconBadge(iconKind, iconBg, iconFg, 38));
+        body.add(iconWrap, BorderLayout.WEST);
+
+        JPanel textCol = new JPanel(new GridBagLayout());
+        textCol.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JPanel titleBar = new JPanel(new BorderLayout(8, 0));
+        titleBar.setOpaque(false);
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(new Font("SansSerif", Font.BOLD, 15));
+        lblTitle.setForeground(TEXT_DARK);
+        titleBar.add(lblTitle, BorderLayout.CENTER);
+
+        RoundedButton btnClose = new RoundedButton("\u00D7", ButtonVariant.GHOST, 8);
+        btnClose.setFont(new Font("SansSerif", Font.BOLD, 16));
+        btnClose.setPreferredSize(new Dimension(26, 26));
+        btnClose.addActionListener(e -> onClose.run());
+        titleBar.add(btnClose, BorderLayout.EAST);
+
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, 6, 0);
+        textCol.add(titleBar, gbc);
+
+        JTextArea txtMsg = createWrappedModalMessage(message, 13, TEXT_SLATE);
+        txtMsg.setSize(new Dimension(300, Short.MAX_VALUE));
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        textCol.add(txtMsg, gbc);
+
+        body.add(textCol, BorderLayout.CENTER);
+        card.add(body, BorderLayout.CENTER);
+        return card;
+    }
+
+    private void tampilkanModalDenganBackdrop(Window owner, JDialog dialog) {
+        dialog.pack();
+        int width = Math.max(380, Math.min(430, dialog.getPreferredSize().width));
+        dialog.setSize(width, dialog.getPreferredSize().height);
+        dialog.setLocationRelativeTo(owner);
+
+        if (owner instanceof RootPaneContainer rpc) {
+            Component prevGlass = rpc.getGlassPane();
+            JPanel backdrop = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    g.setColor(new Color(15, 23, 42, 95));
+                    g.fillRect(0, 0, getWidth(), getHeight());
+                }
+            };
+            backdrop.setOpaque(false);
+            rpc.setGlassPane(backdrop);
+            backdrop.setVisible(true);
+            try {
+                dialog.setVisible(true);
+            } finally {
+                backdrop.setVisible(false);
+                rpc.setGlassPane(prevGlass);
+            }
+        } else {
+            dialog.setVisible(true);
+        }
+    }
+
+    private static JTextArea createWrappedModalMessage(String message, int fontSize, Color color) {
+        JTextArea area = new JTextArea(message);
+        area.setEditable(false);
+        area.setFocusable(false);
+        area.setOpaque(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setFont(new Font("SansSerif", Font.PLAIN, fontSize));
+        area.setForeground(color);
+        area.setBorder(null);
+        return area;
+    }
+
+    private static JPanel createStatusIconBadge(String kind, Color bg, Color fg, int size) {
+        JPanel badge = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(bg);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+
+                g2.setColor(fg);
+                g2.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                int cx = getWidth() / 2;
+                int cy = getHeight() / 2;
+
+                if ("CHECK".equals(kind)) {
+                    g2.drawPolyline(
+                            new int[]{cx - 5, cx - 1, cx + 6},
+                            new int[]{cy, cy + 4, cy - 4},
+                            3
+                    );
+                } else if ("INFO".equals(kind)) {
+                    g2.fillOval(cx - 1, cy - 6, 3, 3);
+                    g2.drawLine(cx, cy - 1, cx, cy + 5);
+                } else if ("WARNING".equals(kind)) {
+                    g2.drawPolygon(
+                            new int[]{cx, cx - 8, cx + 8},
+                            new int[]{cy - 7, cy + 6, cy + 6},
+                            3
+                    );
+                    g2.drawLine(cx, cy - 2, cx, cy + 2);
+                    g2.fillOval(cx - 1, cy + 3, 2, 2);
+                } else {
+                    g2.drawLine(cx, cy - 5, cx, cy + 1);
+                    g2.fillOval(cx - 1, cy + 4, 3, 3);
+                }
+                g2.dispose();
+            }
+        };
+        badge.setPreferredSize(new Dimension(size, size));
+        badge.setMinimumSize(new Dimension(size, size));
+        badge.setOpaque(false);
+        return badge;
     }
 
     private static JPanel createRoundedCardPanel(java.awt.LayoutManager layout, int radius) {
@@ -1630,6 +1957,120 @@ public class ManajemenProdukView extends JPanel {
         }
     }
 
+    private static void styleComboBox(JComboBox<String> combo, boolean includeSemua, int radius) {
+        combo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        combo.setBackground(Color.WHITE);
+        combo.setForeground(TEXT_DARK);
+        combo.setOpaque(false);
+        combo.setUI(new RoundedComboBoxUI(radius));
+        combo.setBorder(BorderFactory.createEmptyBorder(2, 10, 2, 4));
+        combo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        combo.setRenderer(new JenisProdukRenderer(includeSemua));
+    }
+
+    /**
+     * UI kustom untuk JComboBox agar sudut membulat, chevron rapi, dan bebas garis fokus kotak Win32.
+     */
+    private static class RoundedComboBoxUI extends BasicComboBoxUI {
+        private final int radius;
+        private boolean hovered = false;
+
+        RoundedComboBoxUI(int radius) {
+            this.radius = radius;
+        }
+
+        @Override
+        protected void installListeners() {
+            super.installListeners();
+            comboBox.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovered = true;
+                    comboBox.repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovered = false;
+                    comboBox.repaint();
+                }
+            });
+        }
+
+        @Override
+        protected JButton createArrowButton() {
+            JButton btn = new JButton() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    int cx = getWidth() / 2;
+                    int cy = getHeight() / 2;
+                    boolean focused = comboBox != null && (comboBox.hasFocus() || (popup != null && popup.isVisible()));
+                    g2.setColor(focused ? PRIMARY_BLUE : TEXT_MUTED);
+                    g2.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    g2.drawPolyline(
+                            new int[]{cx - 4, cx, cx + 4},
+                            new int[]{cy - 2, cy + 2, cy - 2},
+                            3
+                    );
+                    g2.dispose();
+                }
+            };
+            btn.setContentAreaFilled(false);
+            btn.setBorderPainted(false);
+            btn.setFocusPainted(false);
+            btn.setOpaque(false);
+            btn.setPreferredSize(new Dimension(24, 24));
+            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            return btn;
+        }
+
+        @Override
+        protected ComboPopup createPopup() {
+            BasicComboPopup comboPopup = (BasicComboPopup) super.createPopup();
+            comboPopup.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
+            return comboPopup;
+        }
+
+        @Override
+        public void paint(Graphics g, JComponent c) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = c.getWidth();
+            int h = c.getHeight();
+
+            g2.setColor(c.isEnabled() ? Color.WHITE : new Color(248, 250, 252));
+            g2.fillRoundRect(0, 0, w - 1, h - 1, radius, radius);
+            g2.dispose();
+
+            super.paint(g, c);
+
+            Graphics2D gBorder = (Graphics2D) g.create();
+            gBorder.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            boolean active = c.hasFocus() || (popup != null && popup.isVisible());
+            gBorder.setColor(active ? PRIMARY_BLUE : (hovered ? new Color(148, 163, 184) : INPUT_BORDER));
+            gBorder.drawRoundRect(0, 0, w - 1, h - 1, radius, radius);
+            gBorder.dispose();
+        }
+
+        @Override
+        public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+            // Tidak menggambar latar kotak fokus default agar tampilan melengkung tetap bersih
+        }
+
+        @Override
+        public void paintCurrentValue(Graphics g, Rectangle bounds, boolean hasFocus) {
+            Component c = comboBox.getRenderer().getListCellRendererComponent(
+                    listBox, comboBox.getSelectedItem(), -1, false, false);
+            c.setFont(comboBox.getFont());
+            c.setForeground(comboBox.isEnabled() ? TEXT_DARK : TEXT_MUTED);
+            c.setBackground(Color.WHITE);
+            boolean shouldValidate = c instanceof JPanel;
+            currentValuePane.paintComponent(g, c, comboBox, bounds.x, bounds.y, bounds.width, bounds.height, shouldValidate);
+        }
+    }
+
     private static JTextField createPlaceholderField(String placeholder) {
         return new JTextField() {
             @Override
@@ -1683,6 +2124,17 @@ public class ManajemenProdukView extends JPanel {
         public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                       boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            setFont(new Font("SansSerif", (index >= 0 && isSelected) ? Font.BOLD : Font.PLAIN, 12));
+            if (index == -1) {
+                setOpaque(false);
+                setForeground(TEXT_DARK);
+                setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 2));
+            } else {
+                setOpaque(true);
+                setBackground(isSelected ? PRIMARY_BLUE_SOFT : Color.WHITE);
+                setForeground(isSelected ? PRIMARY_BLUE : TEXT_DARK);
+                setBorder(BorderFactory.createEmptyBorder(7, 10, 7, 10));
+            }
             if (value != null) {
                 String code = value.toString();
                 if (includeSemua && "SEMUA".equals(code)) {
@@ -1692,6 +2144,343 @@ public class ManajemenProdukView extends JPanel {
                 }
             }
             return this;
+        }
+    }
+
+    /**
+     * Komponen pemilih tanggal modern dengan ikon kalender dan popup kalender bulanan interaktif.
+     */
+    private static class ModernDatePicker extends JPanel {
+        private LocalDate selectedDate;
+        private final boolean showExpiryPresets;
+        private boolean hovered = false;
+        private final JPopupMenu popup = new JPopupMenu();
+        private final CalendarPopupPanel calendarPanel;
+
+        ModernDatePicker(LocalDate initialDate, boolean showExpiryPresets) {
+            this.selectedDate = (initialDate != null) ? initialDate : LocalDate.now();
+            this.showExpiryPresets = showExpiryPresets;
+            setOpaque(false);
+            setPreferredSize(new Dimension(0, 34));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+            calendarPanel = new CalendarPopupPanel();
+            popup.setBorder(new RoundedBorder(BORDER_COLOR, 12, new Insets(8, 8, 8, 8)));
+            popup.setBackground(CARD_BG);
+            popup.add(calendarPanel);
+            popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+                @Override
+                public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
+                    repaint();
+                }
+
+                @Override
+                public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {
+                    repaint();
+                }
+
+                @Override
+                public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {
+                    repaint();
+                }
+            });
+
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovered = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovered = false;
+                    repaint();
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    if (!isEnabled()) {
+                        return;
+                    }
+                    if (popup.isVisible()) {
+                        popup.setVisible(false);
+                    } else {
+                        calendarPanel.tampilkanBulan(selectedDate);
+                        int popupW = calendarPanel.getPreferredSize().width + 16;
+                        int x = Math.min(0, getWidth() - popupW);
+                        popup.show(ModernDatePicker.this, x, getHeight() + 4);
+                    }
+                }
+            });
+        }
+
+        LocalDate getDate() {
+            return selectedDate;
+        }
+
+        void setDate(LocalDate date) {
+            if (date != null) {
+                this.selectedDate = date;
+                repaint();
+            }
+        }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
+            if (!enabled && popup.isVisible()) {
+                popup.setVisible(false);
+            }
+            setCursor(Cursor.getPredefinedCursor(enabled ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            int w = getWidth();
+            int h = getHeight();
+            boolean enabled = isEnabled();
+            boolean active = popup.isVisible();
+
+            g2.setColor(enabled ? Color.WHITE : new Color(248, 250, 252));
+            g2.fillRoundRect(0, 0, w - 1, h - 1, 8, 8);
+
+            Color border = !enabled ? BORDER_COLOR
+                    : (active ? PRIMARY_BLUE : (hovered ? new Color(148, 163, 184) : INPUT_BORDER));
+            g2.setColor(border);
+            g2.drawRoundRect(0, 0, w - 1, h - 1, 8, 8);
+
+            // Teks tanggal
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            g2.setColor(enabled ? TEXT_DARK : TEXT_MUTED);
+            FontMetrics fm = g2.getFontMetrics();
+            String text = DATE_DISPLAY_FMT.format(selectedDate);
+            int ty = (h - fm.getHeight()) / 2 + fm.getAscent();
+            g2.drawString(text, 10, ty);
+
+            // Ikon kalender Java2D di kanan
+            int ix = w - 24;
+            int iy = (h - 14) / 2;
+            g2.setColor(enabled ? (active ? PRIMARY_BLUE : TEXT_MUTED) : new Color(148, 163, 184));
+            g2.setStroke(new BasicStroke(1.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawRoundRect(ix, iy + 2, 13, 11, 3, 3);
+            g2.drawLine(ix, iy + 6, ix + 13, iy + 6);
+            g2.drawLine(ix + 4, iy, ix + 4, iy + 3);
+            g2.drawLine(ix + 9, iy, ix + 9, iy + 3);
+
+            g2.dispose();
+        }
+
+        private class CalendarPopupPanel extends JPanel {
+            private YearMonth currentMonth = YearMonth.from(selectedDate);
+            private final JLabel lblMonthYear = new JLabel("", SwingConstants.CENTER);
+            private final JPanel daysGrid = new JPanel(new GridLayout(6, 7, 3, 3));
+
+            CalendarPopupPanel() {
+                setLayout(new BorderLayout(0, 8));
+                setBackground(CARD_BG);
+                setPreferredSize(new Dimension(264, showExpiryPresets ? 292 : 264));
+
+                // Header navigasi bulan & tahun
+                JPanel navBar = new JPanel(new BorderLayout(4, 0));
+                navBar.setOpaque(false);
+
+                JPanel leftNav = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
+                leftNav.setOpaque(false);
+                RoundedButton btnPrevYear = createNavBtn("\u00AB", "Tahun sebelumnya");
+                RoundedButton btnPrevMonth = createNavBtn("\u2039", "Bulan sebelumnya");
+                btnPrevYear.addActionListener(e -> gantiBulan(currentMonth.minusYears(1)));
+                btnPrevMonth.addActionListener(e -> gantiBulan(currentMonth.minusMonths(1)));
+                leftNav.add(btnPrevYear);
+                leftNav.add(btnPrevMonth);
+
+                JPanel rightNav = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+                rightNav.setOpaque(false);
+                RoundedButton btnNextMonth = createNavBtn("\u203A", "Bulan berikutnya");
+                RoundedButton btnNextYear = createNavBtn("\u00BB", "Tahun berikutnya");
+                btnNextMonth.addActionListener(e -> gantiBulan(currentMonth.plusMonths(1)));
+                btnNextYear.addActionListener(e -> gantiBulan(currentMonth.plusYears(1)));
+                rightNav.add(btnNextMonth);
+                rightNav.add(btnNextYear);
+
+                lblMonthYear.setFont(new Font("SansSerif", Font.BOLD, 13));
+                lblMonthYear.setForeground(TEXT_DARK);
+
+                navBar.add(leftNav, BorderLayout.WEST);
+                navBar.add(lblMonthYear, BorderLayout.CENTER);
+                navBar.add(rightNav, BorderLayout.EAST);
+
+                // Baris nama hari (Sen - Min)
+                JPanel weekHeader = new JPanel(new GridLayout(1, 7, 3, 0));
+                weekHeader.setOpaque(false);
+                String[] hari = {"Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"};
+                for (String hName : hari) {
+                    JLabel lblDay = new JLabel(hName, SwingConstants.CENTER);
+                    lblDay.setFont(new Font("SansSerif", Font.BOLD, 11));
+                    lblDay.setForeground(TEXT_MUTED);
+                    weekHeader.add(lblDay);
+                }
+
+                JPanel northWrap = new JPanel(new BorderLayout(0, 8));
+                northWrap.setOpaque(false);
+                northWrap.add(navBar, BorderLayout.NORTH);
+                northWrap.add(weekHeader, BorderLayout.SOUTH);
+                add(northWrap, BorderLayout.NORTH);
+
+                daysGrid.setOpaque(false);
+                add(daysGrid, BorderLayout.CENTER);
+
+                // Footer shortcut cepat
+                JPanel quickBar = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 0));
+                quickBar.setOpaque(false);
+                quickBar.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR),
+                        BorderFactory.createEmptyBorder(8, 0, 0, 0)
+                ));
+
+                quickBar.add(createPresetBtn("Hari Ini", LocalDate::now));
+                if (showExpiryPresets) {
+                    quickBar.add(createPresetBtn("+1 Bln", () -> LocalDate.now().plusMonths(1)));
+                    quickBar.add(createPresetBtn("+3 Bln", () -> LocalDate.now().plusMonths(3)));
+                    quickBar.add(createPresetBtn("+6 Bln", () -> LocalDate.now().plusMonths(6)));
+                    quickBar.add(createPresetBtn("+1 Thn", () -> LocalDate.now().plusYears(1)));
+                }
+                add(quickBar, BorderLayout.SOUTH);
+
+                renderGrid();
+            }
+
+            void tampilkanBulan(LocalDate target) {
+                currentMonth = YearMonth.from(target != null ? target : LocalDate.now());
+                renderGrid();
+            }
+
+            private void gantiBulan(YearMonth target) {
+                currentMonth = target;
+                renderGrid();
+            }
+
+            private void renderGrid() {
+                String namaBulan = currentMonth.getMonth().getDisplayName(TextStyle.FULL, ID_LOCALE);
+                String capitalized = namaBulan.substring(0, 1).toUpperCase(ID_LOCALE) + namaBulan.substring(1);
+                lblMonthYear.setText(capitalized + " " + currentMonth.getYear());
+
+                daysGrid.removeAll();
+                LocalDate firstOfMonth = currentMonth.atDay(1);
+                int offset = firstOfMonth.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue();
+                LocalDate cellDate = firstOfMonth.minusDays(offset);
+                LocalDate today = LocalDate.now();
+
+                for (int i = 0; i < 42; i++) {
+                    LocalDate d = cellDate.plusDays(i);
+                    boolean inCurrentMonth = d.getMonth() == currentMonth.getMonth();
+                    boolean isSelected = d.equals(selectedDate);
+                    boolean isToday = d.equals(today);
+
+                    daysGrid.add(new DayCellButton(d, inCurrentMonth, isSelected, isToday));
+                }
+                daysGrid.revalidate();
+                daysGrid.repaint();
+            }
+
+            private RoundedButton createNavBtn(String text, String tip) {
+                RoundedButton btn = new RoundedButton(text, ButtonVariant.GHOST, 8);
+                btn.setFont(new Font("SansSerif", Font.BOLD, 14));
+                btn.setPreferredSize(new Dimension(26, 26));
+                btn.setToolTipText(tip);
+                return btn;
+            }
+
+            private RoundedButton createPresetBtn(String label, java.util.function.Supplier<LocalDate> dateSupplier) {
+                RoundedButton btn = new RoundedButton(label, ButtonVariant.OUTLINE, 8);
+                btn.setFont(new Font("SansSerif", Font.BOLD, 10));
+                btn.setPreferredSize(new Dimension(showExpiryPresets ? 48 : 80, 24));
+                btn.addActionListener(e -> {
+                    setDate(dateSupplier.get());
+                    popup.setVisible(false);
+                });
+                return btn;
+            }
+
+            private class DayCellButton extends JButton {
+                private final boolean inCurrentMonth;
+                private final boolean isSelected;
+                private final boolean isToday;
+                private boolean cellHovered = false;
+
+                DayCellButton(LocalDate date, boolean inCurrentMonth, boolean isSelected, boolean isToday) {
+                    super(String.valueOf(date.getDayOfMonth()));
+                    this.inCurrentMonth = inCurrentMonth;
+                    this.isSelected = isSelected;
+                    this.isToday = isToday;
+                    setContentAreaFilled(false);
+                    setBorderPainted(false);
+                    setFocusPainted(false);
+                    setOpaque(false);
+                    setFont(new Font("SansSerif", isSelected || isToday ? Font.BOLD : Font.PLAIN, 12));
+                    setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+                    addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseEntered(MouseEvent e) {
+                            cellHovered = true;
+                            repaint();
+                        }
+
+                        @Override
+                        public void mouseExited(MouseEvent e) {
+                            cellHovered = false;
+                            repaint();
+                        }
+                    });
+
+                    addActionListener(e -> {
+                        setDate(date);
+                        popup.setVisible(false);
+                    });
+                }
+
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+                    int w = getWidth();
+                    int h = getHeight();
+
+                    if (isSelected) {
+                        g2.setColor(PRIMARY_BLUE);
+                        g2.fillRoundRect(1, 1, w - 3, h - 3, 8, 8);
+                    } else if (cellHovered) {
+                        g2.setColor(PRIMARY_BLUE_SOFT);
+                        g2.fillRoundRect(1, 1, w - 3, h - 3, 8, 8);
+                    }
+
+                    if (isToday && !isSelected) {
+                        g2.setColor(PRIMARY_BLUE);
+                        g2.drawRoundRect(1, 1, w - 3, h - 3, 8, 8);
+                    }
+
+                    Color fg = isSelected ? Color.WHITE
+                            : (isToday ? PRIMARY_BLUE
+                            : (inCurrentMonth ? TEXT_DARK : new Color(186, 196, 209)));
+                    g2.setFont(getFont());
+                    FontMetrics fm = g2.getFontMetrics();
+                    String txt = getText();
+                    int tx = (w - fm.stringWidth(txt)) / 2;
+                    int ty = (h - fm.getHeight()) / 2 + fm.getAscent();
+                    g2.setColor(fg);
+                    g2.drawString(txt, tx, ty);
+
+                    g2.dispose();
+                }
+            }
         }
     }
 }
