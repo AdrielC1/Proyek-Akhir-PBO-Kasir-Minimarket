@@ -1,5 +1,6 @@
+
 package com.siritel.model;
 
-public class produk {
-    
+public abstract class produk {
+
 }
