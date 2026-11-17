@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * Controller untuk mengelola autentikasi dan manajemen pengguna.
- * Tidak mengandung query SQL dan tidak bergantung pada komponen Swing.
+ * Dilengkapi validasi aturan bisnis dan pemetaan kode SQLState PostgreSQL.
  */
 public class AuthController {
     private static Pengguna penggunaAktif;
@@ -35,9 +35,15 @@ public class AuthController {
     }
 
     public Pengguna login(String username, String passwordPlain) throws SQLException {
-        // FASE-1: tanpa penanganan eksepsi
-        Pengguna pengguna = penggunaDAO.login(username, passwordPlain);
-        // FASE-1: tanpa penanganan eksepsi
+        if (username == null || username.isBlank() || passwordPlain == null || passwordPlain.isBlank()) {
+            throw new IllegalArgumentException("Username atau password salah.");
+        }
+
+        Pengguna pengguna = penggunaDAO.login(username.trim(), passwordPlain);
+        if (pengguna == null) {
+            throw new IllegalArgumentException("Username atau password salah.");
+        }
+
         penggunaAktif = pengguna;
         return pengguna;
     }
@@ -47,17 +53,48 @@ public class AuthController {
     }
 
     public void tambahPengguna(Pengguna p) throws SQLException {
-        // FASE-1: tanpa penanganan eksepsi
+        if (p == null) {
+            throw new IllegalArgumentException("Data pengguna tidak boleh null.");
+        }
         penggunaDAO.insert(p);
     }
 
     public void ubahPengguna(Pengguna p, boolean gantiPassword) throws SQLException {
-        // FASE-1: tanpa penanganan eksepsi
+        if (p == null) {
+            throw new IllegalArgumentException("Data pengguna tidak boleh null.");
+        }
         penggunaDAO.update(p, gantiPassword);
     }
 
     public void hapusPengguna(int id) throws SQLException {
-        // FASE-1: tanpa penanganan eksepsi
+        if (penggunaAktif != null && penggunaAktif.getId() == id) {
+            throw new IllegalArgumentException("Tidak dapat menghapus akun yang sedang digunakan.");
+        }
         penggunaDAO.delete(id);
+    }
+
+    /**
+     * Memetakan kode SQLState PostgreSQL ke pesan berbahasa Indonesia yang ramah pengguna.
+     */
+    public static String pesanSqlError(SQLException e) {
+        if (e == null) {
+            return "Terjadi kesalahan database tidak diketahui.";
+        }
+        String state = e.getSQLState();
+        if (state != null) {
+            if ("23505".equals(state)) {
+                return "Username sudah digunakan.";
+            }
+            if ("23503".equals(state)) {
+                return "Pengguna masih terkait data transaksi sehingga tidak dapat dihapus.";
+            }
+            if (state.startsWith("08")) {
+                return "Tidak dapat terhubung ke database. Pastikan PostgreSQL berjalan dan konfigurasi koneksi benar.";
+            }
+            if (state.startsWith("28")) {
+                return "Autentikasi database gagal. Periksa user dan password di DatabaseConnection.";
+            }
+        }
+        return "Terjadi kesalahan database: " + e.getMessage();
     }
 }
