@@ -3,14 +3,14 @@ package com.siritel.model;
 
 public class itemTransaksi {
 
-    private final produk produk;
+    private final Produk produk;
     private int kuantitas;
     private final double hargaSatuan;
     private final double pajakSatuan;
     private double subtotal;
     
     // Constructor
-    public itemTransaksi(produk produk, int kuantitas) {
+    public itemTransaksi(Produk produk, int kuantitas) {
 
         if (produk == null) {
             throw new IllegalArgumentException(
@@ -61,7 +61,11 @@ public class itemTransaksi {
     }
 
     // Getter
-    public produk getproduk() {
+    public Produk getproduk() {
+        return produk;
+    }
+
+    public Produk getProduk() {
         return produk;
     }
 

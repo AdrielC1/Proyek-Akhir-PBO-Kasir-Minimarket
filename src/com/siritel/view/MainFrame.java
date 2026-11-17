@@ -64,8 +64,8 @@ public class MainFrame extends JFrame {
 
         setTitle("SI-RITEL — Sistem Informasi Kasir & Inventaris Ritel");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1180, 720);
-        setMinimumSize(new Dimension(960, 600));
+        setSize(1300, 720);
+        setMinimumSize(new Dimension(1160, 700));
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
@@ -90,8 +90,8 @@ public class MainFrame extends JFrame {
         items.add(new NavItem("kasir", "Kasir", buatPlaceholder("Kasir")));
 
         if ("Admin".equalsIgnoreCase(role)) {
-            // TODO INTEGRASI: ganti placeholder dengan new ManajemenProdukView() dari Modul 2
-            items.add(new NavItem("produk", "Manajemen Produk & Batch", buatPlaceholder("Manajemen Produk & Batch")));
+            // Modul 2: Manajemen Produk & Batch
+            items.add(new NavItem("produk", "Manajemen Produk & Batch", new ManajemenProdukView()));
 
             // Modul 1: Manajemen Pengguna
             items.add(new NavItem("pengguna", "Manajemen Pengguna", new ManajemenPenggunaView()));
