@@ -37,8 +37,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 /**
- * Halaman Manajemen Pengguna dengan restyle tabel modern dan form modal JDialog
- * sesuai referensi visual dan batasan adaptasi wajib.
+ * Halaman Manajemen Pengguna dengan penanganan eksepsi lengkap (Fase 2).
  */
 public class ManajemenPenggunaView extends JPanel {
     private static final Color BG_PANEL = new Color(248, 250, 252);
@@ -63,7 +62,7 @@ public class ManajemenPenggunaView extends JPanel {
         setBackground(BG_PANEL);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 24, 24));
 
-        // 1. Toolbar Atas (Aksi Tambah, Ubah, Hapus di atas tabel sesuai Adaptasi Wajib 3)
+        // 1. Toolbar Atas
         JPanel topToolbar = buildTopToolbar();
         add(topToolbar, BorderLayout.NORTH);
 
@@ -93,7 +92,6 @@ public class ManajemenPenggunaView extends JPanel {
         tablePengguna.getTableHeader().setPreferredSize(new Dimension(0, 38));
         tablePengguna.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
 
-        // Custom Cell Renderer untuk Padding & Alignment
         DefaultTableCellRenderer cellRenderer = new DefaultTableCellRenderer();
         cellRenderer.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
         for (int i = 0; i < tablePengguna.getColumnCount(); i++) {
@@ -116,7 +114,6 @@ public class ManajemenPenggunaView extends JPanel {
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.setOpaque(false);
 
-        // Sisi Kiri: Judul Bagian Tabel
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4));
         leftPanel.setOpaque(false);
         JLabel lblSection = new JLabel("Daftar Akun Pengguna");
@@ -125,11 +122,9 @@ public class ManajemenPenggunaView extends JPanel {
         leftPanel.add(lblSection);
         toolbar.add(leftPanel, BorderLayout.WEST);
 
-        // Sisi Kanan: Tombol-tombol Aksi di Atas Tabel
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         rightPanel.setOpaque(false);
 
-        // Tombol Tambah Pengguna (Primary Blue)
         btnTambah.setFont(new Font("SansSerif", Font.BOLD, 13));
         btnTambah.setBackground(PRIMARY_BLUE);
         btnTambah.setForeground(Color.WHITE);
@@ -138,7 +133,6 @@ public class ManajemenPenggunaView extends JPanel {
         btnTambah.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnTambah.setPreferredSize(new Dimension(160, 36));
 
-        // Tombol Ubah
         btnUbah.setFont(new Font("SansSerif", Font.BOLD, 13));
         btnUbah.setBackground(TEAL_COLOR);
         btnUbah.setForeground(Color.WHITE);
@@ -147,7 +141,6 @@ public class ManajemenPenggunaView extends JPanel {
         btnUbah.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnUbah.setPreferredSize(new Dimension(84, 36));
 
-        // Tombol Hapus (Destructive Red)
         btnHapus.setFont(new Font("SansSerif", Font.BOLD, 13));
         btnHapus.setBackground(DANGER_RED);
         btnHapus.setForeground(Color.WHITE);
@@ -156,7 +149,6 @@ public class ManajemenPenggunaView extends JPanel {
         btnHapus.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnHapus.setPreferredSize(new Dimension(84, 36));
 
-        // Tombol Segarkan
         btnSegarkan.setFont(new Font("SansSerif", Font.PLAIN, 12));
         btnSegarkan.setBackground(Color.WHITE);
         btnSegarkan.setForeground(new Color(71, 85, 105));
@@ -177,7 +169,7 @@ public class ManajemenPenggunaView extends JPanel {
     }
 
     private void initActions() {
-        // Aksi Tambah Pengguna: Membuka JDialog Modal Tambah
+        // Aksi Tambah Pengguna
         btnTambah.addActionListener(e -> {
             Frame parentFrame = (Frame) SwingUtilities.getWindowAncestor(this);
             PenggunaFormDialog dialog = new PenggunaFormDialog(parentFrame, "Tambah Pengguna", null);
@@ -189,29 +181,53 @@ public class ManajemenPenggunaView extends JPanel {
                 String password = dialog.getPassword();
                 String role = dialog.getRole();
 
-                // FASE-1: tanpa penanganan eksepsi
-                Pengguna p = new Pengguna(0, username, password, namaLengkap, role);
                 try {
+                    Pengguna p = new Pengguna(0, username, password, namaLengkap, role);
                     authController.tambahPengguna(p);
-                    JOptionPane.showMessageDialog(this, "Pengguna berhasil ditambahkan.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Pengguna berhasil ditambahkan.",
+                            "Sukses",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
                     muatDataTabel();
+                } catch (IllegalArgumentException ex) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage(),
+                            "Kesalahan Validasi",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 } catch (SQLException ex) {
-                    // FASE-1: tanpa penanganan eksepsi
-                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(
+                            this,
+                            AuthController.pesanSqlError(ex),
+                            "Kesalahan Database",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 }
             }
         });
 
-        // Aksi Ubah Pengguna: Membuka JDialog Modal Ubah dengan data baris terpilih
+        // Aksi Ubah Pengguna
         btnUbah.addActionListener(e -> {
-            // FASE-1: tanpa penanganan eksepsi
             int selectedRow = tablePengguna.getSelectedRow();
+            if (selectedRow < 0) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Pilih baris pengguna yang ingin diubah terlebih dahulu.",
+                        "Peringatan",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
             int id = Integer.parseInt(tableModel.getValueAt(selectedRow, 0).toString());
             String curUsername = tableModel.getValueAt(selectedRow, 1).toString();
             String curNama = tableModel.getValueAt(selectedRow, 2).toString();
             String curRole = tableModel.getValueAt(selectedRow, 3).toString();
 
-            Pengguna existing = new Pengguna(id, curUsername, "", curNama, curRole);
+            Pengguna existing = new Pengguna(id, curUsername, null, curNama, curRole);
             Frame parentFrame = (Frame) SwingUtilities.getWindowAncestor(this);
             PenggunaFormDialog dialog = new PenggunaFormDialog(parentFrame, "Ubah Pengguna", existing);
             dialog.setVisible(true);
@@ -223,28 +239,53 @@ public class ManajemenPenggunaView extends JPanel {
                 String role = dialog.getRole();
                 boolean gantiPassword = !password.isEmpty();
 
-                // FASE-1: tanpa penanganan eksepsi
-                Pengguna p = new Pengguna(id, username, password, namaLengkap, role);
                 try {
+                    Pengguna p = new Pengguna(id, username, gantiPassword ? password : null, namaLengkap, role);
                     authController.ubahPengguna(p, gantiPassword);
-                    JOptionPane.showMessageDialog(this, "Pengguna berhasil diperbarui.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Pengguna berhasil diperbarui.",
+                            "Sukses",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
                     muatDataTabel();
+                } catch (IllegalArgumentException ex) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage(),
+                            "Kesalahan Validasi",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 } catch (SQLException ex) {
-                    // FASE-1: tanpa penanganan eksepsi
-                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(
+                            this,
+                            AuthController.pesanSqlError(ex),
+                            "Kesalahan Database",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 }
             }
         });
 
-        // Aksi Hapus Pengguna: Konfirmasi dialog destruktif
+        // Aksi Hapus Pengguna
         btnHapus.addActionListener(e -> {
-            // FASE-1: tanpa penanganan eksepsi
             int selectedRow = tablePengguna.getSelectedRow();
+            if (selectedRow < 0) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Pilih baris pengguna yang ingin dihapus terlebih dahulu.",
+                        "Peringatan",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
             int id = Integer.parseInt(tableModel.getValueAt(selectedRow, 0).toString());
+            String username = tableModel.getValueAt(selectedRow, 1).toString();
 
             int confirm = JOptionPane.showConfirmDialog(
                     this,
-                    "Apakah Anda yakin ingin menghapus pengguna dengan ID " + id + "?",
+                    "Apakah Anda yakin ingin menghapus pengguna '" + username + "' (ID: " + id + ")?",
                     "Konfirmasi Hapus Pengguna",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE
@@ -253,11 +294,27 @@ public class ManajemenPenggunaView extends JPanel {
             if (confirm == JOptionPane.YES_OPTION) {
                 try {
                     authController.hapusPengguna(id);
-                    JOptionPane.showMessageDialog(this, "Pengguna berhasil dihapus.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Pengguna berhasil dihapus.",
+                            "Sukses",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
                     muatDataTabel();
+                } catch (IllegalArgumentException ex) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage(),
+                            "Aksi Ditolak",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 } catch (SQLException ex) {
-                    // FASE-1: tanpa penanganan eksepsi
-                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(
+                            this,
+                            AuthController.pesanSqlError(ex),
+                            "Kesalahan Database",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 }
             }
         });
@@ -278,14 +335,17 @@ public class ManajemenPenggunaView extends JPanel {
                 });
             }
         } catch (SQLException ex) {
-            // FASE-1: tanpa penanganan eksepsi
-            ex.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    this,
+                    AuthController.pesanSqlError(ex),
+                    "Kesalahan Database",
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
 
     /**
-     * Form Dialog Modal untuk Tambah dan Ubah Pengguna bergaya referensi visual
-     * (Adaptasi Wajib 1: Role memakai JRadioButton dalam ButtonGroup, BUKAN dropdown).
+     * Form Dialog Modal untuk Tambah dan Ubah Pengguna.
      */
     private static class PenggunaFormDialog extends JDialog {
         private final JTextField txtUsername = new JTextField();
@@ -358,7 +418,7 @@ public class ManajemenPenggunaView extends JPanel {
             formatInputField(txtNamaLengkap);
             mainCard.add(txtNamaLengkap, gbc);
 
-            // 4. Role Akses (Adaptasi Wajib 1: JRadioButton dalam ButtonGroup, BUKAN dropdown)
+            // 4. Role Akses (Adaptasi Wajib 1: JRadioButton dalam ButtonGroup)
             gbc.gridy = 6;
             gbc.insets = new Insets(0, 0, 6, 0);
             JLabel lblRole = new JLabel("Role Akses *");
@@ -443,7 +503,7 @@ public class ManajemenPenggunaView extends JPanel {
             gbc.gridy = 10;
             gbc.insets = new Insets(0, 0, 20, 0);
             String noteText = (pengguna == null)
-                    ? "Minimal 8 karakter"
+                    ? "Minimal 6 karakter"
                     : "*(Kosongkan jika tidak ingin mengganti password)";
             JLabel lblPassNote = new JLabel(noteText);
             lblPassNote.setFont(new Font("SansSerif", Font.PLAIN, 11));
@@ -477,7 +537,6 @@ public class ManajemenPenggunaView extends JPanel {
             btnSimpan.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
             btnSimpan.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             btnSimpan.addActionListener(e -> {
-                // FASE-1: tanpa penanganan eksepsi
                 saved = true;
                 dispose();
             });
