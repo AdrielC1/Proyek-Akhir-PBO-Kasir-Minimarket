@@ -1,6 +1,6 @@
 package com.siritel;
 
-import com.siritel.view.MainFrame;
+import com.siritel.view.LoginView;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
@@ -16,8 +16,8 @@ public class Main {
         }
 
         SwingUtilities.invokeLater(() -> {
-            MainFrame frame = new MainFrame();
-            frame.setVisible(true);
+            LoginView loginView = new LoginView();
+            loginView.setVisible(true);
         });
     }
 }
