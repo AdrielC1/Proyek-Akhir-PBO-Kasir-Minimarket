@@ -417,6 +417,8 @@ public class KasirView extends JPanel {
         .collect(Collectors.toList());
 
     panelKartuProduk.removeAll();
+    panelKartuProduk.setLayout(new GridBagLayout());
+
     lblJumlahProduk.setText(hasilFilter.size() + " produk");
 
     if (hasilFilter.isEmpty()) {
@@ -432,23 +434,24 @@ public class KasirView extends JPanel {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.gridwidth = 3;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-        gbc.insets = new Insets(12, 12, 12, 12);
+        gbc.gridwidth = 4;
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        gbc.anchor = GridBagConstraints.CENTER;
 
         panelKartuProduk.add(kosong, gbc);
 
     } else {
 
+        int jumlahKolom = 3;
+
         for (int i = 0; i < hasilFilter.size(); i++) {
 
             GridBagConstraints gbc = new GridBagConstraints();
 
-            // Maksimal 3 kartu dalam satu baris
-            gbc.gridx = i % 3;
-            gbc.gridy = i / 3;
+            gbc.gridx = i % jumlahKolom;
+            gbc.gridy = i / jumlahKolom;
 
-            // Kartu tidak mengikuti ukuran container
             gbc.fill = GridBagConstraints.NONE;
             gbc.anchor = GridBagConstraints.NORTHWEST;
 
@@ -462,6 +465,32 @@ public class KasirView extends JPanel {
                 gbc
             );
         }
+
+        // Spacer kanan untuk menjaga kartu tetap di kiri
+        JPanel spacerKanan = new JPanel();
+        spacerKanan.setOpaque(false);
+
+        GridBagConstraints gbcKanan = new GridBagConstraints();
+        gbcKanan.gridx = jumlahKolom;
+        gbcKanan.gridy = 0;
+        gbcKanan.weightx = 1;
+        gbcKanan.fill = GridBagConstraints.HORIZONTAL;
+
+        panelKartuProduk.add(spacerKanan, gbcKanan);
+
+        // Spacer bawah untuk menjaga kartu tetap di atas
+        JPanel spacerBawah = new JPanel();
+        spacerBawah.setOpaque(false);
+
+        GridBagConstraints gbcBawah = new GridBagConstraints();
+        gbcBawah.gridx = 0;
+        gbcBawah.gridy = (hasilFilter.size() + jumlahKolom - 1)
+            / jumlahKolom;
+        gbcBawah.gridwidth = jumlahKolom + 1;
+        gbcBawah.weighty = 1;
+        gbcBawah.fill = GridBagConstraints.VERTICAL;
+
+        panelKartuProduk.add(spacerBawah, gbcBawah);
     }
 
     panelKartuProduk.revalidate();
