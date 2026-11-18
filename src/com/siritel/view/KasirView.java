@@ -8,91 +8,83 @@ import com.siritel.model.ItemTransaksi;
 import com.siritel.model.Pengguna;
 import com.siritel.model.Produk;
 import com.siritel.model.Transaksi;
+import com.siritel.view.ui.ButtonVariant;
+import com.siritel.view.ui.ModernModal;
+import com.siritel.view.ui.ReceiptSupport;
+import com.siritel.view.ui.RefreshableView;
+import com.siritel.view.ui.RoundedBorder;
+import com.siritel.view.ui.RoundedButton;
+import com.siritel.view.ui.RoundedCardPanel;
+import com.siritel.view.ui.ToastManager;
+import com.siritel.view.ui.ToastType;
+import com.siritel.view.ui.UITheme;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
-
-
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 /**
  * Halaman kasir SI-RITEL.
- *
- * Tanggung jawab View dibatasi pada rendering komponen Swing,
- * penerimaan input pengguna, pemanggilan Controller, dan penyajian pesan.
- * Seluruh aturan transaksi dan akses database tetap berada pada Model,
- * Controller, dan DAO.
+ * Menggunakan komponen UI terpusat dari {@code com.siritel.view.ui} serta
+ * mendukung penyegaran otomatis dan manual dari database.
  */
-public class KasirView extends JPanel {
+public class KasirView extends JPanel implements RefreshableView {
 
-    // Palet warna
-    private static final Color BG_PANEL = new Color(248, 250, 252);
-    private static final Color CARD_BG = Color.WHITE;
-    private static final Color BORDER_COLOR = new Color(226, 232, 240);
-    private static final Color PRIMARY_BLUE = new Color(37, 99, 235);
-    private static final Color PRIMARY_BLUE_LIGHT = new Color(239, 246, 255);
-    private static final Color TEXT_DARK = new Color(15, 23, 42);
-    private static final Color TEXT_MUTED = new Color(100, 116, 139);
-    private static final Color SUCCESS_GREEN = new Color(22, 163, 74);
-    private static final Color SUCCESS_BG = new Color(240, 253, 244);
-    private static final Color DANGER_RED = new Color(220, 38, 38);
-    private static final Color WARNING_ORANGE = new Color(217, 119, 6);
-    private static final Color WARNING_BG = new Color(255, 251, 235);
+    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
 
     private static final String SEMUA = "SEMUA";
     private static final String MAKANAN = "MAKANAN";
     private static final String MINUMAN = "MINUMAN";
     private static final String ELEKTRONIK = "ELEKTRONIK";
 
-    private final ProdukController produkController;
-    private final TransaksiController transaksiController;
+    private final ProdukController produkController = new ProdukController();
+    private final TransaksiController transaksiController = new TransaksiController();
+    private final ToastManager toastManager = new ToastManager(this);
     private final Pengguna penggunaAktif;
 
     private final List<Produk> semuaProduk = new ArrayList<>();
-
     private Transaksi transaksiAktif;
     private String kategoriAktif = SEMUA;
+    private int kolomSaatIni = 3;
 
     // Komponen katalog
-    private final JTextField txtCari = new JTextField();
-   private final JPanel panelKartuProduk = new JPanel(new GridBagLayout());
+    private final JTextField txtCari = UITheme.createPlaceholderField("Cari kode atau nama produk (F2)...");
+    private final JPanel panelKartuProduk = new JPanel(new GridBagLayout());
     private final JLabel lblJumlahProduk = new JLabel("0 produk");
-    private final JLabel lblStatusKatalog = new JLabel("Memuat produk...");
-    private final JButton btnSemua = buatTombolFilter("Semua", SEMUA);
-    private final JButton btnMakanan = buatTombolFilter("Makanan", MAKANAN);
-    private final JButton btnMinuman = buatTombolFilter("Minuman", MINUMAN);
-    private final JButton btnElektronik = buatTombolFilter("Elektronik", ELEKTRONIK);
+    private final RoundedButton btnSegarkan = new RoundedButton("Segarkan", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
+    private final RoundedButton btnSemua = buatTombolFilter("Semua", SEMUA);
+    private final RoundedButton btnMakanan = buatTombolFilter("Makanan", MAKANAN);
+    private final RoundedButton btnMinuman = buatTombolFilter("Minuman", MINUMAN);
+    private final RoundedButton btnElektronik = buatTombolFilter("Elektronik", ELEKTRONIK);
 
     // Komponen keranjang dan pembayaran
     private final JPanel panelDaftarKeranjang = new JPanel();
@@ -101,8 +93,10 @@ public class KasirView extends JPanel {
     private final JLabel lblPajak = new JLabel(formatRupiah(0));
     private final JLabel lblGrandTotal = new JLabel(formatRupiah(0));
     private final JLabel lblKembalian = new JLabel(formatRupiah(0));
-    private final JTextField txtBayar = new JTextField();
-    private final JButton btnBayar = new JButton("BAYAR (F9)");
+    private final JPanel boxKembalian = new JPanel(new BorderLayout());
+    private final JTextField txtBayar = UITheme.createPlaceholderField("0");
+    private final RoundedButton btnBayar = new RoundedButton("BAYAR (F9)", ButtonVariant.TEAL, UITheme.BUTTON_RADIUS);
+    private final RoundedButton btnBatal = new RoundedButton("Batal (Esc)", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
 
     /**
      * Konstruktor default menggunakan pengguna yang sedang login.
@@ -116,25 +110,25 @@ public class KasirView extends JPanel {
      */
     public KasirView(Pengguna penggunaAktif) {
         if (penggunaAktif == null) {
-            throw new IllegalArgumentException(
-                "Pengguna aktif tidak boleh null."
-            );
+            throw new IllegalArgumentException("Pengguna aktif tidak boleh null.");
         }
-
         this.penggunaAktif = penggunaAktif;
-        this.produkController = new ProdukController();
-        this.transaksiController = new TransaksiController();
 
-        setLayout(new BorderLayout(16, 0));
-        setBackground(BG_PANEL);
-        setBorder(BorderFactory.createEmptyBorder(20, 24, 24, 24));
+        setLayout(new BorderLayout(14, 0));
+        setBackground(UITheme.BG_PAGE);
+        setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
         mulaiTransaksiBaru();
         bangunTampilan();
         pasangShortcutKeyboard();
         pasangListenerPembayaran();
-        muatProduk();
+        muatProduk(false);
         perbaruiKeranjang();
+    }
+
+    @Override
+    public void refreshData() {
+        muatProduk(false);
     }
 
     // =========================================================
@@ -142,238 +136,253 @@ public class KasirView extends JPanel {
     // =========================================================
 
     private void bangunTampilan() {
-        JPanel panelKatalog = bangunPanelKatalog();
-        JPanel panelKeranjang = bangunPanelKeranjang();
-
-        add(panelKatalog, BorderLayout.CENTER);
-        add(panelKeranjang, BorderLayout.EAST);
+        add(bangunPanelKatalog(), BorderLayout.CENTER);
+        add(bangunPanelKeranjang(), BorderLayout.EAST);
     }
 
     private JPanel bangunPanelKatalog() {
-        JPanel panel = new JPanel(new BorderLayout(0, 14));
-        panel.setOpaque(false);
+        JPanel card = new RoundedCardPanel(new BorderLayout(0, 12));
+        card.setBorder(BorderFactory.createEmptyBorder(15, 16, 14, 16));
 
-        // Search bar
-        JPanel panelPencarian = new JPanel(new BorderLayout(10, 0));
-        panelPencarian.setBackground(CARD_BG);
-        panelPencarian.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(PRIMARY_BLUE, 1),
-            BorderFactory.createEmptyBorder(4, 12, 4, 8)
-        ));
-        panelPencarian.setPreferredSize(new Dimension(100, 46));
+        // Toolbar atas (Judul + Segarkan, Pencarian, Chip Kategori)
+        JPanel toolbar = new JPanel(new GridBagLayout());
+        toolbar.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JLabel ikonCari = new JLabel("⌕");
-        ikonCari.setFont(new Font("SansSerif", Font.PLAIN, 25));
-        ikonCari.setForeground(TEXT_MUTED);
-        panelPencarian.add(ikonCari, BorderLayout.WEST);
+        // Baris 1: Judul + Status jumlah produk + Segarkan
+        JPanel headerRow = new JPanel(new BorderLayout(8, 0));
+        headerRow.setOpaque(false);
 
-        txtCari.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        txtCari.setForeground(TEXT_DARK);
-        txtCari.setBorder(BorderFactory.createEmptyBorder(6, 2, 6, 2));
-        txtCari.setToolTipText("Cari nama atau kode produk (F2)");
+        JPanel titleWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        titleWrap.setOpaque(false);
+        JLabel judul = new JLabel("Katalog Kasir");
+        judul.setFont(UITheme.font(Font.BOLD, 15f));
+        judul.setForeground(UITheme.TEXT_MAIN);
+        lblJumlahProduk.setFont(UITheme.font(Font.PLAIN, 12f));
+        lblJumlahProduk.setForeground(UITheme.TEXT_MUTED);
+        titleWrap.add(judul);
+        titleWrap.add(lblJumlahProduk);
+
+        konfigurasiTombol(btnSegarkan, 90, UITheme.TOOLBAR_BUTTON_HEIGHT, Font.PLAIN);
+        btnSegarkan.addActionListener(e -> muatProduk(true));
+
+        headerRow.add(titleWrap, BorderLayout.WEST);
+        headerRow.add(btnSegarkan, BorderLayout.EAST);
+
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        toolbar.add(headerRow, gbc);
+
+        // Baris 2: Kolom Pencarian + badge F2
+        JPanel searchWrap = new JPanel(new BorderLayout(8, 0));
+        searchWrap.setBackground(UITheme.CARD_BG);
+        searchWrap.setBorder(new RoundedBorder(UITheme.BORDER_INPUT, UITheme.BUTTON_RADIUS, new Insets(4, 12, 4, 8)));
+        searchWrap.setPreferredSize(new Dimension(0, 38));
+
+        txtCari.setFont(UITheme.font(Font.PLAIN, 13f));
+        txtCari.setForeground(UITheme.TEXT_MAIN);
+        txtCari.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
         txtCari.setOpaque(false);
+        txtCari.setToolTipText("Cari nama atau kode produk (F2)");
         txtCari.addActionListener(e -> tampilkanProduk());
-        panelPencarian.add(txtCari, BorderLayout.CENTER);
+        txtCari.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                tampilkanProduk();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                tampilkanProduk();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                tampilkanProduk();
+            }
+        });
 
         JLabel shortcutCari = new JLabel("F2");
-        shortcutCari.setFont(new Font("SansSerif", Font.BOLD, 11));
-        shortcutCari.setForeground(TEXT_MUTED);
+        shortcutCari.setFont(UITheme.keycapFont());
+        shortcutCari.setForeground(UITheme.KEYCAP_TEXT);
         shortcutCari.setOpaque(true);
-        shortcutCari.setBackground(new Color(241, 245, 249));
-        shortcutCari.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(4, 9, 4, 9)
-        ));
-        panelPencarian.add(shortcutCari, BorderLayout.EAST);
+        shortcutCari.setBackground(UITheme.KEYCAP_BG);
+        shortcutCari.setBorder(new RoundedBorder(UITheme.KEYCAP_BORDER, 6, new Insets(3, 8, 3, 8)));
 
-        // Kategori
-        JPanel panelKategori = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        searchWrap.add(txtCari, BorderLayout.CENTER);
+        searchWrap.add(shortcutCari, BorderLayout.EAST);
+
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        toolbar.add(searchWrap, gbc);
+
+        // Baris 3: Filter chip kategori memanjang penuh sejajar kotak pencarian
+        JPanel panelKategori = new JPanel(new GridLayout(1, 4, 8, 0));
         panelKategori.setOpaque(false);
         panelKategori.add(btnSemua);
         panelKategori.add(btnMakanan);
         panelKategori.add(btnMinuman);
         panelKategori.add(btnElektronik);
 
-        JPanel panelAtas = new JPanel(new BorderLayout(0, 12));
-        panelAtas.setOpaque(false);
-        panelAtas.add(panelPencarian, BorderLayout.NORTH);
-        panelAtas.add(panelKategori, BorderLayout.SOUTH);
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        toolbar.add(panelKategori, gbc);
 
-        // Kartu produk
-        panelKartuProduk.setBackground(BG_PANEL);
-        panelKartuProduk.setBorder(BorderFactory.createEmptyBorder(1, 1, 12, 1));
+        // Wadah grid kartu produk tanpa scroll horizontal
+        panelKartuProduk.setBackground(UITheme.BG_PAGE);
+        panelKartuProduk.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JScrollPane scrollProduk = new JScrollPane(panelKartuProduk);
-        scrollProduk.setBorder(BorderFactory.createEmptyBorder());
-        scrollProduk.setBackground(BG_PANEL);
-        scrollProduk.getViewport().setBackground(BG_PANEL);
+        scrollProduk.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollProduk.setBorder(new RoundedBorder(UITheme.BORDER_DEFAULT, 12, new Insets(1, 1, 1, 1)));
+        scrollProduk.setBackground(UITheme.BG_PAGE);
+        scrollProduk.getViewport().setBackground(UITheme.BG_PAGE);
         scrollProduk.getVerticalScrollBar().setUnitIncrement(16);
+        scrollProduk.getViewport().addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                int targetCols = scrollProduk.getViewport().getWidth() < 490 ? 2 : 3;
+                if (targetCols != kolomSaatIni) {
+                    kolomSaatIni = targetCols;
+                    tampilkanProduk();
+                }
+            }
+        });
 
-        JPanel panelKonten = new JPanel(new BorderLayout(0, 10));
-        panelKonten.setOpaque(false);
-
-        JPanel panelInfo = new JPanel(new BorderLayout());
-        panelInfo.setOpaque(false);
-        JLabel judul = new JLabel("Daftar Produk");
-        judul.setFont(new Font("SansSerif", Font.BOLD, 15));
-        judul.setForeground(TEXT_DARK);
-        lblJumlahProduk.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        lblJumlahProduk.setForeground(TEXT_MUTED);
-        panelInfo.add(judul, BorderLayout.WEST);
-        panelInfo.add(lblJumlahProduk, BorderLayout.EAST);
-
-        lblStatusKatalog.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        lblStatusKatalog.setForeground(TEXT_MUTED);
-        lblStatusKatalog.setHorizontalAlignment(SwingConstants.CENTER);
-
-        panelKonten.add(panelInfo, BorderLayout.NORTH);
-        panelKonten.add(scrollProduk, BorderLayout.CENTER);
-
-        panel.add(panelAtas, BorderLayout.NORTH);
-        panel.add(panelKonten, BorderLayout.CENTER);
-        return panel;
+        card.add(toolbar, BorderLayout.NORTH);
+        card.add(scrollProduk, BorderLayout.CENTER);
+        return card;
     }
 
     private JPanel bangunPanelKeranjang() {
-        JPanel panel = new JPanel(new BorderLayout(0, 12));
-        panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(16, 18, 14, 18)
-        ));
-        panel.setPreferredSize(new Dimension(410, 100));
-        panel.setMinimumSize(new Dimension(365, 100));
+        JPanel card = new RoundedCardPanel(new BorderLayout(0, 12));
+        card.setBorder(BorderFactory.createEmptyBorder(15, 16, 14, 16));
+        card.setPreferredSize(new Dimension(368, 0));
+        card.setMinimumSize(new Dimension(340, 0));
 
         // Header keranjang
-        JPanel panelHeader = new JPanel(new BorderLayout());
+        JPanel panelHeader = new JPanel(new BorderLayout(8, 0));
         panelHeader.setOpaque(false);
 
-        JPanel judulKeranjang = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        judulKeranjang.setOpaque(false);
+        JPanel judulWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        judulWrap.setOpaque(false);
         JLabel judul = new JLabel("Keranjang");
-        judul.setFont(new Font("SansSerif", Font.BOLD, 19));
-        judul.setForeground(TEXT_DARK);
-        lblJumlahItem.setFont(new Font("SansSerif", Font.BOLD, 11));
-        lblJumlahItem.setForeground(PRIMARY_BLUE);
-        lblJumlahItem.setOpaque(true);
-        lblJumlahItem.setBackground(PRIMARY_BLUE_LIGHT);
-        lblJumlahItem.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(191, 219, 254)),
-            BorderFactory.createEmptyBorder(4, 9, 4, 9)
-        ));
-        judulKeranjang.add(judul);
-        judulKeranjang.add(lblJumlahItem);
+        judul.setFont(UITheme.font(Font.BOLD, 16f));
+        judul.setForeground(UITheme.TEXT_MAIN);
 
-        JButton btnBersihkan = tombolTeks("Bersihkan", DANGER_RED);
+        lblJumlahItem.setFont(UITheme.font(Font.BOLD, 11f));
+        lblJumlahItem.setForeground(UITheme.PRIMARY_BLUE);
+        lblJumlahItem.setOpaque(true);
+        lblJumlahItem.setBackground(UITheme.PRIMARY_SOFT_BG);
+        lblJumlahItem.setBorder(new RoundedBorder(UITheme.PRIMARY_SOFT_BORDER, UITheme.SMALL_RADIUS, new Insets(3, 8, 3, 8)));
+
+        judulWrap.add(judul);
+        judulWrap.add(lblJumlahItem);
+
+        RoundedButton btnBersihkan = new RoundedButton("Bersihkan", ButtonVariant.DANGER_OUTLINE, UITheme.SMALL_RADIUS);
+        konfigurasiTombol(btnBersihkan, 84, 30, Font.BOLD);
         btnBersihkan.addActionListener(e -> bersihkanKeranjang());
-        panelHeader.add(judulKeranjang, BorderLayout.WEST);
+
+        panelHeader.add(judulWrap, BorderLayout.WEST);
         panelHeader.add(btnBersihkan, BorderLayout.EAST);
 
-        // Isi keranjang
+        // Daftar item keranjang
         panelDaftarKeranjang.setLayout(new BoxLayout(panelDaftarKeranjang, BoxLayout.Y_AXIS));
-        panelDaftarKeranjang.setBackground(CARD_BG);
+        panelDaftarKeranjang.setBackground(UITheme.CARD_BG);
 
         JScrollPane scrollKeranjang = new JScrollPane(panelDaftarKeranjang);
-        scrollKeranjang.setBorder(BorderFactory.createMatteBorder(
-            1, 0, 0, 0, BORDER_COLOR
-        ));
-        scrollKeranjang.getViewport().setBackground(CARD_BG);
+        scrollKeranjang.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollKeranjang.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, UITheme.BORDER_DEFAULT));
+        scrollKeranjang.getViewport().setBackground(UITheme.CARD_BG);
         scrollKeranjang.getVerticalScrollBar().setUnitIncrement(14);
 
-        // Panel ringkasan dan pembayaran
-        JPanel panelPembayaran = bangunPanelPembayaran();
-
-        panel.add(panelHeader, BorderLayout.NORTH);
-        panel.add(scrollKeranjang, BorderLayout.CENTER);
-        panel.add(panelPembayaran, BorderLayout.SOUTH);
-        return panel;
+        card.add(panelHeader, BorderLayout.NORTH);
+        card.add(scrollKeranjang, BorderLayout.CENTER);
+        card.add(bangunPanelPembayaran(), BorderLayout.SOUTH);
+        return card;
     }
 
     private JPanel bangunPanelPembayaran() {
         JPanel panel = new JPanel();
         panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createMatteBorder(
-            1, 0, 0, 0, BORDER_COLOR
-        ));
 
-        panel.add(Box.createVerticalStrut(12));
         panel.add(barisRingkasan("Subtotal Barang", lblSubtotal, false));
-        panel.add(Box.createVerticalStrut(8));
+        panel.add(Box.createVerticalStrut(6));
         panel.add(barisRingkasan("Total Pajak", lblPajak, false));
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(new GarisPemisah());
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(8));
+
+        JPanel divider = new JPanel();
+        divider.setPreferredSize(new Dimension(1, 1));
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        divider.setBackground(UITheme.BORDER_DEFAULT);
+        panel.add(divider);
+        panel.add(Box.createVerticalStrut(8));
+
         panel.add(barisRingkasan("GRAND TOTAL", lblGrandTotal, true));
-        panel.add(Box.createVerticalStrut(14));
-
-        JPanel panelInputPembayaran = new JPanel(new GridLayout(1, 2, 10, 0));
-        panelInputPembayaran.setOpaque(false);
-
-        JPanel kolomBayar = new JPanel(new BorderLayout(0, 6));
-        kolomBayar.setOpaque(false);
-        JLabel labelBayar = labelKecil("Uang Dibayar");
-        txtBayar.setFont(new Font("SansSerif", Font.BOLD, 15));
-        txtBayar.setForeground(TEXT_DARK);
-        txtBayar.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(9, 10, 9, 10)
-        ));
-        txtBayar.setToolTipText("Masukkan nominal uang yang diterima");
-        kolomBayar.add(labelBayar, BorderLayout.NORTH);
-        kolomBayar.add(txtBayar, BorderLayout.CENTER);
-
-        JPanel kolomKembali = new JPanel(new BorderLayout(0, 6));
-        kolomKembali.setOpaque(false);
-        JLabel labelKembali = labelKecil("Kembalian");
-        lblKembalian.setFont(new Font("SansSerif", Font.BOLD, 14));
-        lblKembalian.setForeground(TEXT_MUTED);
-        lblKembalian.setOpaque(true);
-        lblKembalian.setBackground(new Color(248, 250, 252));
-        lblKembalian.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        kolomKembali.add(labelKembali, BorderLayout.NORTH);
-        kolomKembali.add(lblKembalian, BorderLayout.CENTER);
-
-        panelInputPembayaran.add(kolomBayar);
-        panelInputPembayaran.add(kolomKembali);
-        panel.add(panelInputPembayaran);
         panel.add(Box.createVerticalStrut(12));
 
-        btnBayar.setFont(new Font("SansSerif", Font.BOLD, 15));
-        btnBayar.setForeground(Color.WHITE);
-        btnBayar.setBackground(SUCCESS_GREEN);
-        btnBayar.setFocusPainted(false);
-        btnBayar.setBorder(BorderFactory.createEmptyBorder(12, 10, 12, 10));
-        btnBayar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnBayar.setOpaque(true);
-        btnBayar.setBorderPainted(false);
-        btnBayar.addActionListener(e -> prosesPembayaran());
-        btnBayar.setAlignmentX(Component.LEFT_ALIGNMENT);
-        btnBayar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
-        panel.add(btnBayar);
+        // Grid input pembayaran dan kembalian
+        JPanel gridPay = new JPanel(new GridLayout(1, 2, 10, 0));
+        gridPay.setOpaque(false);
 
-        JButton btnBatal = new JButton("Batal (Esc)");
-        btnBatal.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        btnBatal.setForeground(TEXT_MUTED);
-        btnBatal.setBorderPainted(false);
-        btnBatal.setContentAreaFilled(false);
-        btnBatal.setFocusPainted(false);
-        btnBatal.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        JPanel colBayar = new JPanel(new BorderLayout(0, 5));
+        colBayar.setOpaque(false);
+        colBayar.add(UITheme.createFieldLabel("Uang Dibayar"), BorderLayout.NORTH);
+        UITheme.styleInputField(txtBayar);
+        txtBayar.setFont(UITheme.font(Font.BOLD, 14f));
+        txtBayar.setPreferredSize(new Dimension(0, 36));
+        txtBayar.setToolTipText("Masukkan nominal uang yang diterima");
+        colBayar.add(txtBayar, BorderLayout.CENTER);
+
+        JPanel colKembali = new JPanel(new BorderLayout(0, 5));
+        colKembali.setOpaque(false);
+        colKembali.add(UITheme.createFieldLabel("Kembalian"), BorderLayout.NORTH);
+
+        lblKembalian.setFont(UITheme.font(Font.BOLD, 14f));
+        lblKembalian.setForeground(UITheme.TEXT_MUTED);
+        boxKembalian.setOpaque(true);
+        boxKembalian.setBackground(UITheme.BG_PAGE);
+        boxKembalian.setBorder(new RoundedBorder(UITheme.BORDER_DEFAULT, UITheme.SMALL_RADIUS, new Insets(6, 10, 6, 10)));
+        boxKembalian.setPreferredSize(new Dimension(0, 36));
+        boxKembalian.add(lblKembalian, BorderLayout.CENTER);
+        colKembali.add(boxKembalian, BorderLayout.CENTER);
+
+        gridPay.add(colBayar);
+        gridPay.add(colKembali);
+        gridPay.setAlignmentX(Component.LEFT_ALIGNMENT);
+        gridPay.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
+        panel.add(gridPay);
+        panel.add(Box.createVerticalStrut(12));
+
+        // Tombol Bayar & Batal
+        JPanel actionCols = new JPanel(new BorderLayout(8, 0));
+        actionCols.setOpaque(false);
+        actionCols.setAlignmentX(Component.LEFT_ALIGNMENT);
+        actionCols.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+
+        btnBatal.setFont(UITheme.font(Font.PLAIN, 12f));
+        btnBatal.setPreferredSize(new Dimension(102, 40));
         btnBatal.addActionListener(e -> batalkanTransaksi());
-        btnBatal.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.add(Box.createVerticalStrut(6));
-        panel.add(btnBatal);
-        panel.add(Box.createVerticalStrut(4));
 
-        JLabel petunjuk = new JLabel("F2 Cari   •   F9 Bayar   •   Esc Batal");
-        petunjuk.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        petunjuk.setForeground(TEXT_MUTED);
-        petunjuk.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnBayar.setFont(UITheme.font(Font.BOLD, 13f));
+        btnBayar.setPreferredSize(new Dimension(0, 40));
+        btnBayar.addActionListener(e -> prosesPembayaran());
+
+        actionCols.add(btnBatal, BorderLayout.WEST);
+        actionCols.add(btnBayar, BorderLayout.CENTER);
+        panel.add(actionCols);
+        panel.add(Box.createVerticalStrut(8));
+
+        JLabel petunjuk = new JLabel("F2 Cari   \u2022   F9 Bayar   \u2022   Esc Batal", SwingConstants.CENTER);
+        petunjuk.setFont(UITheme.font(Font.PLAIN, 10f));
+        petunjuk.setForeground(UITheme.TEXT_MUTED);
+        petunjuk.setAlignmentX(Component.LEFT_ALIGNMENT);
+        petunjuk.setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
         panel.add(petunjuk);
-        panel.add(Box.createVerticalStrut(4));
 
         return panel;
     }
@@ -382,191 +391,169 @@ public class KasirView extends JPanel {
     // KATALOG PRODUK
     // =========================================================
 
-    private void muatProduk() {
+    private void muatProduk(boolean showToast) {
         try {
             List<Produk> hasil = produkController.daftarProduk();
             semuaProduk.clear();
-
             if (hasil != null) {
                 semuaProduk.addAll(hasil);
             }
-
             tampilkanProduk();
+            if (showToast) {
+                toastManager.show(
+                        "Katalog Disegarkan",
+                        semuaProduk.size() + " produk terbaru dimuat dari database.",
+                        ToastType.INFO
+                );
+            }
         } catch (SQLException ex) {
             panelKartuProduk.removeAll();
             lblJumlahProduk.setText("0 produk");
-            lblStatusKatalog.setText("Gagal memuat produk. Periksa koneksi database.");
-            panelKartuProduk.add(lblStatusKatalog);
+            JLabel errLbl = new JLabel("Gagal memuat produk. Periksa koneksi database.", SwingConstants.CENTER);
+            errLbl.setFont(UITheme.font(Font.PLAIN, 13f));
+            errLbl.setForeground(UITheme.TEXT_MUTED);
+            panelKartuProduk.add(errLbl);
             panelKartuProduk.revalidate();
             panelKartuProduk.repaint();
-            tampilkanPesanError("Gagal memuat daftar produk", ex);
+            ModernModal.error(this, "Kesalahan Database", "Gagal memuat daftar produk:\n" + ex.getMessage());
         }
     }
 
     private void tampilkanProduk() {
+        String keyword = txtCari.getText() == null
+                ? ""
+                : txtCari.getText().trim().toLowerCase(Locale.ROOT);
 
-    String keyword = txtCari.getText() == null
-        ? ""
-        : txtCari.getText().trim().toLowerCase(Locale.ROOT);
+        List<Produk> hasilFilter = semuaProduk.stream()
+                .filter(p -> cocokKategori(p, kategoriAktif))
+                .filter(p -> keyword.isEmpty()
+                        || p.getNama().toLowerCase(Locale.ROOT).contains(keyword)
+                        || p.getKode().toLowerCase(Locale.ROOT).contains(keyword))
+                .collect(Collectors.toList());
 
-    List<Produk> hasilFilter = semuaProduk.stream()
-        .filter(p -> cocokKategori(p, kategoriAktif))
-        .filter(p -> keyword.isEmpty()
-            || p.getNama().toLowerCase(Locale.ROOT).contains(keyword)
-            || p.getKode().toLowerCase(Locale.ROOT).contains(keyword))
-        .collect(Collectors.toList());
+        panelKartuProduk.removeAll();
+        panelKartuProduk.setLayout(new GridBagLayout());
+        lblJumlahProduk.setText("(" + hasilFilter.size() + " produk)");
 
-    panelKartuProduk.removeAll();
-    panelKartuProduk.setLayout(new GridBagLayout());
-
-    lblJumlahProduk.setText(hasilFilter.size() + " produk");
-
-    if (hasilFilter.isEmpty()) {
-
-        JLabel kosong = new JLabel(
-            "Produk tidak ditemukan.",
-            SwingConstants.CENTER
-        );
-
-        kosong.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        kosong.setForeground(TEXT_MUTED);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 4;
-        gbc.weightx = 1;
-        gbc.weighty = 1;
-        gbc.anchor = GridBagConstraints.CENTER;
-
-        panelKartuProduk.add(kosong, gbc);
-
-    } else {
-
-        int jumlahKolom = 3;
-
-        for (int i = 0; i < hasilFilter.size(); i++) {
-
+        if (hasilFilter.isEmpty()) {
+            JLabel kosong = new JLabel("Produk tidak ditemukan.", SwingConstants.CENTER);
+            kosong.setFont(UITheme.font(Font.PLAIN, 13f));
+            kosong.setForeground(UITheme.TEXT_MUTED);
             GridBagConstraints gbc = new GridBagConstraints();
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+            gbc.weightx = 1.0;
+            gbc.weighty = 1.0;
+            panelKartuProduk.add(kosong, gbc);
+        } else {
+            int cols = Math.max(2, kolomSaatIni);
+            int total = hasilFilter.size();
+            int rows = (total + cols - 1) / cols;
 
-            gbc.gridx = i % jumlahKolom;
-            gbc.gridy = i / jumlahKolom;
+            for (int r = 0; r < rows; r++) {
+                for (int c = 0; c < cols; c++) {
+                    int idx = r * cols + c;
+                    GridBagConstraints gbc = new GridBagConstraints();
+                    gbc.gridx = c;
+                    gbc.gridy = r;
+                    gbc.weightx = 1.0;
+                    gbc.fill = GridBagConstraints.HORIZONTAL;
+                    gbc.anchor = GridBagConstraints.NORTH;
+                    gbc.insets = new Insets(0, 0, 10, c < cols - 1 ? 10 : 0);
 
-            gbc.fill = GridBagConstraints.NONE;
-            gbc.anchor = GridBagConstraints.NORTHWEST;
+                    if (idx < total) {
+                        panelKartuProduk.add(buatKartuProduk(hasilFilter.get(idx)), gbc);
+                    } else {
+                        JPanel placeholder = new JPanel();
+                        placeholder.setOpaque(false);
+                        panelKartuProduk.add(placeholder, gbc);
+                    }
+                }
+            }
 
-            gbc.weightx = 0;
-            gbc.weighty = 0;
-
-            gbc.insets = new Insets(0, 0, 12, 12);
-
-            panelKartuProduk.add(
-                buatKartuProduk(hasilFilter.get(i)),
-                gbc
-            );
+            // Filler vertikal agar kartu rata atas
+            GridBagConstraints gbcBawah = new GridBagConstraints();
+            gbcBawah.gridx = 0;
+            gbcBawah.gridy = rows;
+            gbcBawah.gridwidth = cols;
+            gbcBawah.weighty = 1.0;
+            gbcBawah.fill = GridBagConstraints.VERTICAL;
+            JPanel spacerBawah = new JPanel();
+            spacerBawah.setOpaque(false);
+            panelKartuProduk.add(spacerBawah, gbcBawah);
         }
 
-        // Spacer kanan untuk menjaga kartu tetap di kiri
-        JPanel spacerKanan = new JPanel();
-        spacerKanan.setOpaque(false);
-
-        GridBagConstraints gbcKanan = new GridBagConstraints();
-        gbcKanan.gridx = jumlahKolom;
-        gbcKanan.gridy = 0;
-        gbcKanan.weightx = 1;
-        gbcKanan.fill = GridBagConstraints.HORIZONTAL;
-
-        panelKartuProduk.add(spacerKanan, gbcKanan);
-
-        // Spacer bawah untuk menjaga kartu tetap di atas
-        JPanel spacerBawah = new JPanel();
-        spacerBawah.setOpaque(false);
-
-        GridBagConstraints gbcBawah = new GridBagConstraints();
-        gbcBawah.gridx = 0;
-        gbcBawah.gridy = (hasilFilter.size() + jumlahKolom - 1)
-            / jumlahKolom;
-        gbcBawah.gridwidth = jumlahKolom + 1;
-        gbcBawah.weighty = 1;
-        gbcBawah.fill = GridBagConstraints.VERTICAL;
-
-        panelKartuProduk.add(spacerBawah, gbcBawah);
+        panelKartuProduk.revalidate();
+        panelKartuProduk.repaint();
     }
 
-    panelKartuProduk.revalidate();
-    panelKartuProduk.repaint();
-}
-
     private boolean cocokKategori(Produk produk, String kategori) {
-        return SEMUA.equals(kategori)
-            || kategori.equalsIgnoreCase(produk.getJenisProduk());
+        return SEMUA.equals(kategori) || kategori.equalsIgnoreCase(produk.getJenisProduk());
     }
 
     private JPanel buatKartuProduk(Produk produk) {
         int stok = produk.getStok();
+        JPanel kartu = new RoundedCardPanel(new BorderLayout(0, 8), 12);
+        kartu.setBorder(BorderFactory.createEmptyBorder(11, 12, 10, 12));
+        kartu.setPreferredSize(new Dimension(0, 152));
 
-        JPanel kartu = new JPanel(new BorderLayout(0, 8));
-        kartu.setBackground(CARD_BG);
-        kartu.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(
-                stok <= 5 && stok > 0 ? new Color(251, 191, 36) : BORDER_COLOR
-            ),
-            BorderFactory.createEmptyBorder(12, 12, 10, 12)
-        ));
-        kartu.setPreferredSize(new Dimension(190, 154));
-
-        // Bagian atas kartu: jenis dan stok
-        JPanel panelAtas = new JPanel(new BorderLayout());
+        // Baris atas: badge kategori + stok
+        JPanel panelAtas = new JPanel(new BorderLayout(6, 0));
         panelAtas.setOpaque(false);
 
-        JLabel labelJenis = new JLabel(labelJenisProduk(produk.getJenisProduk()));
-        labelJenis.setFont(new Font("SansSerif", Font.BOLD, 10));
-        labelJenis.setForeground(warnaJenisProduk(produk.getJenisProduk()));
-        panelAtas.add(labelJenis, BorderLayout.WEST);
+        JLabel badgeJenis = buatBadgeJenis(produk.getJenisProduk());
+        JPanel badgeWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        badgeWrap.setOpaque(false);
+        badgeWrap.add(badgeJenis);
 
         JLabel labelStok = new JLabel("Stok: " + stok);
-        labelStok.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        labelStok.setForeground(stok <= 5 ? WARNING_ORANGE : TEXT_MUTED);
+        labelStok.setFont(UITheme.font(Font.BOLD, 11f));
+        labelStok.setForeground(stok <= 0 ? UITheme.DANGER : (stok <= 5 ? UITheme.BADGE_AMBER_FG : UITheme.TEXT_MUTED));
+
+        panelAtas.add(badgeWrap, BorderLayout.WEST);
         panelAtas.add(labelStok, BorderLayout.EAST);
 
-        // Nama dan spesifikasi produk
-        JPanel panelDetail = new JPanel();
+        // Bagian tengah: nama wrap otomatis + spesifikasi
+        JPanel panelDetail = new JPanel(new BorderLayout(0, 3));
         panelDetail.setOpaque(false);
-        panelDetail.setLayout(new BoxLayout(panelDetail, BoxLayout.Y_AXIS));
 
-        JLabel nama = new JLabel(htmlSingkat(produk.getNama(), 26));
-        nama.setFont(new Font("SansSerif", Font.BOLD, 13));
-        nama.setForeground(stok <= 0 ? TEXT_MUTED : TEXT_DARK);
-        nama.setToolTipText(produk.getNama());
-        nama.setAlignmentX(Component.LEFT_ALIGNMENT);
+        javax.swing.JTextArea namaArea = ModernModal.createWrappedMessage(
+                produk.getNama(),
+                13f,
+                stok <= 0 ? UITheme.TEXT_MUTED : UITheme.TEXT_MAIN
+        );
+        namaArea.setFont(UITheme.font(Font.BOLD, 13f));
+        namaArea.setToolTipText(produk.getNama());
 
         JLabel spesifikasi = new JLabel(produk.getInfoSpesifik());
-        spesifikasi.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        spesifikasi.setForeground(TEXT_MUTED);
-        spesifikasi.setAlignmentX(Component.LEFT_ALIGNMENT);
+        spesifikasi.setFont(UITheme.font(Font.PLAIN, 11f));
+        spesifikasi.setForeground(UITheme.TEXT_MUTED);
 
-        panelDetail.add(nama);
-        panelDetail.add(Box.createVerticalStrut(4));
-        panelDetail.add(spesifikasi);
+        JPanel detailTop = new JPanel(new BorderLayout(0, 3));
+        detailTop.setOpaque(false);
+        detailTop.add(namaArea, BorderLayout.NORTH);
+        detailTop.add(spesifikasi, BorderLayout.SOUTH);
+        panelDetail.add(detailTop, BorderLayout.NORTH);
 
-        // Harga dan tombol tambah
-        JPanel panelBawah = new JPanel(new BorderLayout(4, 0));
+        // Baris bawah: harga + tombol tambah
+        JPanel panelBawah = new JPanel(new BorderLayout(6, 0));
         panelBawah.setOpaque(false);
-        panelBawah.setBorder(BorderFactory.createMatteBorder(
-            1, 0, 0, 0, new Color(241, 245, 249)
+        panelBawah.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BG_HOVER),
+                BorderFactory.createEmptyBorder(8, 0, 0, 0)
         ));
 
         JLabel harga = new JLabel(formatRupiah(produk.getHarga()));
-        harga.setFont(new Font("SansSerif", Font.BOLD, 13));
-        harga.setForeground(TEXT_DARK);
+        harga.setFont(UITheme.font(Font.BOLD, 13f));
+        harga.setForeground(UITheme.TEXT_MAIN);
 
-        JButton btnTambah = new JButton(stok > 0 ? "+ Tambah" : "Kosong");
-        btnTambah.setFont(new Font("SansSerif", Font.BOLD, 11));
-        btnTambah.setForeground(stok > 0 ? PRIMARY_BLUE : TEXT_MUTED);
-        btnTambah.setBorderPainted(false);
-        btnTambah.setContentAreaFilled(false);
-        btnTambah.setFocusPainted(false);
-        btnTambah.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        RoundedButton btnTambah = new RoundedButton(
+                stok > 0 ? "+ Tambah" : "Habis",
+                stok > 0 ? ButtonVariant.SOFT_PRIMARY : ButtonVariant.OUTLINE,
+                UITheme.SMALL_RADIUS
+        );
+        konfigurasiTombol(btnTambah, 78, 28, Font.BOLD);
+        btnTambah.setFont(UITheme.font(Font.BOLD, 11f));
         btnTambah.setEnabled(stok > 0);
         btnTambah.addActionListener(e -> tambahKeKeranjang(produk));
 
@@ -576,8 +563,44 @@ public class KasirView extends JPanel {
         kartu.add(panelAtas, BorderLayout.NORTH);
         kartu.add(panelDetail, BorderLayout.CENTER);
         kartu.add(panelBawah, BorderLayout.SOUTH);
-        kartu.setToolTipText(produk.getNama() + " — " + formatRupiah(produk.getHarga()));
+        kartu.setToolTipText(produk.getKode() + " \u2022 " + produk.getNama() + " (" + formatRupiah(produk.getHarga()) + ")");
         return kartu;
+    }
+
+    private JLabel buatBadgeJenis(String jenis) {
+        String code = jenis == null ? "" : jenis.toUpperCase(Locale.ROOT);
+        Color bg;
+        Color fg;
+        String text;
+        switch (code) {
+            case MAKANAN -> {
+                bg = UITheme.BADGE_AMBER_BG;
+                fg = UITheme.BADGE_AMBER_FG;
+                text = "Makanan";
+            }
+            case MINUMAN -> {
+                bg = UITheme.BADGE_BLUE_BG;
+                fg = UITheme.BADGE_BLUE_FG;
+                text = "Minuman";
+            }
+            case ELEKTRONIK -> {
+                bg = UITheme.BADGE_PURPLE_BG;
+                fg = UITheme.BADGE_PURPLE_FG;
+                text = "Elektronik";
+            }
+            default -> {
+                bg = UITheme.BG_HOVER;
+                fg = UITheme.TEXT_MUTED;
+                text = code.isEmpty() ? "Produk" : code;
+            }
+        }
+        JLabel badge = new JLabel(text);
+        badge.setFont(UITheme.font(Font.BOLD, 10f));
+        badge.setForeground(fg);
+        badge.setBackground(bg);
+        badge.setOpaque(true);
+        badge.setBorder(BorderFactory.createEmptyBorder(2, 7, 2, 7));
+        return badge;
     }
 
     private void tambahKeKeranjang(Produk produk) {
@@ -585,12 +608,7 @@ public class KasirView extends JPanel {
             transaksiController.tambahItem(transaksiAktif, produk, 1);
             perbaruiKeranjang();
         } catch (StokTidakCukupException | IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Tidak dapat menambahkan produk",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Stok Tidak Mencukupi", ex.getMessage());
         }
     }
 
@@ -600,53 +618,23 @@ public class KasirView extends JPanel {
         tampilkanProduk();
     }
 
-    private JButton buatTombolFilter(String teks, String kategori) {
-        JButton tombol = new JButton(teks);
-        tombol.setFont(new Font("SansSerif", Font.BOLD, 12));
-        tombol.setFocusPainted(false);
-        tombol.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        tombol.setMargin(new Insets(8, 15, 8, 15));
+    private RoundedButton buatTombolFilter(String teks, String kategori) {
+        RoundedButton tombol = new RoundedButton(
+                teks,
+                SEMUA.equals(kategori) ? ButtonVariant.PRIMARY : ButtonVariant.OUTLINE,
+                UITheme.SMALL_RADIUS
+        );
+        konfigurasiTombol(tombol, teks.length() > 7 ? 94 : 78, 30, Font.BOLD);
         tombol.addActionListener(e -> pilihKategori(kategori));
-        aturGayaTombolFilter(tombol, SEMUA.equals(kategori));
         return tombol;
     }
 
     private void aturTampilanTombolFilter() {
-        aturGayaTombolFilter(btnSemua, SEMUA.equals(kategoriAktif));
-        aturGayaTombolFilter(btnMakanan, MAKANAN.equals(kategoriAktif));
-        aturGayaTombolFilter(btnMinuman, MINUMAN.equals(kategoriAktif));
-        aturGayaTombolFilter(btnElektronik, ELEKTRONIK.equals(kategoriAktif));
+        btnSemua.setVariant(SEMUA.equals(kategoriAktif) ? ButtonVariant.PRIMARY : ButtonVariant.OUTLINE);
+        btnMakanan.setVariant(MAKANAN.equals(kategoriAktif) ? ButtonVariant.PRIMARY : ButtonVariant.OUTLINE);
+        btnMinuman.setVariant(MINUMAN.equals(kategoriAktif) ? ButtonVariant.PRIMARY : ButtonVariant.OUTLINE);
+        btnElektronik.setVariant(ELEKTRONIK.equals(kategoriAktif) ? ButtonVariant.PRIMARY : ButtonVariant.OUTLINE);
     }
-
-    private void aturGayaTombolFilter(JButton tombol, boolean aktif) {
-
-    // Warna latar belakang tombol
-    tombol.setBackground(
-        aktif ? PRIMARY_BLUE_LIGHT : CARD_BG
-    );
-
-    // Warna teks harus tetap kontras
-    tombol.setForeground(
-        aktif ? PRIMARY_BLUE : TEXT_DARK
-    );
-
-    // Memastikan warna tombol ditampilkan oleh Swing
-    tombol.setOpaque(true);
-    tombol.setContentAreaFilled(true);
-    tombol.setBorderPainted(true);
-    tombol.setFocusPainted(false);
-    tombol.setRolloverEnabled(false);
-
-    // Border tombol
-    tombol.setBorder(
-        BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(
-                aktif ? new Color(191, 219, 254) : BORDER_COLOR
-            ),
-            BorderFactory.createEmptyBorder(2, 3, 2, 3)
-        )
-    );
-}
 
     // =========================================================
     // KERANJANG
@@ -662,13 +650,13 @@ public class KasirView extends JPanel {
             JPanel panelKosong = new JPanel(new BorderLayout());
             panelKosong.setOpaque(false);
             JLabel pesan = new JLabel(
-                "Keranjang masih kosong.\nPilih produk untuk memulai transaksi.",
-                SwingConstants.CENTER
+                    "<html><div style='text-align:center;'>Keranjang masih kosong.<br>Pilih produk untuk memulai transaksi.</div></html>",
+                    SwingConstants.CENTER
             );
-            pesan.setFont(new Font("SansSerif", Font.PLAIN, 12));
-            pesan.setForeground(TEXT_MUTED);
+            pesan.setFont(UITheme.font(Font.PLAIN, 12f));
+            pesan.setForeground(UITheme.TEXT_MUTED);
             panelKosong.add(pesan, BorderLayout.CENTER);
-            panelKosong.setPreferredSize(new Dimension(100, 150));
+            panelKosong.setPreferredSize(new Dimension(100, 160));
             panelDaftarKeranjang.add(panelKosong);
         } else {
             for (ItemTransaksi item : daftarItem) {
@@ -689,56 +677,57 @@ public class KasirView extends JPanel {
         Produk produk = item.getProduk();
 
         JPanel baris = new JPanel(new BorderLayout(8, 6));
-        baris.setBackground(CARD_BG);
+        baris.setBackground(UITheme.CARD_BG);
         baris.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
-            BorderFactory.createEmptyBorder(10, 2, 10, 2)
+                BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_DEFAULT),
+                BorderFactory.createEmptyBorder(9, 2, 9, 2)
         ));
-        baris.setMaximumSize(new Dimension(Integer.MAX_VALUE, 82));
+        baris.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
 
         JPanel informasi = new JPanel();
         informasi.setOpaque(false);
         informasi.setLayout(new BoxLayout(informasi, BoxLayout.Y_AXIS));
 
-        JLabel nama = new JLabel(htmlSingkat(produk.getNama(), 23));
-        nama.setFont(new Font("SansSerif", Font.BOLD, 12));
-        nama.setForeground(TEXT_DARK);
+        JLabel nama = new JLabel(htmlSingkat(produk.getNama(), 22));
+        nama.setFont(UITheme.font(Font.BOLD, 12f));
+        nama.setForeground(UITheme.TEXT_MAIN);
         nama.setToolTipText(produk.getNama());
 
         JLabel hargaSatuan = new JLabel("@ " + formatRupiah(item.getHargaSatuan()));
-        hargaSatuan.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        hargaSatuan.setForeground(TEXT_MUTED);
+        hargaSatuan.setFont(UITheme.font(Font.PLAIN, 11f));
+        hargaSatuan.setForeground(UITheme.TEXT_MUTED);
 
         informasi.add(nama);
-        informasi.add(Box.createVerticalStrut(3));
+        informasi.add(Box.createVerticalStrut(2));
         informasi.add(hargaSatuan);
 
         JPanel kontrol = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         kontrol.setOpaque(false);
 
-        JButton btnKurang = tombolKuantitas("−");
-        JButton btnTambah = tombolKuantitas("+");
+        RoundedButton btnKurang = tombolKuantitas("\u2212");
+        RoundedButton btnTambah = tombolKuantitas("+");
         JLabel kuantitas = new JLabel(String.valueOf(item.getKuantitas()), SwingConstants.CENTER);
-        kuantitas.setFont(new Font("SansSerif", Font.BOLD, 12));
-        kuantitas.setForeground(TEXT_DARK);
+        kuantitas.setFont(UITheme.font(Font.BOLD, 12f));
+        kuantitas.setForeground(UITheme.TEXT_MAIN);
         kuantitas.setPreferredSize(new Dimension(22, 26));
 
         btnKurang.addActionListener(e -> ubahKuantitas(produk, item.getKuantitas() - 1));
         btnTambah.addActionListener(e -> ubahKuantitas(produk, item.getKuantitas() + 1));
 
         JLabel subtotalItem = new JLabel(formatRupiah(item.getSubtotal()));
-        subtotalItem.setFont(new Font("SansSerif", Font.BOLD, 12));
-        subtotalItem.setForeground(TEXT_DARK);
+        subtotalItem.setFont(UITheme.font(Font.BOLD, 12f));
+        subtotalItem.setForeground(UITheme.TEXT_MAIN);
+        subtotalItem.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 2));
 
-        JButton btnHapus = tombolTeks("×", DANGER_RED);
-        btnHapus.setFont(new Font("SansSerif", Font.BOLD, 19));
+        RoundedButton btnHapus = new RoundedButton("\u00D7", ButtonVariant.GHOST, 6);
+        btnHapus.setFont(UITheme.font(Font.BOLD, 15f));
+        btnHapus.setPreferredSize(new Dimension(24, 24));
         btnHapus.setToolTipText("Hapus item");
         btnHapus.addActionListener(e -> hapusItem(produk));
 
         kontrol.add(btnKurang);
         kontrol.add(kuantitas);
         kontrol.add(btnTambah);
-        kontrol.add(Box.createHorizontalStrut(3));
         kontrol.add(subtotalItem);
         kontrol.add(btnHapus);
 
@@ -747,16 +736,10 @@ public class KasirView extends JPanel {
         return baris;
     }
 
-    private JButton tombolKuantitas(String teks) {
-        JButton tombol = new JButton(teks);
-        tombol.setFont(new Font("SansSerif", Font.BOLD, 12));
-        tombol.setForeground(TEXT_MUTED);
-        tombol.setBackground(Color.WHITE);
-        tombol.setPreferredSize(new Dimension(25, 26));
-        tombol.setMargin(new Insets(0, 0, 0, 0));
-        tombol.setFocusPainted(false);
-        tombol.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        tombol.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    private RoundedButton tombolKuantitas(String teks) {
+        RoundedButton tombol = new RoundedButton(teks, ButtonVariant.OUTLINE, 6);
+        tombol.setFont(UITheme.font(Font.BOLD, 12f));
+        tombol.setPreferredSize(new Dimension(26, 26));
         return tombol;
     }
 
@@ -765,20 +748,11 @@ public class KasirView extends JPanel {
             if (kuantitasBaru <= 0) {
                 transaksiController.hapusItem(transaksiAktif, produk);
             } else {
-                transaksiController.ubahKuantitas(
-                    transaksiAktif,
-                    produk,
-                    kuantitasBaru
-                );
+                transaksiController.ubahKuantitas(transaksiAktif, produk, kuantitasBaru);
             }
             perbaruiKeranjang();
         } catch (StokTidakCukupException | IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Gagal mengubah kuantitas",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Stok Tidak Mencukupi", ex.getMessage());
         }
     }
 
@@ -787,32 +761,27 @@ public class KasirView extends JPanel {
             transaksiController.hapusItem(transaksiAktif, produk);
             perbaruiKeranjang();
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Gagal menghapus item",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Gagal Menghapus Item", ex.getMessage());
         }
     }
 
     private void bersihkanKeranjang() {
         if (transaksiAktif.getListKeranjang().isEmpty()) {
+            toastManager.show("Keranjang Kosong", "Belum ada item di keranjang untuk dibersihkan.", ToastType.INFO);
             return;
         }
 
-        int pilihan = JOptionPane.showConfirmDialog(
-            this,
-            "Hapus seluruh item dari keranjang?",
-            "Bersihkan Keranjang",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE
+        boolean disetujui = ModernModal.confirm(
+                this,
+                "Bersihkan Keranjang",
+                "Hapus seluruh item dari keranjang transaksi saat ini?",
+                "Ya, Kosongkan"
         );
-
-        if (pilihan == JOptionPane.YES_OPTION) {
+        if (disetujui) {
             transaksiController.bersihkanKeranjang(transaksiAktif);
             txtBayar.setText("");
             perbaruiKeranjang();
+            toastManager.show("Keranjang Dikosongkan", "Seluruh item keranjang telah dihapus.", ToastType.INFO);
         }
     }
 
@@ -837,7 +806,6 @@ public class KasirView extends JPanel {
                 perbaruiPratinjauKembalian();
             }
         });
-
         txtBayar.addActionListener(e -> prosesPembayaran());
     }
 
@@ -847,28 +815,20 @@ public class KasirView extends JPanel {
 
         if (nominalBayar >= total && total > 0) {
             lblKembalian.setText(formatRupiah(nominalBayar - total));
-            lblKembalian.setForeground(SUCCESS_GREEN);
-            lblKembalian.setBackground(SUCCESS_BG);
-            lblKembalian.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(187, 247, 208)),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-            ));
+            lblKembalian.setForeground(UITheme.SUCCESS);
+            boxKembalian.setBackground(UITheme.SUCCESS_SOFT_BG);
+            boxKembalian.setBorder(new RoundedBorder(UITheme.SUCCESS_BORDER, UITheme.SMALL_RADIUS, new Insets(6, 10, 6, 10)));
         } else {
             lblKembalian.setText(formatRupiah(0));
-            lblKembalian.setForeground(
-                nominalBayar > 0 ? DANGER_RED : TEXT_MUTED
-            );
-            lblKembalian.setBackground(new Color(248, 250, 252));
-            lblKembalian.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-            ));
+            lblKembalian.setForeground(nominalBayar > 0 ? UITheme.DANGER : UITheme.TEXT_MUTED);
+            boxKembalian.setBackground(UITheme.BG_PAGE);
+            boxKembalian.setBorder(new RoundedBorder(UITheme.BORDER_DEFAULT, UITheme.SMALL_RADIUS, new Insets(6, 10, 6, 10)));
         }
 
         btnBayar.setEnabled(
-            !transaksiAktif.getListKeranjang().isEmpty()
-                && nominalBayar >= total
-                && nominalBayar > 0
+                !transaksiAktif.getListKeranjang().isEmpty()
+                        && nominalBayar >= total
+                        && nominalBayar > 0
         );
     }
 
@@ -877,12 +837,10 @@ public class KasirView extends JPanel {
         if (teks == null || teks.isBlank()) {
             return 0;
         }
-
         String angka = teks.replaceAll("[^0-9]", "");
         if (angka.isEmpty()) {
             return 0;
         }
-
         try {
             return Long.parseLong(angka);
         } catch (NumberFormatException ex) {
@@ -892,23 +850,13 @@ public class KasirView extends JPanel {
 
     private void prosesPembayaran() {
         if (transaksiAktif.getListKeranjang().isEmpty()) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Keranjang masih kosong.",
-                "Pembayaran",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Keranjang Kosong", "Tambahkan minimal 1 produk sebelum melakukan pembayaran.");
             return;
         }
 
         double nominalBayar = bacaNominalPembayaran();
         if (nominalBayar <= 0) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Masukkan nominal pembayaran terlebih dahulu.",
-                "Pembayaran",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Nominal Belum Diisi", "Masukkan nominal uang yang dibayarkan pelanggan.");
             txtBayar.requestFocusInWindow();
             return;
         }
@@ -916,46 +864,26 @@ public class KasirView extends JPanel {
         try {
             transaksiController.prosesPembayaran(transaksiAktif, nominalBayar);
             transaksiController.checkout(transaksiAktif);
-            tampilkanNotaBerhasil();
+            Transaksi selesai = transaksiAktif;
 
             mulaiTransaksiBaru();
             txtBayar.setText("");
-            muatProduk();
+            muatProduk(false);
             perbaruiKeranjang();
+            toastManager.show(
+                    "Transaksi Berhasil",
+                    selesai.getIdTransaksi() + " tersimpan (" + formatRupiah(selesai.getGrandTotal()) + ").",
+                    ToastType.SUCCESS
+            );
+            ReceiptSupport.showSuccessModal(this, selesai, toastManager);
         } catch (StokTidakCukupException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Stok Tidak Mencukupi",
-                JOptionPane.WARNING_MESSAGE
-            );
-            muatProduk();
+            ModernModal.error(this, "Stok Tidak Mencukupi", ex.getMessage());
+            muatProduk(false);
         } catch (SQLException ex) {
-            tampilkanPesanError("Transaksi gagal disimpan ke database", ex);
+            ModernModal.error(this, "Kesalahan Database", "Transaksi gagal disimpan ke database:\n" + ex.getMessage());
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Pembayaran tidak valid",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Pembayaran Tidak Valid", ex.getMessage());
         }
-    }
-
-    private void tampilkanNotaBerhasil() {
-        JTextArea areaNota = new JTextArea(transaksiAktif.cetak(), 20, 38);
-        areaNota.setEditable(false);
-        areaNota.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        areaNota.setBackground(Color.WHITE);
-        areaNota.setCaretPosition(0);
-
-        JScrollPane scrollNota = new JScrollPane(areaNota);
-        JOptionPane.showMessageDialog(
-            this,
-            scrollNota,
-            "Transaksi Berhasil — " + transaksiAktif.getIdTransaksi(),
-            JOptionPane.INFORMATION_MESSAGE
-        );
     }
 
     private void batalkanTransaksi() {
@@ -963,19 +891,18 @@ public class KasirView extends JPanel {
             return;
         }
 
-        int pilihan = JOptionPane.showConfirmDialog(
-            this,
-            "Batalkan transaksi yang sedang berjalan?",
-            "Batalkan Transaksi",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE
+        boolean disetujui = ModernModal.confirm(
+                this,
+                "Batalkan Transaksi",
+                "Batalkan transaksi yang sedang berjalan dan kosongkan keranjang?",
+                "Ya, Batalkan"
         );
-
-        if (pilihan == JOptionPane.YES_OPTION) {
+        if (disetujui) {
             transaksiController.bersihkanKeranjang(transaksiAktif);
             txtBayar.setText("");
             mulaiTransaksiBaru();
             perbaruiKeranjang();
+            toastManager.show("Transaksi Dibatalkan", "Sesi transaksi baru siap digunakan.", ToastType.INFO);
         }
     }
 
@@ -988,9 +915,7 @@ public class KasirView extends JPanel {
     // =========================================================
 
     private void pasangShortcutKeyboard() {
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
-            KeyStroke.getKeyStroke("F2"), "fokusPencarian"
-        );
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F2"), "fokusPencarian");
         getActionMap().put("fokusPencarian", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -999,9 +924,7 @@ public class KasirView extends JPanel {
             }
         });
 
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
-            KeyStroke.getKeyStroke("F9"), "prosesBayar"
-        );
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F9"), "prosesBayar");
         getActionMap().put("prosesBayar", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -1009,9 +932,7 @@ public class KasirView extends JPanel {
             }
         });
 
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
-            KeyStroke.getKeyStroke("ESCAPE"), "batalkanTransaksi"
-        );
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "batalkanTransaksi");
         getActionMap().put("batalkanTransaksi", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -1025,60 +946,26 @@ public class KasirView extends JPanel {
         baris.setOpaque(false);
 
         JLabel label = new JLabel(teks);
-        label.setFont(new Font("SansSerif", utama ? Font.BOLD : Font.PLAIN,
-            utama ? 13 : 12));
-        label.setForeground(utama ? TEXT_DARK : TEXT_MUTED);
+        label.setFont(UITheme.font(utama ? Font.BOLD : Font.PLAIN, utama ? 13f : 12f));
+        label.setForeground(utama ? UITheme.TEXT_MAIN : UITheme.TEXT_MUTED);
 
-        nilai.setFont(new Font("SansSerif", Font.BOLD, utama ? 22 : 12));
-        nilai.setForeground(TEXT_DARK);
+        nilai.setFont(UITheme.font(Font.BOLD, utama ? 20f : 12f));
+        nilai.setForeground(UITheme.TEXT_MAIN);
         nilai.setHorizontalAlignment(SwingConstants.RIGHT);
 
         baris.add(label, BorderLayout.WEST);
         baris.add(nilai, BorderLayout.EAST);
-        baris.setMaximumSize(new Dimension(Integer.MAX_VALUE, utama ? 32 : 22));
+        baris.setAlignmentX(Component.LEFT_ALIGNMENT);
+        baris.setMaximumSize(new Dimension(Integer.MAX_VALUE, utama ? 30 : 20));
         return baris;
     }
 
-    private JLabel labelKecil(String teks) {
-        JLabel label = new JLabel(teks);
-        label.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        label.setForeground(TEXT_MUTED);
-        return label;
-    }
-
-    private JButton tombolTeks(String teks, Color warna) {
-        JButton tombol = new JButton(teks);
-        tombol.setFont(new Font("SansSerif", Font.BOLD, 11));
-        tombol.setForeground(warna);
-        tombol.setBorderPainted(false);
-        tombol.setContentAreaFilled(false);
-        tombol.setFocusPainted(false);
-        tombol.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        return tombol;
-    }
-
-    private String labelJenisProduk(String jenis) {
-        if (jenis == null) {
-            return "PRODUK";
-        }
-        return switch (jenis.toUpperCase(Locale.ROOT)) {
-            case MAKANAN -> "MAKANAN";
-            case MINUMAN -> "MINUMAN";
-            case ELEKTRONIK -> "ELEKTRONIK";
-            default -> jenis.toUpperCase(Locale.ROOT);
-        };
-    }
-
-    private Color warnaJenisProduk(String jenis) {
-        if (jenis == null) {
-            return TEXT_MUTED;
-        }
-        return switch (jenis.toUpperCase(Locale.ROOT)) {
-            case MAKANAN -> new Color(217, 119, 6);
-            case MINUMAN -> new Color(5, 150, 105);
-            case ELEKTRONIK -> PRIMARY_BLUE;
-            default -> TEXT_MUTED;
-        };
+    private static void konfigurasiTombol(RoundedButton btn, int width, int height, int fontStyle) {
+        btn.setFont(UITheme.font(fontStyle, 12f));
+        Dimension size = new Dimension(width, height);
+        btn.setPreferredSize(size);
+        btn.setMinimumSize(size);
+        btn.setMaximumSize(size);
     }
 
     private String htmlSingkat(String teks, int batas) {
@@ -1086,37 +973,18 @@ public class KasirView extends JPanel {
             return "-";
         }
         String aman = teks.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;");
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
         if (aman.length() > batas) {
-            aman = aman.substring(0, Math.max(0, batas - 1)) + "…";
+            aman = aman.substring(0, Math.max(0, batas - 1)) + "\u2026";
         }
         return "<html>" + aman + "</html>";
     }
 
-    private String formatRupiah(double nominal) {
-        NumberFormat format = NumberFormat.getCurrencyInstance(
-            new Locale("id", "ID")
-        );
+    private static String formatRupiah(double nominal) {
+        NumberFormat format = NumberFormat.getCurrencyInstance(ID_LOCALE);
         format.setMaximumFractionDigits(0);
         format.setMinimumFractionDigits(0);
         return format.format(nominal).replace('\u00A0', ' ');
-    }
-
-    private void tampilkanPesanError(String judul, Exception ex) {
-        JOptionPane.showMessageDialog(
-            this,
-            judul + ".\n" + ex.getMessage(),
-            "Kesalahan",
-            JOptionPane.ERROR_MESSAGE
-        );
-    }
-
-    private static class GarisPemisah extends JPanel {
-        GarisPemisah() {
-            setPreferredSize(new Dimension(1, 1));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-            setBackground(BORDER_COLOR);
-        }
     }
 }

@@ -9,6 +9,7 @@ import com.siritel.model.Produk;
 import com.siritel.view.ui.ButtonVariant;
 import com.siritel.view.ui.ModernDatePicker;
 import com.siritel.view.ui.ModernModal;
+import com.siritel.view.ui.RefreshableView;
 import com.siritel.view.ui.RoundedBorder;
 import com.siritel.view.ui.RoundedButton;
 import com.siritel.view.ui.RoundedCardPanel;
@@ -64,7 +65,7 @@ import javax.swing.table.DefaultTableModel;
  * Menampilkan katalog barang dengan kolom jenis dan nominal pajak polimorfik (hitungPajak()),
  * pencarian dengan method overloading cariProduk(), form dinamis kategori, serta manajemen batch FEFO.
  */
-public class ManajemenProdukView extends JPanel {
+public class ManajemenProdukView extends JPanel implements RefreshableView {
     private static final Color BG_PANEL = UITheme.BG_PAGE;
     private static final Color CARD_BG = UITheme.CARD_BG;
     private static final Color BORDER_COLOR = UITheme.BORDER_DEFAULT;
@@ -912,6 +913,11 @@ public class ManajemenProdukView extends JPanel {
     /**
      * Memanggil overloading method cariProduk() pada ProdukController sesuai pilihan filter kategori.
      */
+    @Override
+    public void refreshData() {
+        jalankanPencarian();
+    }
+
     private void jalankanPencarian() {
         String keyword = txtCari.getText().trim();
         String filterJenis = (String) cmbFilterJenis.getSelectedItem();

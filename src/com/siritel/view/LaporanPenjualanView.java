@@ -4,79 +4,79 @@ import com.siritel.controller.TransaksiController;
 import com.siritel.model.LaporanPenjualan;
 import com.siritel.model.Pengguna;
 import com.siritel.model.Transaksi;
+import com.siritel.view.ui.ButtonVariant;
+import com.siritel.view.ui.LaporanPrinter;
+import com.siritel.view.ui.ModernDatePicker;
+import com.siritel.view.ui.ModernModal;
+import com.siritel.view.ui.RefreshableView;
+import com.siritel.view.ui.RoundedBorder;
+import com.siritel.view.ui.RoundedButton;
+import com.siritel.view.ui.RoundedCardPanel;
+import com.siritel.view.ui.ToastManager;
+import com.siritel.view.ui.ToastType;
+import com.siritel.view.ui.UITheme;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Cursor;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
 import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
-import javax.swing.SpinnerDateModel;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 /**
  * Halaman laporan penjualan SI-RITEL.
- * View hanya menangani tampilan, input, pemanggilan Controller,
- * dan penyajian hasil. Query database tetap berada di DAO.
+ * Menggunakan komponen UI terpusat dari {@code com.siritel.view.ui}, pemilih
+ * tanggal modern, penyegaran otomatis & manual, serta pratinjau/cetak dokumen A4.
  */
-public class LaporanPenjualanView extends JPanel {
+public class LaporanPenjualanView extends JPanel implements RefreshableView {
 
-    private static final Color BG_PANEL = new Color(248, 250, 252);
-    private static final Color CARD_BG = Color.WHITE;
-    private static final Color BORDER_COLOR = new Color(226, 232, 240);
-    private static final Color PRIMARY_BLUE = new Color(37, 99, 235);
-    private static final Color PRIMARY_BLUE_LIGHT = new Color(239, 246, 255);
-    private static final Color TEXT_DARK = new Color(15, 23, 42);
-    private static final Color TEXT_MUTED = new Color(100, 116, 139);
-    private static final Color SUCCESS_GREEN = new Color(22, 163, 74);
-
+    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
     private static final DateTimeFormatter FORMAT_TANGGAL =
-        DateTimeFormatter.ofPattern("dd-MM-yyyy");
+            DateTimeFormatter.ofPattern("dd MMM yyyy", ID_LOCALE);
 
-    private final TransaksiController transaksiController;
-    private final JSpinner spTanggalAwal;
-    private final JSpinner spTanggalAkhir;
+    private final TransaksiController transaksiController = new TransaksiController();
+    private final ToastManager toastManager = new ToastManager(this);
+
+    private final ModernDatePicker dpTanggalAwal = new ModernDatePicker(LocalDate.now().withDayOfMonth(1), false);
+    private final ModernDatePicker dpTanggalAkhir = new ModernDatePicker(LocalDate.now(), false);
+    private final RoundedButton btnTampilkan = new RoundedButton("Tampilkan Laporan", ButtonVariant.PRIMARY, UITheme.BUTTON_RADIUS);
+    private final RoundedButton btnSegarkan = new RoundedButton("Segarkan", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
+    private final RoundedButton btnCetak = new RoundedButton("Cetak / Pratinjau PDF", ButtonVariant.TEAL, UITheme.BUTTON_RADIUS);
 
     private final JLabel lblJumlahTransaksi = new JLabel("0");
-    private final JLabel lblTotalOmzet = new JLabel("Rp0");
-    private final JLabel lblTotalPajak = new JLabel("Rp0");
+    private final JLabel lblTotalOmzet = new JLabel(formatRupiah(0));
+    private final JLabel lblTotalPajak = new JLabel(formatRupiah(0));
     private final JLabel lblStatus = new JLabel("Pilih periode laporan.");
 
-    private final DefaultTableModel modelTabel =
-        new DefaultTableModel(
+    private final DefaultTableModel modelTabel = new DefaultTableModel(
             new Object[]{"Tanggal", "Jumlah Transaksi", "Total Omzet", "Total Pajak"},
             0
-        ) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                return columnIndex == 1 ? Integer.class : String.class;
-            }
-        };
+    ) {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
 
     private final JTable tabelLaporan = new JTable(modelTabel);
     private LaporanPenjualan laporanAktif;
@@ -89,33 +89,17 @@ public class LaporanPenjualanView extends JPanel {
      * Parameter penggunaAktif disediakan agar kompatibel dengan MainFrame.
      */
     public LaporanPenjualanView(Pengguna penggunaAktif) {
-        transaksiController = new TransaksiController();
-
-        LocalDate hariIni = LocalDate.now();
-        spTanggalAwal = buatPemilihTanggal(hariIni.withDayOfMonth(1));
-        spTanggalAkhir = buatPemilihTanggal(hariIni);
-
-        setLayout(new BorderLayout(0, 16));
-        setBackground(BG_PANEL);
-        setBorder(BorderFactory.createEmptyBorder(20, 24, 24, 24));
+        setLayout(new BorderLayout(0, 14));
+        setBackground(UITheme.BG_PAGE);
+        setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
         bangunTampilan();
-        muatLaporan();
+        muatLaporan(false);
     }
 
-    private JSpinner buatPemilihTanggal(LocalDate tanggal) {
-        Date nilai = Date.from(
-            tanggal.atStartOfDay(ZoneId.systemDefault()).toInstant()
-        );
-
-        JSpinner spinner = new JSpinner(
-            new SpinnerDateModel(nilai, null, null,
-                java.util.Calendar.DAY_OF_MONTH)
-        );
-        spinner.setEditor(new JSpinner.DateEditor(spinner, "dd-MM-yyyy"));
-        spinner.setPreferredSize(new Dimension(145, 38));
-        spinner.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        return spinner;
+    @Override
+    public void refreshData() {
+        muatLaporan(false);
     }
 
     private void bangunTampilan() {
@@ -125,43 +109,82 @@ public class LaporanPenjualanView extends JPanel {
     }
 
     private JPanel bangunPanelAtas() {
-        JPanel panel = new JPanel(new BorderLayout(0, 14));
-        panel.setOpaque(false);
+        JPanel card = new RoundedCardPanel(new BorderLayout(0, 12));
+        card.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
 
-        JLabel judul = new JLabel("Laporan Penjualan");
-        judul.setFont(new Font("SansSerif", Font.BOLD, 20));
-        judul.setForeground(TEXT_DARK);
+        // Baris atas: judul & deskripsi di kiri, tombol aksi & segarkan di kanan
+        JPanel headerRow = new JPanel(new BorderLayout(8, 0));
+        headerRow.setOpaque(false);
 
-        JLabel deskripsi = new JLabel(
-            "Pantau ringkasan dan perkembangan penjualan harian."
-        );
-        deskripsi.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        deskripsi.setForeground(TEXT_MUTED);
-
-        JPanel panelJudul = new JPanel(new GridLayout(2, 1, 0, 4));
+        JPanel panelJudul = new JPanel(new GridLayout(2, 1, 0, 2));
         panelJudul.setOpaque(false);
+        JLabel judul = new JLabel("Laporan Penjualan");
+        judul.setFont(UITheme.font(Font.BOLD, 16f));
+        judul.setForeground(UITheme.TEXT_MAIN);
+        JLabel deskripsi = new JLabel("Pantau ringkasan omzet, pajak, dan perkembangan penjualan harian");
+        deskripsi.setFont(UITheme.font(Font.PLAIN, 12f));
+        deskripsi.setForeground(UITheme.TEXT_MUTED);
         panelJudul.add(judul);
         panelJudul.add(deskripsi);
 
-        JPanel panelFilter = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        panelFilter.setBackground(CARD_BG);
-        panelFilter.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(6, 10, 6, 10)
-        ));
+        konfigurasiTombol(btnSegarkan, 90, UITheme.TOOLBAR_BUTTON_HEIGHT, Font.PLAIN);
+        btnSegarkan.addActionListener(e -> muatLaporan(true));
 
-        panelFilter.add(labelKecil("Tanggal Awal"));
-        panelFilter.add(spTanggalAwal);
-        panelFilter.add(labelKecil("Tanggal Akhir"));
-        panelFilter.add(spTanggalAkhir);
+        JPanel segarkanWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        segarkanWrap.setOpaque(false);
+        segarkanWrap.add(btnSegarkan);
 
-        JButton btnTampilkan = buatTombol("Tampilkan Laporan", PRIMARY_BLUE);
-        btnTampilkan.addActionListener(e -> muatLaporan());
-        panelFilter.add(btnTampilkan);
+        headerRow.add(panelJudul, BorderLayout.CENTER);
+        headerRow.add(segarkanWrap, BorderLayout.EAST);
 
-        panel.add(panelJudul, BorderLayout.NORTH);
-        panel.add(panelFilter, BorderLayout.SOUTH);
-        return panel;
+        // Baris bawah: filter rentang tanggal memanjang penuh dengan ModernDatePicker
+        JPanel panelFilter = new JPanel(new GridBagLayout());
+        panelFilter.setOpaque(false);
+
+        dpTanggalAwal.setMinimumSize(new Dimension(130, UITheme.TOOLBAR_BUTTON_HEIGHT));
+        dpTanggalAwal.setPreferredSize(new Dimension(150, UITheme.TOOLBAR_BUTTON_HEIGHT));
+        dpTanggalAkhir.setMinimumSize(new Dimension(130, UITheme.TOOLBAR_BUTTON_HEIGHT));
+        dpTanggalAkhir.setPreferredSize(new Dimension(150, UITheme.TOOLBAR_BUTTON_HEIGHT));
+        konfigurasiTombol(btnTampilkan, 148, UITheme.TOOLBAR_BUTTON_HEIGHT, Font.BOLD);
+        btnTampilkan.addActionListener(e -> muatLaporan(true));
+
+        GridBagConstraints fg = new GridBagConstraints();
+        fg.gridy = 0;
+        fg.anchor = GridBagConstraints.WEST;
+
+        fg.gridx = 0;
+        fg.weightx = 0.0;
+        fg.fill = GridBagConstraints.NONE;
+        fg.insets = new Insets(0, 0, 0, 8);
+        panelFilter.add(UITheme.createFieldLabel("Tanggal Awal"), fg);
+
+        fg.gridx = 1;
+        fg.weightx = 1.0;
+        fg.fill = GridBagConstraints.HORIZONTAL;
+        fg.insets = new Insets(0, 0, 0, 14);
+        panelFilter.add(dpTanggalAwal, fg);
+
+        fg.gridx = 2;
+        fg.weightx = 0.0;
+        fg.fill = GridBagConstraints.NONE;
+        fg.insets = new Insets(0, 0, 0, 8);
+        panelFilter.add(UITheme.createFieldLabel("Tanggal Akhir"), fg);
+
+        fg.gridx = 3;
+        fg.weightx = 1.0;
+        fg.fill = GridBagConstraints.HORIZONTAL;
+        fg.insets = new Insets(0, 0, 0, 12);
+        panelFilter.add(dpTanggalAkhir, fg);
+
+        fg.gridx = 4;
+        fg.weightx = 0.0;
+        fg.fill = GridBagConstraints.NONE;
+        fg.insets = new Insets(0, 0, 0, 0);
+        panelFilter.add(btnTampilkan, fg);
+
+        card.add(headerRow, BorderLayout.NORTH);
+        card.add(panelFilter, BorderLayout.SOUTH);
+        return card;
     }
 
     private JPanel bangunPanelKonten() {
@@ -171,34 +194,30 @@ public class LaporanPenjualanView extends JPanel {
         JPanel panelRingkasan = new JPanel(new GridLayout(1, 3, 14, 0));
         panelRingkasan.setOpaque(false);
         panelRingkasan.add(buatKartuRingkasan(
-            "Jumlah Transaksi", lblJumlahTransaksi,
-            "Transaksi pada periode terpilih", PRIMARY_BLUE
+                "Jumlah Transaksi", lblJumlahTransaksi,
+                "Transaksi pada periode terpilih", UITheme.PRIMARY_BLUE
         ));
         panelRingkasan.add(buatKartuRingkasan(
-            "Total Omzet", lblTotalOmzet,
-            "Akumulasi grand total transaksi", SUCCESS_GREEN
+                "Total Omzet", lblTotalOmzet,
+                "Akumulasi grand total transaksi", UITheme.SUCCESS
         ));
         panelRingkasan.add(buatKartuRingkasan(
-            "Total Pajak", lblTotalPajak,
-            "Akumulasi pajak transaksi", new Color(217, 119, 6)
+                "Total Pajak", lblTotalPajak,
+                "Akumulasi pajak terkumpul", UITheme.BADGE_AMBER_FG
         ));
 
-        JPanel panelTabel = new JPanel(new BorderLayout(0, 10));
-        panelTabel.setBackground(CARD_BG);
-        panelTabel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(16, 16, 16, 16)
-        ));
+        JPanel panelTabel = new RoundedCardPanel(new BorderLayout(0, 10));
+        panelTabel.setBorder(BorderFactory.createEmptyBorder(15, 16, 14, 16));
 
         JLabel judulTabel = new JLabel("Rincian Penjualan Harian");
-        judulTabel.setFont(new Font("SansSerif", Font.BOLD, 15));
-        judulTabel.setForeground(TEXT_DARK);
+        judulTabel.setFont(UITheme.font(Font.BOLD, 14f));
+        judulTabel.setForeground(UITheme.TEXT_MAIN);
 
         aturTampilanTabel();
 
         JScrollPane scrollPane = new JScrollPane(tabelLaporan);
-        scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        scrollPane.getViewport().setBackground(Color.WHITE);
+        scrollPane.setBorder(new RoundedBorder(UITheme.BORDER_DEFAULT, 10, new Insets(1, 1, 1, 1)));
+        scrollPane.getViewport().setBackground(UITheme.CARD_BG);
 
         panelTabel.add(judulTabel, BorderLayout.NORTH);
         panelTabel.add(scrollPane, BorderLayout.CENTER);
@@ -212,13 +231,13 @@ public class LaporanPenjualanView extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
 
-        lblStatus.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        lblStatus.setForeground(TEXT_MUTED);
+        lblStatus.setFont(UITheme.font(Font.PLAIN, 12f));
+        lblStatus.setForeground(UITheme.TEXT_MUTED);
 
-        JPanel panelTombol = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel panelTombol = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         panelTombol.setOpaque(false);
 
-        JButton btnCetak = buatTombol("Cetak Laporan", SUCCESS_GREEN);
+        konfigurasiTombol(btnCetak, 166, 36, Font.BOLD);
         btnCetak.addActionListener(e -> cetakLaporan());
         panelTombol.add(btnCetak);
 
@@ -227,23 +246,19 @@ public class LaporanPenjualanView extends JPanel {
         return panel;
     }
 
-    private JPanel buatKartuRingkasan(
-            String judul, JLabel nilai, String keterangan, Color warnaAksen) {
+    private JPanel buatKartuRingkasan(String judul, JLabel nilai, String keterangan, Color warnaAksen) {
+        JPanel kartu = new RoundedCardPanel(new BorderLayout(0, 6));
+        kartu.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
 
-        JPanel kartu = new JPanel(new BorderLayout(0, 8));
-        kartu.setBackground(CARD_BG);
-        kartu.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(14, 16, 14, 16)
-        ));
+        JLabel lblJudul = UITheme.createFieldLabel(judul);
+        lblJudul.setForeground(UITheme.TEXT_MUTED);
 
-        JLabel lblJudul = labelKecil(judul);
-        nilai.setFont(new Font("SansSerif", Font.BOLD, 21));
+        nilai.setFont(UITheme.font(Font.BOLD, 22f));
         nilai.setForeground(warnaAksen);
 
         JLabel lblKeterangan = new JLabel(keterangan);
-        lblKeterangan.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        lblKeterangan.setForeground(TEXT_MUTED);
+        lblKeterangan.setFont(UITheme.font(Font.PLAIN, 11f));
+        lblKeterangan.setForeground(UITheme.TEXT_MUTED);
 
         kartu.add(lblJudul, BorderLayout.NORTH);
         kartu.add(nilai, BorderLayout.CENTER);
@@ -251,164 +266,157 @@ public class LaporanPenjualanView extends JPanel {
         return kartu;
     }
 
-    private JLabel labelKecil(String teks) {
-        JLabel label = new JLabel(teks);
-        label.setFont(new Font("SansSerif", Font.BOLD, 11));
-        label.setForeground(TEXT_MUTED);
-        return label;
-    }
-
-    private JButton buatTombol(String teks, Color warna) {
-        JButton tombol = new JButton(teks);
-        tombol.setFont(new Font("SansSerif", Font.BOLD, 12));
-        tombol.setForeground(Color.WHITE);
-        tombol.setBackground(warna);
-        tombol.setFocusPainted(false);
-        tombol.setBorderPainted(false);
-        tombol.setOpaque(true);
-        tombol.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        tombol.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-        return tombol;
-    }
-
     private void aturTampilanTabel() {
-        tabelLaporan.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        tabelLaporan.setForeground(TEXT_DARK);
-        tabelLaporan.setRowHeight(34);
+        tabelLaporan.setFont(UITheme.font(Font.PLAIN, 12f));
+        tabelLaporan.setForeground(UITheme.TEXT_MAIN);
+        tabelLaporan.setRowHeight(36);
         tabelLaporan.setShowVerticalLines(false);
-        tabelLaporan.setGridColor(BORDER_COLOR);
-        tabelLaporan.setSelectionBackground(PRIMARY_BLUE_LIGHT);
-        tabelLaporan.setSelectionForeground(TEXT_DARK);
-        tabelLaporan.getTableHeader().setFont(
-            new Font("SansSerif", Font.BOLD, 12)
-        );
-        tabelLaporan.getTableHeader().setForeground(TEXT_DARK);
-        tabelLaporan.getTableHeader().setBackground(new Color(241, 245, 249));
-        tabelLaporan.getTableHeader().setReorderingAllowed(false);
+        tabelLaporan.setGridColor(UITheme.BG_HOVER);
+        tabelLaporan.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tabelLaporan.setSelectionBackground(UITheme.PRIMARY_SOFT_BG);
+        tabelLaporan.setSelectionForeground(UITheme.TEXT_MAIN);
         tabelLaporan.setFillsViewportHeight(true);
+
+        tabelLaporan.getTableHeader().setFont(UITheme.font(Font.BOLD, 11f));
+        tabelLaporan.getTableHeader().setForeground(UITheme.TEXT_MUTED);
+        tabelLaporan.getTableHeader().setBackground(UITheme.BG_PAGE);
+        tabelLaporan.getTableHeader().setPreferredSize(new Dimension(0, 36));
+        tabelLaporan.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_DEFAULT));
+        tabelLaporan.getTableHeader().setReorderingAllowed(false);
+
+        DefaultTableCellRenderer tanggalRenderer = paddedCellRenderer(SwingConstants.LEFT);
+        DefaultTableCellRenderer qtyRenderer = paddedCellRenderer(SwingConstants.CENTER);
+        DefaultTableCellRenderer rupiahRenderer = paddedCellRenderer(SwingConstants.RIGHT);
+
+        tabelLaporan.getColumnModel().getColumn(0).setCellRenderer(tanggalRenderer);
+        tabelLaporan.getColumnModel().getColumn(1).setCellRenderer(qtyRenderer);
+        tabelLaporan.getColumnModel().getColumn(2).setCellRenderer(rupiahRenderer);
+        tabelLaporan.getColumnModel().getColumn(3).setCellRenderer(rupiahRenderer);
+
+        // Header alignment mengikuti alignment isi kolom agar rapi
+        tabelLaporan.getColumnModel().getColumn(0).setHeaderRenderer(headerRenderer(SwingConstants.LEFT));
+        tabelLaporan.getColumnModel().getColumn(1).setHeaderRenderer(headerRenderer(SwingConstants.CENTER));
+        tabelLaporan.getColumnModel().getColumn(2).setHeaderRenderer(headerRenderer(SwingConstants.RIGHT));
+        tabelLaporan.getColumnModel().getColumn(3).setHeaderRenderer(headerRenderer(SwingConstants.RIGHT));
     }
 
-    private LocalDate ambilTanggal(JSpinner spinner) {
-        Date tanggal = (Date) spinner.getValue();
-        return tanggal.toInstant()
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate();
+    private DefaultTableCellRenderer paddedCellRenderer(int alignment) {
+        return new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(alignment);
+                setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
+
+                Object txVal = table.getModel().getValueAt(row, 1);
+                boolean hasTx = txVal instanceof Number n && n.intValue() > 0;
+                setFont(UITheme.font(hasTx ? Font.BOLD : Font.PLAIN, 12f));
+                if (!isSelected) {
+                    setForeground(hasTx ? UITheme.TEXT_MAIN : UITheme.TEXT_MUTED);
+                }
+                return this;
+            }
+        };
     }
 
-    private void muatLaporan() {
-        LocalDate tanggalAwal = ambilTanggal(spTanggalAwal);
-        LocalDate tanggalAkhir = ambilTanggal(spTanggalAkhir);
+    private DefaultTableCellRenderer headerRenderer(int alignment) {
+        return new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(alignment);
+                setFont(UITheme.font(Font.BOLD, 11f));
+                setForeground(UITheme.TEXT_MUTED);
+                setBackground(UITheme.BG_PAGE);
+                setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_DEFAULT),
+                        BorderFactory.createEmptyBorder(0, 14, 0, 14)
+                ));
+                return this;
+            }
+        };
+    }
+
+    private void muatLaporan(boolean showToast) {
+        LocalDate tanggalAwal = dpTanggalAwal.getDate();
+        LocalDate tanggalAkhir = dpTanggalAkhir.getDate();
 
         if (tanggalAwal.isAfter(tanggalAkhir)) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Tanggal awal tidak boleh melebihi tanggal akhir.",
-                "Periode Tidak Valid",
-                JOptionPane.WARNING_MESSAGE
+            ModernModal.error(
+                    this,
+                    "Periode Tidak Valid",
+                    "Tanggal awal tidak boleh melebihi tanggal akhir."
             );
             return;
         }
 
         try {
-            laporanAktif = transaksiController.buatLaporan(
-                tanggalAwal, tanggalAkhir
-            );
-
+            laporanAktif = transaksiController.buatLaporan(tanggalAwal, tanggalAkhir);
             perbaruiRingkasan();
             perbaruiTabel();
 
             lblStatus.setText(
-                "Periode: " + tanggalAwal.format(FORMAT_TANGGAL)
-                + " sampai " + tanggalAkhir.format(FORMAT_TANGGAL)
-                + " | " + laporanAktif.hitungJumlahTransaksi()
-                + " transaksi ditemukan."
+                    "Periode: " + tanggalAwal.format(FORMAT_TANGGAL)
+                            + " s/d " + tanggalAkhir.format(FORMAT_TANGGAL)
+                            + " \u2022 " + laporanAktif.hitungJumlahTransaksi() + " transaksi ditemukan."
             );
 
+            if (showToast) {
+                toastManager.show(
+                        "Laporan Diperbarui",
+                        laporanAktif.hitungJumlahTransaksi() + " transaksi berhasil dimuat.",
+                        ToastType.INFO
+                );
+            }
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Gagal mengambil laporan penjualan:\n" + ex.getMessage(),
-                "Kesalahan Database",
-                JOptionPane.ERROR_MESSAGE
-            );
+            ModernModal.error(this, "Kesalahan Database", "Gagal mengambil laporan penjualan:\n" + ex.getMessage());
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Data Tidak Valid",
-                JOptionPane.WARNING_MESSAGE
-            );
+            ModernModal.error(this, "Data Tidak Valid", ex.getMessage());
         }
     }
 
     private void perbaruiRingkasan() {
-        NumberFormat rupiah =
-            NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
-
-        lblJumlahTransaksi.setText(
-            String.valueOf(laporanAktif.hitungJumlahTransaksi())
-        );
-        lblTotalOmzet.setText(
-            rupiah.format(laporanAktif.hitungTotalOmzet())
-        );
-        lblTotalPajak.setText(
-            rupiah.format(laporanAktif.hitungTotalPajakTerkumpul())
-        );
+        lblJumlahTransaksi.setText(String.valueOf(laporanAktif.hitungJumlahTransaksi()));
+        lblTotalOmzet.setText(formatRupiah(laporanAktif.hitungTotalOmzet()));
+        lblTotalPajak.setText(formatRupiah(laporanAktif.hitungTotalPajakTerkumpul()));
     }
 
     private void perbaruiTabel() {
         modelTabel.setRowCount(0);
 
-        NumberFormat rupiah =
-            NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
-
-        Map<LocalDate, List<Transaksi>> daftarHarian =
-            laporanAktif.getDaftarHarian();
-
-        for (Map.Entry<LocalDate, List<Transaksi>> entry
-                : daftarHarian.entrySet()) {
-
+        Map<LocalDate, List<Transaksi>> daftarHarian = laporanAktif.getDaftarHarian();
+        for (Map.Entry<LocalDate, List<Transaksi>> entry : daftarHarian.entrySet()) {
             List<Transaksi> transaksiHarian = entry.getValue();
-
-            double omzet =
-                laporanAktif.hitungOmzetHarian(transaksiHarian);
-            double pajak =
-                laporanAktif.hitungPajakHarian(transaksiHarian);
+            double omzet = laporanAktif.hitungOmzetHarian(transaksiHarian);
+            double pajak = laporanAktif.hitungPajakHarian(transaksiHarian);
 
             modelTabel.addRow(new Object[]{
-                entry.getKey().format(FORMAT_TANGGAL),
-                transaksiHarian.size(),
-                rupiah.format(omzet),
-                rupiah.format(pajak)
+                    entry.getKey().format(FORMAT_TANGGAL),
+                    transaksiHarian.size(),
+                    formatRupiah(omzet),
+                    formatRupiah(pajak)
             });
         }
     }
 
     private void cetakLaporan() {
-        if (laporanAktif == null) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Belum ada laporan yang dapat dicetak.",
-                "Laporan Kosong",
-                JOptionPane.INFORMATION_MESSAGE
-            );
-            return;
-        }
+        LaporanPrinter.showPrintPreviewAndPrint(this, laporanAktif, toastManager);
+    }
 
-        JTextArea areaCetak = new JTextArea(laporanAktif.cetak());
-        areaCetak.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-        areaCetak.setEditable(false);
-        areaCetak.setCaretPosition(0);
+    private static void konfigurasiTombol(RoundedButton btn, int width, int height, int fontStyle) {
+        btn.setFont(UITheme.font(fontStyle, 12f));
+        Dimension size = new Dimension(width, height);
+        btn.setPreferredSize(size);
+        btn.setMinimumSize(size);
+        btn.setMaximumSize(size);
+    }
 
-        try {
-            areaCetak.print(null, null, true, null, null, true);
-        } catch (java.awt.print.PrinterException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Gagal mencetak laporan:\n" + ex.getMessage(),
-                "Kesalahan Cetak",
-                JOptionPane.ERROR_MESSAGE
-            );
-        }
+    private static String formatRupiah(double nominal) {
+        NumberFormat format = NumberFormat.getCurrencyInstance(ID_LOCALE);
+        format.setMaximumFractionDigits(0);
+        format.setMinimumFractionDigits(0);
+        return format.format(nominal).replace('\u00A0', ' ');
     }
 }

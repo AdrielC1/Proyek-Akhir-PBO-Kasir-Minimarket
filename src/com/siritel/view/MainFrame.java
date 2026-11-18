@@ -3,6 +3,7 @@ package com.siritel.view;
 import com.siritel.controller.AuthController;
 import com.siritel.model.Pengguna;
 import com.siritel.view.ui.ButtonVariant;
+import com.siritel.view.ui.RefreshableView;
 import com.siritel.view.ui.RoundedButton;
 import com.siritel.view.ui.UITheme;
 
@@ -15,7 +16,6 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
@@ -55,6 +55,7 @@ public class MainFrame extends JFrame {
     private final JLabel userProfileLabel = new JLabel();
     private final Map<String, JButton> sidebarButtons = new LinkedHashMap<>();
     private final Map<String, String> pageTitles = new LinkedHashMap<>();
+    private final Map<String, JPanel> pagePanels = new LinkedHashMap<>();
     private String activeKey;
     private final Pengguna penggunaAktif;
 
@@ -89,8 +90,7 @@ public class MainFrame extends JFrame {
                 : "Admin";
 
         // Kasir dapat diakses oleh Admin dan Kasir
-        // TODO INTEGRASI: ganti placeholder dengan new KasirView() dari Modul 3
-        items.add(new NavItem("kasir", "Kasir",   new KasirView(penggunaAktif)));
+        items.add(new NavItem("kasir", "Kasir", new KasirView(penggunaAktif)));
 
         if ("Admin".equalsIgnoreCase(role)) {
             // Modul 2: Manajemen Produk & Batch
@@ -101,28 +101,13 @@ public class MainFrame extends JFrame {
         }
 
         // Riwayat Transaksi dapat diakses oleh Admin dan Kasir
-        // TODO INTEGRASI: ganti placeholder dengan new RiwayatTransaksiView() dari Modul 3
         items.add(new NavItem("riwayat", "Riwayat Transaksi", new RiwayatTransaksiView(penggunaAktif)));
 
         if ("Admin".equalsIgnoreCase(role)) {
-            // TODO INTEGRASI: ganti placeholder dengan new LaporanPenjualanView() dari Modul 3
-            items.add(new NavItem("laporan", "Laporan Penjualan", new LaporanPenjualanView()));
+            items.add(new NavItem("laporan", "Laporan Penjualan", new LaporanPenjualanView(penggunaAktif)));
         }
 
         return items;
-    }
-
-    private JPanel buatPlaceholder(String judul) {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(248, 250, 252));
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
-
-        JLabel label = new JLabel("Halaman " + judul + ", dikerjakan Anggota 2/3", SwingConstants.CENTER);
-        label.setFont(new Font("SansSerif", Font.BOLD, 18));
-        label.setForeground(new Color(100, 116, 139));
-
-        panel.add(label);
-        return panel;
     }
 
     private JPanel buildSidebar(List<NavItem> navItems) {
@@ -292,6 +277,7 @@ public class MainFrame extends JFrame {
 
         for (NavItem item : navItems) {
             pageTitles.put(item.key(), item.label());
+            pagePanels.put(item.key(), item.panel());
             contentCards.add(item.panel(), item.key());
         }
 
@@ -301,12 +287,14 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Berpindah ke halaman target di area utama dan menandai tombol sidebar yang aktif.
+     * Berpindah ke halaman target di area utama, menyegarkan datanya bila sudah
+     * pernah dimuat sebelumnya, dan menandai tombol sidebar yang aktif.
      */
     public void navigateTo(String key) {
         if (!pageTitles.containsKey(key)) {
             return;
         }
+        boolean shouldRefresh = (activeKey != null);
         activeKey = key;
         cardLayout.show(contentCards, key);
         pageHeaderLabel.setText(pageTitles.get(key));
@@ -318,6 +306,13 @@ public class MainFrame extends JFrame {
             button.setForeground(isActive ? BTN_ACTIVE_TEXT : BTN_TEXT);
             button.setFont(new Font("SansSerif", isActive ? Font.BOLD : Font.PLAIN, 13));
             button.repaint();
+        }
+
+        if (shouldRefresh) {
+            JPanel targetPanel = pagePanels.get(key);
+            if (targetPanel instanceof RefreshableView refreshable) {
+                refreshable.refreshData();
+            }
         }
     }
 }

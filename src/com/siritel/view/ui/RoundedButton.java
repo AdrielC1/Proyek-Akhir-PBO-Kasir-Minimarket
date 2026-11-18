@@ -17,7 +17,7 @@ import javax.swing.JButton;
  * efek hover/pressed, dan status disabled yang tetap jelas terbaca.
  */
 public class RoundedButton extends JButton {
-    private final ButtonVariant variant;
+    private ButtonVariant variant;
     private final int radius;
     private final boolean solidDisabledPrimary;
     private boolean isHovered = false;
@@ -86,6 +86,16 @@ public class RoundedButton extends JButton {
         });
     }
 
+    public void setVariant(ButtonVariant variant) {
+        if (variant != null && this.variant != variant) {
+            this.variant = variant;
+            setForeground(variant == ButtonVariant.PRIMARY || variant == ButtonVariant.TEAL || variant == ButtonVariant.DANGER
+                    ? Color.WHITE
+                    : (variant == ButtonVariant.SOFT_PRIMARY ? UITheme.PRIMARY_BLUE : UITheme.TEXT_LABEL));
+            repaint();
+        }
+    }
+
     @Override
     public void setEnabled(boolean enabled) {
         super.setEnabled(enabled);
@@ -120,6 +130,12 @@ public class RoundedButton extends JButton {
                     bg = isPressed ? UITheme.PRIMARY_PRESSED
                             : isHovered ? UITheme.PRIMARY_HOVER : UITheme.PRIMARY_BLUE;
                     fg = Color.WHITE;
+                }
+                case SOFT_PRIMARY -> {
+                    bg = isPressed ? UITheme.PRIMARY_SOFT_BORDER
+                            : isHovered ? UITheme.BADGE_BLUE_BG : UITheme.PRIMARY_SOFT_BG;
+                    border = isHovered ? UITheme.PRIMARY_BLUE : UITheme.PRIMARY_SOFT_BORDER;
+                    fg = UITheme.PRIMARY_BLUE;
                 }
                 case TEAL -> {
                     bg = isPressed ? UITheme.TEAL_PRESSED

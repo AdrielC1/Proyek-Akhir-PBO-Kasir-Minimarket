@@ -5,6 +5,7 @@ package com.siritel.view.ui;
  */
 public enum ButtonVariant {
     PRIMARY,
+    SOFT_PRIMARY,
     TEAL,
     DANGER,
     OUTLINE,

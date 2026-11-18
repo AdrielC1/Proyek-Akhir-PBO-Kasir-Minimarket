@@ -4,6 +4,7 @@ import com.siritel.controller.AuthController;
 import com.siritel.model.Pengguna;
 import com.siritel.view.ui.ButtonVariant;
 import com.siritel.view.ui.ModernModal;
+import com.siritel.view.ui.RefreshableView;
 import com.siritel.view.ui.RoundedBorder;
 import com.siritel.view.ui.RoundedButton;
 import com.siritel.view.ui.RoundedCardPanel;
@@ -50,7 +51,7 @@ import javax.swing.table.DefaultTableModel;
  * Halaman Manajemen Pengguna dengan tata letak dinamis seragam dengan ManajemenProdukView:
  * tabel utama melebar penuh secara default, dan panel kanan Tambah/Ubah muncul saat diperlukan.
  */
-public class ManajemenPenggunaView extends JPanel {
+public class ManajemenPenggunaView extends JPanel implements RefreshableView {
     private static final Color BADGE_ADMIN_BG = UITheme.BADGE_BLUE_BG;
     private static final Color BADGE_ADMIN_FG = UITheme.BADGE_BLUE_FG;
     private static final Color BADGE_KASIR_BG = UITheme.BADGE_TEAL_BG;
@@ -442,6 +443,11 @@ public class ManajemenPenggunaView extends JPanel {
         tablePengguna.getColumnModel().getColumn(1).setPreferredWidth(180);
         tablePengguna.getColumnModel().getColumn(2).setPreferredWidth(250);
         tablePengguna.getColumnModel().getColumn(3).setPreferredWidth(120);
+    }
+
+    @Override
+    public void refreshData() {
+        muatDataTabel();
     }
 
     private void initActions() {

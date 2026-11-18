@@ -176,22 +176,25 @@ public class LaporanPenjualan implements printable {
         DateTimeFormatter formatTanggal =
             DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
+        String garisTebal = "====================================================================\n";
+        String garisTipis = "--------------------------------------------------------------------\n";
+
         StringBuilder laporan = new StringBuilder();
 
-        laporan.append("========================================\n");
-        laporan.append("               SI-RITEL\n");
-        laporan.append("           LAPORAN PENJUALAN\n");
-        laporan.append("========================================\n");
+        laporan.append(garisTebal);
+        laporan.append("                              SI-RITEL\n");
+        laporan.append("                         LAPORAN PENJUALAN\n");
+        laporan.append(garisTebal);
 
-        laporan.append("Periode Awal  : ")
+        laporan.append("Periode Awal     : ")
             .append(periodeAwal.format(formatTanggal))
             .append("\n");
 
-        laporan.append("Periode Akhir : ")
+        laporan.append("Periode Akhir    : ")
             .append(periodeAkhir.format(formatTanggal))
             .append("\n");
 
-        laporan.append("----------------------------------------\n");
+        laporan.append(garisTipis);
 
         laporan.append("RINGKASAN PENJUALAN\n");
 
@@ -207,18 +210,18 @@ public class LaporanPenjualan implements printable {
             .append(rupiah.format(hitungTotalPajakTerkumpul()))
             .append("\n");
 
-        laporan.append("----------------------------------------\n");
+        laporan.append(garisTipis);
         laporan.append("RINCIAN PENJUALAN HARIAN\n");
 
         laporan.append(String.format(
-            "%-15s | %-10s | %-18s | %-18s%n",
+            "%-12s | %10s | %18s | %18s%n",
             "Tanggal",
             "Transaksi",
             "Total Omzet",
             "Total Pajak"
         ));
 
-        laporan.append("----------------------------------------\n");
+        laporan.append(garisTipis);
 
         Map<LocalDate, List<Transaksi>> laporanHarian =
             getDaftarHarian();
@@ -235,7 +238,7 @@ public class LaporanPenjualan implements printable {
             double pajak = hitungPajakHarian(transaksiHarian);
 
             laporan.append(String.format(
-                "%-15s | %-10d | %-18s | %-18s%n",
+                "%-12s | %10d | %18s | %18s%n",
                 entry.getKey().format(formatTanggal),
                 jumlahTransaksi,
                 rupiah.format(omzet),
@@ -243,7 +246,7 @@ public class LaporanPenjualan implements printable {
             ));
         }
 
-        laporan.append("========================================\n");
+        laporan.append(garisTebal);
 
         return laporan.toString();
     }

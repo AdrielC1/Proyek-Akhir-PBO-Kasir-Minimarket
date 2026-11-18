@@ -14,14 +14,12 @@ public class ItemTransaksi {
 
         if (produk == null) {
             throw new IllegalArgumentException(
-                "Produk tidak boleh null."
-            );
+                    "Produk tidak boleh null.");
         }
 
         if (kuantitas <= 0) {
             throw new IllegalArgumentException(
-                "Kuantitas harus lebih dari 0."
-            );
+                    "Kuantitas harus lebih dari 0.");
         }
 
         this.produk = produk;
@@ -33,55 +31,49 @@ public class ItemTransaksi {
 
         if (!Double.isFinite(hargaSatuan) || hargaSatuan < 0) {
             throw new IllegalArgumentException(
-                "Harga satuan tidak valid."
-            );
+                    "Harga satuan tidak valid.");
         }
 
         if (!Double.isFinite(pajakSatuan) || pajakSatuan < 0) {
             throw new IllegalArgumentException(
-                "Pajak satuan tidak valid."
-            );
+                    "Pajak satuan tidak valid.");
         }
 
         hitungSubtotal();
     }
 
-
     public ItemTransaksi(
-        Produk produk,
-        int kuantitas,
-        double hargaSatuan,
-        double pajakSatuan,
-        double subtotal
-) {
+            Produk produk,
+            int kuantitas,
+            double hargaSatuan,
+            double pajakSatuan,
+            double subtotal) {
 
-    if (produk == null) {
-        throw new IllegalArgumentException(
-            "Produk tidak boleh null."
-        );
+        if (produk == null) {
+            throw new IllegalArgumentException(
+                    "Produk tidak boleh null.");
+        }
+
+        if (kuantitas <= 0) {
+            throw new IllegalArgumentException(
+                    "Kuantitas harus lebih dari 0.");
+        }
+
+        if (!Double.isFinite(hargaSatuan) || hargaSatuan < 0 ||
+                !Double.isFinite(pajakSatuan) || pajakSatuan < 0 ||
+                !Double.isFinite(subtotal) || subtotal < 0) {
+
+            throw new IllegalArgumentException(
+                    "Data nominal transaksi tidak valid.");
+        }
+
+        this.produk = produk;
+        this.kuantitas = kuantitas;
+        this.hargaSatuan = hargaSatuan;
+        this.pajakSatuan = pajakSatuan;
+        this.subtotal = subtotal;
     }
 
-    if (kuantitas <= 0) {
-        throw new IllegalArgumentException(
-            "Kuantitas harus lebih dari 0."
-        );
-    }
-
-    if (!Double.isFinite(hargaSatuan) || hargaSatuan < 0 ||
-        !Double.isFinite(pajakSatuan) || pajakSatuan < 0 ||
-        !Double.isFinite(subtotal) || subtotal < 0) {
-
-        throw new IllegalArgumentException(
-            "Data nominal transaksi tidak valid."
-        );
-    }
-
-    this.produk = produk;
-    this.kuantitas = kuantitas;
-    this.hargaSatuan = hargaSatuan;
-    this.pajakSatuan = pajakSatuan;
-    this.subtotal = subtotal;
-}
     // Menghitung subtotal barang sebelum pajak
     public double hitungSubtotal() {
         subtotal = hargaSatuan * kuantitas;
@@ -119,8 +111,7 @@ public class ItemTransaksi {
 
         if (kuantitas <= 0) {
             throw new IllegalArgumentException(
-                "Kuantitas harus lebih dari 0."
-            );
+                    "Kuantitas harus lebih dari 0.");
         }
 
         this.kuantitas = kuantitas;
