@@ -74,7 +74,7 @@ Mengacu pada [docs/AGENTS.md](docs/AGENTS.md) dan [docs/Java_Class_Schema_Archit
 ## Persiapan Database
 
 1. Siapkan database PostgreSQL dan jalankan skrip DDL serta *seed data* yang ada di [docs/Database_Schema.md](docs/Database_Schema.md) (mengaktifkan ekstensi `pgcrypto` dan membuat tabel `pengguna`, `produk`, `batch_produk`, `transaksi`, dan `item_transaksi`).
-2. Pastikan konfigurasi `URL`, `USER`, dan `PASSWORD` di [src/com/siritel/config/DatabaseConnection.java](src/com/siritel/config/DatabaseConnection.java) sesuai dengan server PostgreSQL yang digunakan.
+2. Buat file `db.properties` di folder root proyek berisi `db.url`, `db.user`, dan `db.password` sesuai server PostgreSQL yang digunakan (atau set environment variable `DB_URL`, `DB_USER`, dan `DB_PASSWORD`). File `db.properties` sudah diabaikan oleh `.gitignore` agar kredensial tidak ter-commit.
 
 ---
 

@@ -22,3 +22,8 @@ replay_pid*
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Environment & local database configuration
+db.properties
+.env
+.env.*
