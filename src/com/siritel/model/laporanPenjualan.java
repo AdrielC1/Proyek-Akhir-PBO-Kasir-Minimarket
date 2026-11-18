@@ -1,3 +1,4 @@
+
 package com.siritel.model;
 
 import java.time.LocalDate;
@@ -7,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class LaporanPenjualan implements printable {
 
@@ -75,6 +78,79 @@ public class LaporanPenjualan implements printable {
         return totalPajak;
     }
 
+    // Menghitung jumlah transaksi
+    public int hitungJumlahTransaksi() {
+        return daftarTransaksi.size();
+    }
+
+    // Mengelompokkan transaksi berdasarkan tanggal
+    public Map<LocalDate, List<Transaksi>> getDaftarHarian() {
+
+        Map<LocalDate, List<Transaksi>> laporanHarian =
+            new TreeMap<>();
+
+        // Membuat kelompok untuk setiap tanggal
+        for (LocalDate tanggal = periodeAwal;
+                !tanggal.isAfter(periodeAkhir);
+                tanggal = tanggal.plusDays(1)) {
+
+            laporanHarian.put(tanggal, new ArrayList<>());
+        }
+
+        // Memasukkan transaksi ke tanggal masing-masing
+        for (Transaksi transaksi : daftarTransaksi) {
+
+            LocalDate tanggal =
+                transaksi.getTanggal().toLocalDate();
+
+            List<Transaksi> transaksiTanggal =
+                laporanHarian.get(tanggal);
+
+            if (transaksiTanggal != null) {
+                transaksiTanggal.add(transaksi);
+            }
+        }
+
+        // Mengembalikan data yang tidak dapat dimodifikasi
+        Map<LocalDate, List<Transaksi>> hasil =
+            new TreeMap<>();
+
+        for (Map.Entry<LocalDate, List<Transaksi>> entry :
+                laporanHarian.entrySet()) {
+
+            hasil.put(
+                entry.getKey(),
+                Collections.unmodifiableList(entry.getValue())
+            );
+        }
+
+        return Collections.unmodifiableMap(hasil);
+    }
+
+    // Menghitung omzet berdasarkan tanggal
+    public double hitungOmzetHarian(List<Transaksi> transaksiHarian) {
+
+        double total = 0;
+
+        for (Transaksi transaksi : transaksiHarian) {
+            total += transaksi.getGrandTotal();
+        }
+
+        return total;
+    }
+
+    // Menghitung pajak berdasarkan tanggal
+    public double hitungPajakHarian(List<Transaksi> transaksiHarian) {
+
+        double total = 0;
+
+        for (Transaksi transaksi : transaksiHarian) {
+            total += transaksi.getTotalPajak();
+        }
+
+        return total;
+    }
+
     // Getter
     public LocalDate getPeriodeAwal() {
         return periodeAwal;
@@ -88,7 +164,7 @@ public class LaporanPenjualan implements printable {
         return Collections.unmodifiableList(daftarTransaksi);
     }
 
-    // Implementasi interface Printable
+    // Implementasi interface printable
     @Override
     public String cetak() {
 
@@ -103,8 +179,8 @@ public class LaporanPenjualan implements printable {
         StringBuilder laporan = new StringBuilder();
 
         laporan.append("========================================\n");
-        laporan.append("          SI-RITEL\n");
-        laporan.append("       LAPORAN PENJUALAN\n");
+        laporan.append("               SI-RITEL\n");
+        laporan.append("           LAPORAN PENJUALAN\n");
         laporan.append("========================================\n");
 
         laporan.append("Periode Awal  : ")
@@ -117,8 +193,10 @@ public class LaporanPenjualan implements printable {
 
         laporan.append("----------------------------------------\n");
 
+        laporan.append("RINGKASAN PENJUALAN\n");
+
         laporan.append("Jumlah Transaksi : ")
-            .append(daftarTransaksi.size())
+            .append(hitungJumlahTransaksi())
             .append("\n");
 
         laporan.append("Total Omzet      : ")
@@ -128,6 +206,42 @@ public class LaporanPenjualan implements printable {
         laporan.append("Total Pajak      : ")
             .append(rupiah.format(hitungTotalPajakTerkumpul()))
             .append("\n");
+
+        laporan.append("----------------------------------------\n");
+        laporan.append("RINCIAN PENJUALAN HARIAN\n");
+
+        laporan.append(String.format(
+            "%-15s | %-10s | %-18s | %-18s%n",
+            "Tanggal",
+            "Transaksi",
+            "Total Omzet",
+            "Total Pajak"
+        ));
+
+        laporan.append("----------------------------------------\n");
+
+        Map<LocalDate, List<Transaksi>> laporanHarian =
+            getDaftarHarian();
+
+        for (Map.Entry<LocalDate, List<Transaksi>> entry :
+                laporanHarian.entrySet()) {
+
+            List<Transaksi> transaksiHarian = entry.getValue();
+
+            int jumlahTransaksi = transaksiHarian.size();
+
+            double omzet = hitungOmzetHarian(transaksiHarian);
+
+            double pajak = hitungPajakHarian(transaksiHarian);
+
+            laporan.append(String.format(
+                "%-15s | %-10d | %-18s | %-18s%n",
+                entry.getKey().format(formatTanggal),
+                jumlahTransaksi,
+                rupiah.format(omzet),
+                rupiah.format(pajak)
+            ));
+        }
 
         laporan.append("========================================\n");
 

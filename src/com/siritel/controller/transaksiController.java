@@ -7,6 +7,7 @@ import com.siritel.model.Transaksi;
 import com.siritel.model.Pengguna;
 import com.siritel.model.Produk;
 import com.siritel.model.TransaksiRingkas;
+import com.siritel.model.LaporanPenjualan;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -174,6 +175,31 @@ public int getJumlahRiwayatTransaksi(
         return transaksiDAO.getDetailTransaksi(idTransaksi);
     }
 
+
+    /**
+ * Membuat laporan penjualan berdasarkan rentang tanggal.
+ */
+public LaporanPenjualan buatLaporan(
+        LocalDate tanggalAwal,
+        LocalDate tanggalAkhir) throws SQLException {
+
+    if (tanggalAwal == null || tanggalAkhir == null) {
+        throw new IllegalArgumentException(
+            "Rentang tanggal laporan tidak boleh null."
+        );
+    }
+
+    if (tanggalAwal.isAfter(tanggalAkhir)) {
+        throw new IllegalArgumentException(
+            "Tanggal awal tidak boleh melebihi tanggal akhir."
+        );
+    }
+
+    return transaksiDAO.getLaporanPenjualan(
+        tanggalAwal,
+        tanggalAkhir
+    );
+}
     // Validasi objek transaksi
     private void validasiTransaksi(Transaksi transaksi) {
 

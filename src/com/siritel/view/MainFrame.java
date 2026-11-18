@@ -106,7 +106,7 @@ public class MainFrame extends JFrame {
 
         if ("Admin".equalsIgnoreCase(role)) {
             // TODO INTEGRASI: ganti placeholder dengan new LaporanPenjualanView() dari Modul 3
-            items.add(new NavItem("laporan", "Laporan Penjualan", buatPlaceholder("Laporan Penjualan")));
+            items.add(new NavItem("laporan", "Laporan Penjualan", new LaporanPenjualanView()));
         }
 
         return items;

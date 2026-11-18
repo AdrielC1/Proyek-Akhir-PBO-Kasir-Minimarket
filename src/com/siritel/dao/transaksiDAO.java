@@ -10,6 +10,7 @@ import com.siritel.model.Makanan;
 import com.siritel.model.Minuman;
 import com.siritel.model.Produk;
 import com.siritel.model.Transaksi;
+import com.siritel.model.LaporanPenjualan;
 import com.siritel.model.Pengguna;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,11 +24,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
+    
 public class TransaksiDAO {
 
     // Mengunci batch berdasarkan urutan FEFO
@@ -98,6 +98,17 @@ private static final String SQL_DETAIL_TRANSAKSI =
     "SELECT COUNT(*) " +
     "FROM transaksi " +
     "WHERE tanggal >= ? AND tanggal < ?";
+
+    // Mengambil seluruh transaksi untuk laporan penjualan
+    private static final String SQL_LAPORAN_PENJUALAN =
+    "SELECT t.id_transaksi, t.tanggal, t.kasir_id, " +
+    "p.username, p.nama_lengkap, p.role, " +
+    "t.subtotal_barang, t.total_pajak, " +
+    "t.grand_total, t.bayar, t.kembalian " +
+    "FROM transaksi t " +
+    "JOIN pengguna p ON t.kasir_id = p.id " +
+    "WHERE t.tanggal >= ? AND t.tanggal < ? " +
+    "ORDER BY t.tanggal ASC, t.id_transaksi ASC";
     /**
      * Menyimpan transaksi beserta detail dan pengurangan stok.
      * Seluruh operasi dilakukan dalam satu transaksi database.
@@ -772,5 +783,83 @@ public int getJumlahRiwayatTransaksi(
     }
 
     return 0;
+}
+
+/**
+ * Mengambil data transaksi untuk laporan penjualan
+ * berdasarkan rentang tanggal.
+ */
+public LaporanPenjualan getLaporanPenjualan(
+        LocalDate tanggalAwal,
+        LocalDate tanggalAkhir) throws SQLException {
+
+    if (tanggalAwal == null || tanggalAkhir == null) {
+        throw new IllegalArgumentException(
+            "Rentang tanggal tidak boleh null."
+        );
+    }
+
+    if (tanggalAwal.isAfter(tanggalAkhir)) {
+        throw new IllegalArgumentException(
+            "Tanggal awal tidak boleh melebihi tanggal akhir."
+        );
+    }
+
+    LocalDateTime waktuAwal =
+        tanggalAwal.atStartOfDay();
+
+    LocalDateTime waktuAkhir =
+        tanggalAkhir.plusDays(1).atStartOfDay();
+
+    List<Transaksi> daftarTransaksi = new ArrayList<>();
+
+    try (Connection conn = DatabaseConnection.getConnection();
+         PreparedStatement ps = conn.prepareStatement(
+             SQL_LAPORAN_PENJUALAN)) {
+
+        ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
+        ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
+
+        try (ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+
+                // Membentuk objek kasir
+                Pengguna kasir = new Pengguna(
+                    rs.getInt("kasir_id"),
+                    rs.getString("username"),
+                    null,
+                    rs.getString("nama_lengkap"),
+                    rs.getString("role")
+                );
+
+                // Mengambil tanggal transaksi
+                LocalDateTime tanggal =
+                    rs.getTimestamp("tanggal").toLocalDateTime();
+
+                // Membentuk objek transaksi historis
+                Transaksi transaksi = new Transaksi(
+                    rs.getString("id_transaksi"),
+                    tanggal,
+                    kasir,
+                    new ArrayList<>(),
+                    rs.getBigDecimal("subtotal_barang").doubleValue(),
+                    rs.getBigDecimal("total_pajak").doubleValue(),
+                    rs.getBigDecimal("grand_total").doubleValue(),
+                    rs.getBigDecimal("bayar").doubleValue(),
+                    rs.getBigDecimal("kembalian").doubleValue()
+                );
+
+                daftarTransaksi.add(transaksi);
+            }
+        }
+    }
+
+    // Membentuk objek laporan penjualan
+    return new LaporanPenjualan(
+        tanggalAwal,
+        tanggalAkhir,
+        daftarTransaksi
+    );
 }
 }
