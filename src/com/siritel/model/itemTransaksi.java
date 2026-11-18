@@ -46,6 +46,42 @@ public class ItemTransaksi {
         hitungSubtotal();
     }
 
+
+    public ItemTransaksi(
+        Produk produk,
+        int kuantitas,
+        double hargaSatuan,
+        double pajakSatuan,
+        double subtotal
+) {
+
+    if (produk == null) {
+        throw new IllegalArgumentException(
+            "Produk tidak boleh null."
+        );
+    }
+
+    if (kuantitas <= 0) {
+        throw new IllegalArgumentException(
+            "Kuantitas harus lebih dari 0."
+        );
+    }
+
+    if (!Double.isFinite(hargaSatuan) || hargaSatuan < 0 ||
+        !Double.isFinite(pajakSatuan) || pajakSatuan < 0 ||
+        !Double.isFinite(subtotal) || subtotal < 0) {
+
+        throw new IllegalArgumentException(
+            "Data nominal transaksi tidak valid."
+        );
+    }
+
+    this.produk = produk;
+    this.kuantitas = kuantitas;
+    this.hargaSatuan = hargaSatuan;
+    this.pajakSatuan = pajakSatuan;
+    this.subtotal = subtotal;
+}
     // Menghitung subtotal barang sebelum pajak
     public double hitungSubtotal() {
         subtotal = hargaSatuan * kuantitas;

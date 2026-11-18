@@ -6,9 +6,11 @@ import com.siritel.exception.StokTidakCukupException;
 import com.siritel.model.Transaksi;
 import com.siritel.model.Pengguna;
 import com.siritel.model.Produk;
-
+import com.siritel.model.TransaksiRingkas;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.time.format.DateTimeFormatter;
 
 public class TransaksiController {
@@ -127,7 +129,52 @@ public class TransaksiController {
         transaksiDAO.simpanTransaksi(transaksi);
 
     }
-        // Validasi objek transaksi
+    /**
+     * Mengambil riwayat transaksi berdasarkan rentang tanggal.
+     */
+    public List<TransaksiRingkas> getRiwayatTransaksi(
+        LocalDate tanggalAwal,
+        LocalDate tanggalAkhir,
+        int halaman,
+        int batas) throws SQLException {
+
+    return transaksiDAO.getRiwayatTransaksi(
+        tanggalAwal,
+        tanggalAkhir,
+        halaman,
+        batas
+    );
+}
+
+/**
+ * Menghitung jumlah transaksi berdasarkan rentang tanggal.
+ */
+public int getJumlahRiwayatTransaksi(
+        LocalDate tanggalAwal,
+        LocalDate tanggalAkhir) throws SQLException {
+
+    return transaksiDAO.getJumlahRiwayatTransaksi(
+        tanggalAwal,
+        tanggalAkhir
+    );
+}
+
+    /**
+     * Mengambil detail transaksi berdasarkan ID transaksi.
+     */
+    public Transaksi getDetailTransaksi(
+            String idTransaksi) throws SQLException {
+
+        if (idTransaksi == null || idTransaksi.isBlank()) {
+            throw new IllegalArgumentException(
+                "ID transaksi tidak boleh kosong."
+            );
+        }
+
+        return transaksiDAO.getDetailTransaksi(idTransaksi);
+    }
+
+    // Validasi objek transaksi
     private void validasiTransaksi(Transaksi transaksi) {
 
         if (transaksi == null) {

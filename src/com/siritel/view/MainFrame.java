@@ -102,7 +102,7 @@ public class MainFrame extends JFrame {
 
         // Riwayat Transaksi dapat diakses oleh Admin dan Kasir
         // TODO INTEGRASI: ganti placeholder dengan new RiwayatTransaksiView() dari Modul 3
-        items.add(new NavItem("riwayat", "Riwayat Transaksi", buatPlaceholder("Riwayat Transaksi")));
+        items.add(new NavItem("riwayat", "Riwayat Transaksi", new RiwayatTransaksiView(penggunaAktif)));
 
         if ("Admin".equalsIgnoreCase(role)) {
             // TODO INTEGRASI: ganti placeholder dengan new LaporanPenjualanView() dari Modul 3

@@ -3,9 +3,16 @@ package com.siritel.dao;
 
 import com.siritel.config.DatabaseConnection;
 import com.siritel.exception.StokTidakCukupException;
+import com.siritel.model.Elektronik;
 import com.siritel.model.ItemTransaksi;
+import com.siritel.model.TransaksiRingkas;
+import com.siritel.model.Makanan;
+import com.siritel.model.Minuman;
 import com.siritel.model.Produk;
 import com.siritel.model.Transaksi;
+import com.siritel.model.Pengguna;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -16,6 +23,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -50,7 +58,46 @@ public class TransaksiDAO {
         "SET stok_batch = stok_batch - ? " +
         "WHERE id = ? AND stok_batch >= ?";
 
+    // Mengambil ringkasan riwayat transaksi dengan pagination
+    private static final String SQL_RIWAYAT_TRANSAKSI =
+    "SELECT t.id_transaksi, t.tanggal, " +
+    "p.nama_lengkap AS nama_kasir, " +
+    "COUNT(it.id) AS jumlah_item, " +
+    "t.grand_total " +
+    "FROM transaksi t " +
+    "JOIN pengguna p ON t.kasir_id = p.id " +
+    "LEFT JOIN item_transaksi it ON t.id_transaksi = it.transaksi_id " +
+    "WHERE t.tanggal >= ? AND t.tanggal < ? " +
+    "GROUP BY t.id_transaksi, t.tanggal, p.nama_lengkap, t.grand_total " +
+    "ORDER BY t.tanggal DESC, t.id_transaksi DESC " +
+    "LIMIT ? OFFSET ?";
 
+    // Mengambil header satu transaksi berdasarkan ID
+    private static final String SQL_DETAIL_HEADER =
+    "SELECT t.id_transaksi, t.tanggal, t.kasir_id, " +
+    "p.username, p.nama_lengkap, p.role, " +
+    "t.subtotal_barang, t.total_pajak, t.grand_total, " +
+    "t.bayar, t.kembalian " +
+    "FROM transaksi t " +
+    "JOIN pengguna p ON t.kasir_id = p.id " +
+    "WHERE t.id_transaksi = ?";
+// Mengambil detail item beserta informasi produk
+private static final String SQL_DETAIL_TRANSAKSI =
+    "SELECT it.kuantitas, it.harga_satuan, " +
+    "it.pajak_satuan, it.subtotal, " +
+    "p.id AS produk_id, p.kode, p.nama, p.harga, " +
+    "p.jenis_produk, p.berat_gram, p.volume_ml, " +
+    "p.is_dingin, p.bulan_garansi " +
+    "FROM item_transaksi it " +
+    "JOIN produk p ON it.produk_id = p.id " +
+    "WHERE it.transaksi_id = ? " +
+    "ORDER BY it.id ASC";
+
+    // Menghitung jumlah transaksi berdasarkan rentang tanggal
+    private static final String SQL_HITUNG_RIWAYAT =
+    "SELECT COUNT(*) " +
+    "FROM transaksi " +
+    "WHERE tanggal >= ? AND tanggal < ?";
     /**
      * Menyimpan transaksi beserta detail dan pengurangan stok.
      * Seluruh operasi dilakukan dalam satu transaksi database.
@@ -103,6 +150,216 @@ public class TransaksiDAO {
             }
         }
     }
+
+   /**
+ * Mengambil ringkasan riwayat transaksi berdasarkan tanggal
+ * dan halaman yang dipilih.
+ */
+public List<TransaksiRingkas> getRiwayatTransaksi(
+        LocalDate tanggalAwal,
+        LocalDate tanggalAkhir,
+        int halaman,
+        int batas) throws SQLException {
+
+    if (tanggalAwal == null || tanggalAkhir == null) {
+        throw new IllegalArgumentException(
+            "Rentang tanggal tidak boleh null."
+        );
+    }
+
+    if (tanggalAwal.isAfter(tanggalAkhir)) {
+        throw new IllegalArgumentException(
+            "Tanggal awal tidak boleh melebihi tanggal akhir."
+        );
+    }
+
+    if (halaman < 1 || batas < 1) {
+        throw new IllegalArgumentException(
+            "Halaman dan batas data harus lebih dari 0."
+        );
+    }
+
+    List<TransaksiRingkas> daftarTransaksi = new ArrayList<>();
+
+    LocalDateTime waktuAwal = tanggalAwal.atStartOfDay();
+    LocalDateTime waktuAkhir = tanggalAkhir
+        .plusDays(1)
+        .atStartOfDay();
+
+    int offset = Math.multiplyExact(halaman - 1, batas);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+         PreparedStatement ps = conn.prepareStatement(
+             SQL_RIWAYAT_TRANSAKSI)) {
+
+        ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
+        ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
+        ps.setInt(3, batas);
+        ps.setInt(4, offset);
+
+        try (ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+
+                TransaksiRingkas transaksi = new TransaksiRingkas(
+                    rs.getString("id_transaksi"),
+                    rs.getTimestamp("tanggal").toLocalDateTime(),
+                    rs.getString("nama_kasir"),
+                    rs.getInt("jumlah_item"),
+                    rs.getBigDecimal("grand_total").doubleValue()
+                );
+
+                daftarTransaksi.add(transaksi);
+            }
+        }
+    }
+
+    return daftarTransaksi;
+}
+        /**
+ * Mengambil satu transaksi beserta seluruh detail itemnya.
+ *
+ * @param idTransaksi ID transaksi yang dicari
+ * @return objek transaksi lengkap, atau null jika tidak ditemukan
+ */
+public Transaksi getDetailTransaksi(String idTransaksi)
+        throws SQLException {
+
+    if (idTransaksi == null || idTransaksi.isBlank()) {
+        throw new IllegalArgumentException(
+            "ID transaksi tidak boleh kosong."
+        );
+    }
+
+    try (Connection conn = DatabaseConnection.getConnection()) {
+
+        // 1. Mengambil header transaksi
+        try (PreparedStatement ps =
+                conn.prepareStatement(SQL_DETAIL_HEADER)) {
+
+            ps.setString(1, idTransaksi);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                if (!rs.next()) {
+                    return null;
+                }
+
+                Pengguna kasir = new Pengguna(
+                    rs.getInt("kasir_id"),
+                    rs.getString("username"),
+                    null,
+                    rs.getString("nama_lengkap"),
+                    rs.getString("role")
+                );
+
+                LocalDateTime tanggal =
+                    rs.getTimestamp("tanggal").toLocalDateTime();
+
+                double subtotalBarang =
+                    rs.getBigDecimal("subtotal_barang").doubleValue();
+
+                double totalPajak =
+                    rs.getBigDecimal("total_pajak").doubleValue();
+
+                double grandTotal =
+                    rs.getBigDecimal("grand_total").doubleValue();
+
+                double bayar =
+                    rs.getBigDecimal("bayar").doubleValue();
+
+                double kembalian =
+                    rs.getBigDecimal("kembalian").doubleValue();
+
+                // 2. Mengambil seluruh item transaksi
+                List<ItemTransaksi> daftarItem = new ArrayList<>();
+
+                try (PreparedStatement psDetail =
+                        conn.prepareStatement(SQL_DETAIL_TRANSAKSI)) {
+
+                    psDetail.setString(1, idTransaksi);
+
+                    try (ResultSet rsDetail = psDetail.executeQuery()) {
+
+                        while (rsDetail.next()) {
+
+                            // Membentuk objek produk sesuai jenisnya
+                            int produkId = rsDetail.getInt("produk_id");
+                            String kode = rsDetail.getString("kode");
+                            String nama = rsDetail.getString("nama");
+                            double harga = rsDetail.getDouble("harga");
+                            String jenis = rsDetail.getString("jenis_produk");
+
+                            Produk produk;
+
+                            switch (jenis) {
+                                case "MAKANAN":
+                                    produk = new Makanan(
+                                        produkId,
+                                        kode,
+                                        nama,
+                                        harga,
+                                        rsDetail.getInt("berat_gram")
+                                    );
+                                    break;
+
+                                case "MINUMAN":
+                                    produk = new Minuman(
+                                        produkId,
+                                        kode,
+                                        nama,
+                                        harga,
+                                        rsDetail.getInt("volume_ml"),
+                                        rsDetail.getBoolean("is_dingin")
+                                    );
+                                    break;
+
+                                case "ELEKTRONIK":
+                                    produk = new Elektronik(
+                                        produkId,
+                                        kode,
+                                        nama,
+                                        harga,
+                                        rsDetail.getInt("bulan_garansi")
+                                    );
+                                    break;
+
+                                default:
+                                    throw new SQLException(
+                                        "Jenis produk tidak valid: " + jenis
+                                    );
+                            }
+
+                            // Membentuk item dengan nilai historis
+                            ItemTransaksi item = new ItemTransaksi(
+                                produk,
+                                rsDetail.getInt("kuantitas"),
+                                rsDetail.getBigDecimal("harga_satuan").doubleValue(),
+                                rsDetail.getBigDecimal("pajak_satuan").doubleValue(),
+                                rsDetail.getBigDecimal("subtotal").doubleValue()
+                            );
+
+                            daftarItem.add(item);
+                        }
+                    }
+                }
+
+                // 3. Membentuk transaksi lengkap
+                return new Transaksi(
+                    idTransaksi,
+                    tanggal,
+                    kasir,
+                    daftarItem,
+                    subtotalBarang,
+                    totalPajak,
+                    grandTotal,
+                    bayar,
+                    kembalian
+                );
+            }
+        }
+    }
+}
 
 
     /**
@@ -476,4 +733,44 @@ public class TransaksiDAO {
         int kuantitas
     ) {
     }
+    /**
+ * Menghitung seluruh transaksi dalam rentang tanggal.
+ */
+public int getJumlahRiwayatTransaksi(
+        LocalDate tanggalAwal,
+        LocalDate tanggalAkhir) throws SQLException {
+
+    if (tanggalAwal == null || tanggalAkhir == null) {
+        throw new IllegalArgumentException(
+            "Rentang tanggal tidak boleh null."
+        );
+    }
+
+    if (tanggalAwal.isAfter(tanggalAkhir)) {
+        throw new IllegalArgumentException(
+            "Tanggal awal tidak boleh melebihi tanggal akhir."
+        );
+    }
+
+    LocalDateTime waktuAwal = tanggalAwal.atStartOfDay();
+    LocalDateTime waktuAkhir = tanggalAkhir
+        .plusDays(1)
+        .atStartOfDay();
+
+    try (Connection conn = DatabaseConnection.getConnection();
+         PreparedStatement ps = conn.prepareStatement(
+             SQL_HITUNG_RIWAYAT)) {
+
+        ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
+        ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
+
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    return 0;
+}
 }

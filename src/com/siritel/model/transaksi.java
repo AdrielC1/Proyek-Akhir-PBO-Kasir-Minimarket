@@ -52,6 +52,38 @@ public class Transaksi implements printable {
         this.kembalian = 0;
     }
 
+    // Constructor untuk memuat transaksi historis dari database
+    public Transaksi(
+        String idTransaksi,
+        LocalDateTime tanggal,
+        Pengguna kasir,
+        List<ItemTransaksi> listKeranjang,
+        double subtotalBarang,
+        double totalPajak,
+        double grandTotal,
+        double bayar,
+        double kembalian) {
+
+    if (idTransaksi == null || idTransaksi.isBlank()) {
+        throw new IllegalArgumentException("ID transaksi tidak valid.");
+    }
+
+    if (tanggal == null || kasir == null || listKeranjang == null) {
+        throw new IllegalArgumentException("Data transaksi tidak lengkap.");
+    }
+
+    this.idTransaksi = idTransaksi;
+    this.tanggal = tanggal;
+    this.kasir = kasir;
+    this.listKeranjang = new ArrayList<>(listKeranjang);
+
+    this.subtotalBarang = subtotalBarang;
+    this.totalPajak = totalPajak;
+    this.grandTotal = grandTotal;
+    this.bayar = bayar;
+    this.kembalian = kembalian;
+}
+
     // Menambahkan produk ke keranjang
     public void tambahItem(Produk produk, int qty)
             throws StokTidakCukupException {
