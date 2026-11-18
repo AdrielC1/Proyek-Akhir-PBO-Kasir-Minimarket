@@ -17,6 +17,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.sql.SQLException;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -83,7 +86,7 @@ public class KasirView extends JPanel {
 
     // Komponen katalog
     private final JTextField txtCari = new JTextField();
-    private final JPanel panelKartuProduk = new JPanel(new GridLayout(0, 3, 12, 12));
+   private final JPanel panelKartuProduk = new JPanel(new GridBagLayout());
     private final JLabel lblJumlahProduk = new JLabel("0 produk");
     private final JLabel lblStatusKatalog = new JLabel("Memuat produk...");
     private final JButton btnSemua = buatTombolFilter("Semua", SEMUA);
@@ -169,6 +172,7 @@ public class KasirView extends JPanel {
         txtCari.setBorder(BorderFactory.createEmptyBorder(6, 2, 6, 2));
         txtCari.setToolTipText("Cari nama atau kode produk (F2)");
         txtCari.setOpaque(false);
+        txtCari.addActionListener(e -> tampilkanProduk());
         panelPencarian.add(txtCari, BorderLayout.CENTER);
 
         JLabel shortcutCari = new JLabel("F2");
@@ -400,36 +404,69 @@ public class KasirView extends JPanel {
     }
 
     private void tampilkanProduk() {
-        String keyword = txtCari.getText() == null
-            ? ""
-            : txtCari.getText().trim().toLowerCase(Locale.ROOT);
 
-        List<Produk> hasilFilter = semuaProduk.stream()
-            .filter(p -> cocokKategori(p, kategoriAktif))
-            .filter(p -> keyword.isEmpty()
-                || p.getNama().toLowerCase(Locale.ROOT).contains(keyword)
-                || p.getKode().toLowerCase(Locale.ROOT).contains(keyword))
-            .collect(Collectors.toList());
+    String keyword = txtCari.getText() == null
+        ? ""
+        : txtCari.getText().trim().toLowerCase(Locale.ROOT);
 
-        panelKartuProduk.removeAll();
-        lblJumlahProduk.setText(hasilFilter.size() + " produk");
+    List<Produk> hasilFilter = semuaProduk.stream()
+        .filter(p -> cocokKategori(p, kategoriAktif))
+        .filter(p -> keyword.isEmpty()
+            || p.getNama().toLowerCase(Locale.ROOT).contains(keyword)
+            || p.getKode().toLowerCase(Locale.ROOT).contains(keyword))
+        .collect(Collectors.toList());
 
-        if (hasilFilter.isEmpty()) {
-            JLabel kosong = new JLabel("Produk tidak ditemukan.", SwingConstants.CENTER);
-            kosong.setFont(new Font("SansSerif", Font.PLAIN, 13));
-            kosong.setForeground(TEXT_MUTED);
-            panelKartuProduk.setLayout(new BorderLayout());
-            panelKartuProduk.add(kosong, BorderLayout.CENTER);
-        } else {
-            panelKartuProduk.setLayout(new GridLayout(0, 3, 12, 12));
-            for (Produk produk : hasilFilter) {
-                panelKartuProduk.add(buatKartuProduk(produk));
-            }
+    panelKartuProduk.removeAll();
+    lblJumlahProduk.setText(hasilFilter.size() + " produk");
+
+    if (hasilFilter.isEmpty()) {
+
+        JLabel kosong = new JLabel(
+            "Produk tidak ditemukan.",
+            SwingConstants.CENTER
+        );
+
+        kosong.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        kosong.setForeground(TEXT_MUTED);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 3;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.insets = new Insets(12, 12, 12, 12);
+
+        panelKartuProduk.add(kosong, gbc);
+
+    } else {
+
+        for (int i = 0; i < hasilFilter.size(); i++) {
+
+            GridBagConstraints gbc = new GridBagConstraints();
+
+            // Maksimal 3 kartu dalam satu baris
+            gbc.gridx = i % 3;
+            gbc.gridy = i / 3;
+
+            // Kartu tidak mengikuti ukuran container
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.anchor = GridBagConstraints.NORTHWEST;
+
+            gbc.weightx = 0;
+            gbc.weighty = 0;
+
+            gbc.insets = new Insets(0, 0, 12, 12);
+
+            panelKartuProduk.add(
+                buatKartuProduk(hasilFilter.get(i)),
+                gbc
+            );
         }
-
-        panelKartuProduk.revalidate();
-        panelKartuProduk.repaint();
     }
+
+    panelKartuProduk.revalidate();
+    panelKartuProduk.repaint();
+}
 
     private boolean cocokKategori(Produk produk, String kategori) {
         return SEMUA.equals(kategori)
@@ -553,14 +590,34 @@ public class KasirView extends JPanel {
     }
 
     private void aturGayaTombolFilter(JButton tombol, boolean aktif) {
-        tombol.setBackground(aktif ? PRIMARY_BLUE : CARD_BG);
-        tombol.setForeground(aktif ? Color.WHITE : TEXT_MUTED);
-        tombol.setOpaque(true);
-        tombol.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(aktif ? PRIMARY_BLUE : BORDER_COLOR),
+
+    // Warna latar belakang tombol
+    tombol.setBackground(
+        aktif ? PRIMARY_BLUE_LIGHT : CARD_BG
+    );
+
+    // Warna teks harus tetap kontras
+    tombol.setForeground(
+        aktif ? PRIMARY_BLUE : TEXT_DARK
+    );
+
+    // Memastikan warna tombol ditampilkan oleh Swing
+    tombol.setOpaque(true);
+    tombol.setContentAreaFilled(true);
+    tombol.setBorderPainted(true);
+    tombol.setFocusPainted(false);
+    tombol.setRolloverEnabled(false);
+
+    // Border tombol
+    tombol.setBorder(
+        BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(
+                aktif ? new Color(191, 219, 254) : BORDER_COLOR
+            ),
             BorderFactory.createEmptyBorder(2, 3, 2, 3)
-        ));
-    }
+        )
+    );
+}
 
     // =========================================================
     // KERANJANG
