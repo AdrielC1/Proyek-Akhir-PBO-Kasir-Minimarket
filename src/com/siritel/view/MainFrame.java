@@ -90,7 +90,7 @@ public class MainFrame extends JFrame {
 
         // Kasir dapat diakses oleh Admin dan Kasir
         // TODO INTEGRASI: ganti placeholder dengan new KasirView() dari Modul 3
-        items.add(new NavItem("kasir", "Kasir", buatPlaceholder("Kasir")));
+        items.add(new NavItem("kasir", "Kasir",   new KasirView(penggunaAktif)));
 
         if ("Admin".equalsIgnoreCase(role)) {
             // Modul 2: Manajemen Produk & Batch
@@ -102,11 +102,11 @@ public class MainFrame extends JFrame {
 
         // Riwayat Transaksi dapat diakses oleh Admin dan Kasir
         // TODO INTEGRASI: ganti placeholder dengan new RiwayatTransaksiView() dari Modul 3
-        items.add(new NavItem("riwayat", "Riwayat Transaksi", buatPlaceholder("Riwayat Transaksi")));
+        items.add(new NavItem("riwayat", "Riwayat Transaksi", new RiwayatTransaksiView(penggunaAktif)));
 
         if ("Admin".equalsIgnoreCase(role)) {
             // TODO INTEGRASI: ganti placeholder dengan new LaporanPenjualanView() dari Modul 3
-            items.add(new NavItem("laporan", "Laporan Penjualan", buatPlaceholder("Laporan Penjualan")));
+            items.add(new NavItem("laporan", "Laporan Penjualan", new LaporanPenjualanView()));
         }
 
         return items;
