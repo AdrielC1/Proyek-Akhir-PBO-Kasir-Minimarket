@@ -90,4 +90,4 @@ Saat mengembangkan fitur, jaga batasan tanggung jawab tiap modul agar tidak terj
 
 * **Modul 1 (Fondasi, Auth & User):** `DatabaseConnection`, `Main`, `Pengguna`, `PenggunaDAO`, `AuthController`, `LoginView`, `MainFrame`, `ManajemenPenggunaView`.
 * **Modul 2 (Katalog Produk, Polimorfisme & Batch):** `Produk`, `Makanan`, `Minuman`, `Elektronik`, `BatchProduk`, `ProdukDAO`, `ProdukController`, `ManajemenProdukView`.
-* **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`.
+* **Modul 3 (Kasir, Riwayat & Laporan):** `printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`.

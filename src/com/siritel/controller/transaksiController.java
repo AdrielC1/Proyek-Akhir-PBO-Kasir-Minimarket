@@ -1,5 +1,139 @@
+
 package com.siritel.controller;
 
-public class transaksiController {
-    
+import com.siritel.dao.TransaksiDAO;
+import com.siritel.exception.StokTidakCukupException;
+import com.siritel.model.Transaksi;
+import com.siritel.model.Pengguna;
+import com.siritel.model.Produk;
+
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+public class TransaksiController {
+
+    private final TransaksiDAO transaksiDAO;
+
+    // Constructor default
+    public TransaksiController() {
+        this.transaksiDAO = new TransaksiDAO();
+    }
+
+    // Constructor untuk dependency injection
+    public TransaksiController(TransaksiDAO transaksiDAO) {
+
+        if (transaksiDAO == null) {
+            throw new IllegalArgumentException(
+                "TransaksiDAO tidak boleh null."
+            );
+        }
+
+        this.transaksiDAO = transaksiDAO;
+    }
+
+
+    // Menambahkan produk ke keranjang
+    public void tambahItem(
+            Transaksi transaksi,
+            Produk produk,
+            int qty
+    ) throws StokTidakCukupException {
+
+        validasiTransaksi(transaksi);
+        transaksi.tambahItem(produk, qty);
+    }
+
+    // Mengubah kuantitas produk
+    public void ubahKuantitas(
+            Transaksi transaksi,
+            Produk produk,
+            int qty
+    ) throws StokTidakCukupException {
+
+        validasiTransaksi(transaksi);
+        transaksi.ubahKuantitas(produk, qty);
+    }
+
+    // Menghapus produk dari keranjang
+    public void hapusItem(
+            Transaksi transaksi,
+            Produk produk
+    ) {
+
+        validasiTransaksi(transaksi);
+        transaksi.hapusItem(produk);
+    }
+
+    // Mengosongkan keranjang
+    public void bersihkanKeranjang(Transaksi transaksi) {
+
+        validasiTransaksi(transaksi);
+        transaksi.bersihkanKeranjang();
+    }
+
+    // Memproses pembayaran
+    public void prosesPembayaran(
+            Transaksi transaksi,
+            double nominal
+    ) {
+
+        validasiTransaksi(transaksi);
+        transaksi.prosesBayar(nominal);
+    }
+
+
+    // Membuat objek transaksi dengan ID otomatis
+    public Transaksi buatTransaksi(Pengguna kasir) {
+
+        if (kasir == null) {
+            throw new IllegalArgumentException(
+                "Kasir tidak boleh null."
+            );
+        }
+
+        String idTransaksi = "TRX-" +
+            DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+                .format(LocalDateTime.now());
+
+        return new Transaksi(idTransaksi, kasir);
+    }
+
+    // Memproses checkout transaksi
+    public void checkout(Transaksi transaksi)
+            throws SQLException, StokTidakCukupException {
+
+        if (transaksi == null) {
+            throw new IllegalArgumentException(
+                "Transaksi tidak boleh null."
+            );
+        }
+
+        if (transaksi.getListKeranjang().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Keranjang transaksi masih kosong."
+            );
+        }
+
+        if (transaksi.getBayar() < transaksi.getGrandTotal()) {
+            throw new IllegalArgumentException(
+                "Pembayaran belum mencukupi."
+            );
+        }
+
+
+        
+        // Menyerahkan proses penyimpanan kepada DAO
+        transaksiDAO.simpanTransaksi(transaksi);
+
+    }
+        // Validasi objek transaksi
+    private void validasiTransaksi(Transaksi transaksi) {
+
+        if (transaksi == null) {
+            throw new IllegalArgumentException(
+                "Transaksi tidak boleh null."
+            );
+        }
+    }
 }

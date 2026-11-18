@@ -90,7 +90,7 @@ public class MainFrame extends JFrame {
 
         // Kasir dapat diakses oleh Admin dan Kasir
         // TODO INTEGRASI: ganti placeholder dengan new KasirView() dari Modul 3
-        items.add(new NavItem("kasir", "Kasir", buatPlaceholder("Kasir")));
+        items.add(new NavItem("kasir", "Kasir",   new KasirView(penggunaAktif)));
 
         if ("Admin".equalsIgnoreCase(role)) {
             // Modul 2: Manajemen Produk & Batch

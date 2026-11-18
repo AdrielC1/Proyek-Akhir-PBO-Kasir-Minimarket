@@ -1,20 +1,20 @@
 
 package com.siritel.model;
 
-public class itemTransaksi {
+public class ItemTransaksi {
 
     private final Produk produk;
     private int kuantitas;
     private final double hargaSatuan;
     private final double pajakSatuan;
     private double subtotal;
-    
+
     // Constructor
-    public itemTransaksi(Produk produk, int kuantitas) {
+    public ItemTransaksi(Produk produk, int kuantitas) {
 
         if (produk == null) {
             throw new IllegalArgumentException(
-                "produk tidak boleh null."
+                "Produk tidak boleh null."
             );
         }
 
@@ -48,29 +48,34 @@ public class itemTransaksi {
 
     // Menghitung subtotal barang sebelum pajak
     public double hitungSubtotal() {
-
-        this.subtotal = hargaSatuan * kuantitas;
-
+        subtotal = hargaSatuan * kuantitas;
         return subtotal;
     }
 
     // Menghitung total pajak berdasarkan kuantitas
     public double hitungPajakItem() {
-
         return pajakSatuan * kuantitas;
     }
 
     // Getter
-    public Produk getproduk() {
-        return produk;
-    }
-
     public Produk getProduk() {
         return produk;
     }
 
     public int getKuantitas() {
         return kuantitas;
+    }
+
+    public double getHargaSatuan() {
+        return hargaSatuan;
+    }
+
+    public double getPajakSatuan() {
+        return pajakSatuan;
+    }
+
+    public double getSubtotal() {
+        return subtotal;
     }
 
     // Setter kuantitas dengan validasi
@@ -86,18 +91,5 @@ public class itemTransaksi {
 
         // Perbarui subtotal ketika kuantitas berubah
         hitungSubtotal();
-    }
-
-    // Getter tambahan untuk kebutuhan DAO
-    public double getHargaSatuan() {
-        return hargaSatuan;
-    }
-
-    public double getPajakSatuan() {
-        return pajakSatuan;
-    }
-
-    public double getSubtotal() {
-        return subtotal;
     }
 }
