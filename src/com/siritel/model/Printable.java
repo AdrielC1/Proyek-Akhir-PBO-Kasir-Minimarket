@@ -1,5 +1,5 @@
 package com.siritel.model;
 
-public interface printable {
+public interface Printable {
     String cetak();
 }

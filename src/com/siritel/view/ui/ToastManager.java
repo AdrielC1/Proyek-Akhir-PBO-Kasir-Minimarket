@@ -15,6 +15,7 @@ import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.util.WeakHashMap;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
@@ -26,8 +27,11 @@ import javax.swing.Timer;
 
 /**
  * Pengelola notifikasi toast non-blocking di pojok kanan atas jendela utama.
+ * Berkoordinasi lintas instance per {@code JLayeredPane} agar toast antar tab tidak bertumpuk.
  */
 public final class ToastManager {
+    private static final WeakHashMap<JLayeredPane, ToastManager> ACTIVE_BY_PANE = new WeakHashMap<>();
+
     private final Component host;
     private JPanel activeToast;
     private Timer toastTimer;
@@ -47,6 +51,10 @@ public final class ToastManager {
             return;
         }
 
+        ToastManager previous = ACTIVE_BY_PANE.get(layeredPane);
+        if (previous != null && previous != this) {
+            previous.dismiss();
+        }
         dismiss();
 
         if (hookedPane != layeredPane) {
@@ -66,10 +74,6 @@ public final class ToastManager {
             iconBg = UITheme.SUCCESS_SOFT_BG;
             iconFg = UITheme.SUCCESS;
             accentBorder = UITheme.SUCCESS_BORDER;
-        } else if (type == ToastType.ERROR) {
-            iconBg = UITheme.DANGER_SOFT_BG;
-            iconFg = UITheme.DANGER;
-            accentBorder = UITheme.ALERT_BORDER;
         } else {
             iconBg = UITheme.PRIMARY_SOFT_BG;
             iconFg = UITheme.PRIMARY_BLUE;
@@ -95,7 +99,7 @@ public final class ToastManager {
         toastCard.setBorder(BorderFactory.createEmptyBorder(11, 13, 14, 12));
 
         JPanel iconBadge = ModernModal.createStatusIconBadge(
-                type == ToastType.SUCCESS ? "CHECK" : (type == ToastType.ERROR ? "ALERT" : "INFO"),
+                type == ToastType.SUCCESS ? "CHECK" : "INFO",
                 iconBg, iconFg, 30
         );
         JPanel iconWrap = new JPanel(new GridBagLayout());
@@ -139,6 +143,7 @@ public final class ToastManager {
         toastCard.setSize(toastWidth, prefH);
 
         activeToast = toastCard;
+        ACTIVE_BY_PANE.put(layeredPane, this);
         layeredPane.add(toastCard, JLayeredPane.POPUP_LAYER);
         reposition();
         layeredPane.repaint();
@@ -157,6 +162,9 @@ public final class ToastManager {
             hookedPane.remove(activeToast);
             hookedPane.repaint();
             activeToast = null;
+            if (ACTIVE_BY_PANE.get(hookedPane) == this) {
+                ACTIVE_BY_PANE.remove(hookedPane);
+            }
         }
     }
 

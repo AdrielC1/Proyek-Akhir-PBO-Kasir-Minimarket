@@ -181,6 +181,9 @@ public final class ModernModal {
         dialog.pack();
         int width = Math.max(minWidth, Math.min(maxWidth, dialog.getPreferredSize().width));
         dialog.setSize(width, dialog.getPreferredSize().height);
+        dialog.validate();
+        int finalHeight = Math.max(dialog.getHeight(), dialog.getPreferredSize().height);
+        dialog.setSize(width, finalHeight);
         dialog.setLocationRelativeTo(owner);
 
         if (owner instanceof RootPaneContainer rpc) {

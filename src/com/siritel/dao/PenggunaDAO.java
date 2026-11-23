@@ -19,7 +19,7 @@ public class PenggunaDAO {
     public Pengguna login(String username, String passwordPlain) throws SQLException {
         String sql = "SELECT id, username, nama_lengkap, role " +
                      "FROM pengguna " +
-                     "WHERE username = ? AND password = crypt(?, password)";
+                     "WHERE username = ? AND password = crypt(?, password) AND is_active = TRUE";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
@@ -39,13 +39,13 @@ public class PenggunaDAO {
         return null;
     }
 
-    public Pengguna findByUsername(String username) throws SQLException {
+    public Pengguna getById(int id) throws SQLException {
         String sql = "SELECT id, username, nama_lengkap, role " +
                      "FROM pengguna " +
-                     "WHERE username = ?";
+                     "WHERE id = ? AND is_active = TRUE";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return new Pengguna(
@@ -61,10 +61,23 @@ public class PenggunaDAO {
         return null;
     }
 
+    public int countActiveAdmins() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM pengguna WHERE role = 'Admin' AND is_active = TRUE";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
     public List<Pengguna> getAll() throws SQLException {
         List<Pengguna> list = new ArrayList<>();
         String sql = "SELECT id, username, nama_lengkap, role " +
                      "FROM pengguna " +
+                     "WHERE is_active = TRUE " +
                      "ORDER BY id ASC";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -96,10 +109,11 @@ public class PenggunaDAO {
     }
 
     public void update(Pengguna p, boolean gantiPassword) throws SQLException {
+        int affected;
         if (gantiPassword) {
             String sql = "UPDATE pengguna " +
                          "SET username = ?, password = crypt(?, gen_salt('bf')), nama_lengkap = ?, role = ? " +
-                         "WHERE id = ?";
+                         "WHERE id = ? AND is_active = TRUE";
             try (Connection conn = DatabaseConnection.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, p.getUsername());
@@ -107,29 +121,83 @@ public class PenggunaDAO {
                 ps.setString(3, p.getNamaLengkap());
                 ps.setString(4, p.getRole());
                 ps.setInt(5, p.getId());
-                ps.executeUpdate();
+                affected = ps.executeUpdate();
             }
         } else {
             String sql = "UPDATE pengguna " +
                          "SET username = ?, nama_lengkap = ?, role = ? " +
-                         "WHERE id = ?";
+                         "WHERE id = ? AND is_active = TRUE";
             try (Connection conn = DatabaseConnection.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, p.getUsername());
                 ps.setString(2, p.getNamaLengkap());
                 ps.setString(3, p.getRole());
                 ps.setInt(4, p.getId());
-                ps.executeUpdate();
+                affected = ps.executeUpdate();
             }
+        }
+        if (affected == 0) {
+            throw new IllegalArgumentException("Pengguna tidak ditemukan atau sudah dihapus.");
         }
     }
 
-    public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM pengguna WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
+    /**
+     * Menghapus pengguna dengan strategi hybrid soft-delete:
+     * - Jika sudah memiliki histori transaksi, akun dinonaktifkan (is_active = FALSE)
+     *   agar nama kasir pada riwayat transaksi & laporan tetap terjaga.
+     * - Jika belum pernah melayani transaksi, baris dihapus permanen.
+     *
+     * @return {@code true} jika akun diarsipkan (soft delete), {@code false} jika dihapus permanen.
+     */
+    public boolean delete(int id) throws SQLException {
+        String sqlLock = "SELECT id FROM pengguna WHERE id = ? AND is_active = TRUE FOR UPDATE";
+        String sqlCekTransaksi = "SELECT 1 FROM transaksi WHERE kasir_id = ? LIMIT 1";
+        String sqlSoftDelete = "UPDATE pengguna SET is_active = FALSE WHERE id = ? AND is_active = TRUE";
+        String sqlHardDelete = "DELETE FROM pengguna WHERE id = ? AND is_active = TRUE";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement psLock = conn.prepareStatement(sqlLock)) {
+                    psLock.setInt(1, id);
+                    try (ResultSet rs = psLock.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new IllegalArgumentException("Pengguna tidak ditemukan atau sudah dihapus.");
+                        }
+                    }
+                }
+
+                boolean pernahTransaksi;
+                try (PreparedStatement psCek = conn.prepareStatement(sqlCekTransaksi)) {
+                    psCek.setInt(1, id);
+                    try (ResultSet rs = psCek.executeQuery()) {
+                        pernahTransaksi = rs.next();
+                    }
+                }
+
+                if (pernahTransaksi) {
+                    try (PreparedStatement psSoft = conn.prepareStatement(sqlSoftDelete)) {
+                        psSoft.setInt(1, id);
+                        psSoft.executeUpdate();
+                    }
+                    conn.commit();
+                    return true;
+                }
+
+                try (PreparedStatement psHard = conn.prepareStatement(sqlHardDelete)) {
+                    psHard.setInt(1, id);
+                    psHard.executeUpdate();
+                }
+                conn.commit();
+                return false;
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackErr) {
+                    e.addSuppressed(rollbackErr);
+                }
+                throw e;
+            }
         }
     }
 }

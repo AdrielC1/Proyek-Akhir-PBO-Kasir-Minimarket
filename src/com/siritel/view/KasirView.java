@@ -1,6 +1,5 @@
 package com.siritel.view;
 
-import com.siritel.controller.AuthController;
 import com.siritel.controller.ProdukController;
 import com.siritel.controller.TransaksiController;
 import com.siritel.exception.StokTidakCukupException;
@@ -32,11 +31,15 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
-import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -49,17 +52,16 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 /**
  * Halaman kasir SI-RITEL.
- * Menggunakan komponen UI terpusat dari {@code com.siritel.view.ui} serta
- * mendukung penyegaran otomatis dan manual dari database.
+ * Menggunakan komponen UI terpusat dari {@code com.siritel.view.ui}, pemuatan & checkout asinkron,
+ * serta sinkronisasi otomatis keranjang terhadap perubahan katalog di database.
  */
 public class KasirView extends JPanel implements RefreshableView {
-
-    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
 
     private static final String SEMUA = "SEMUA";
     private static final String MAKANAN = "MAKANAN";
@@ -75,11 +77,13 @@ public class KasirView extends JPanel implements RefreshableView {
     private Transaksi transaksiAktif;
     private String kategoriAktif = SEMUA;
     private int kolomSaatIni = 3;
+    private int loadRequestId = 0;
+    private boolean isProcessingCheckout = false;
 
     // Komponen katalog
     private final JTextField txtCari = UITheme.createPlaceholderField("Cari kode atau nama produk (F2)...");
     private final JPanel panelKartuProduk = new JPanel(new GridBagLayout());
-    private final JLabel lblJumlahProduk = new JLabel("0 produk");
+    private final JLabel lblJumlahProduk = new JLabel("(0 produk)");
     private final RoundedButton btnSegarkan = new RoundedButton("Segarkan", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
     private final RoundedButton btnSemua = buatTombolFilter("Semua", SEMUA);
     private final RoundedButton btnMakanan = buatTombolFilter("Makanan", MAKANAN);
@@ -89,21 +93,14 @@ public class KasirView extends JPanel implements RefreshableView {
     // Komponen keranjang dan pembayaran
     private final JPanel panelDaftarKeranjang = new JPanel();
     private final JLabel lblJumlahItem = new JLabel("0 item");
-    private final JLabel lblSubtotal = new JLabel(formatRupiah(0));
-    private final JLabel lblPajak = new JLabel(formatRupiah(0));
-    private final JLabel lblGrandTotal = new JLabel(formatRupiah(0));
-    private final JLabel lblKembalian = new JLabel(formatRupiah(0));
+    private final JLabel lblSubtotal = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblPajak = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblGrandTotal = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblKembalian = new JLabel(UITheme.formatRupiah(0));
     private final JPanel boxKembalian = new JPanel(new BorderLayout());
     private final JTextField txtBayar = UITheme.createPlaceholderField("0");
     private final RoundedButton btnBayar = new RoundedButton("BAYAR (F9)", ButtonVariant.TEAL, UITheme.BUTTON_RADIUS);
     private final RoundedButton btnBatal = new RoundedButton("Batal (Esc)", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
-
-    /**
-     * Konstruktor default menggunakan pengguna yang sedang login.
-     */
-    public KasirView() {
-        this(AuthController.getPenggunaAktif());
-    }
 
     /**
      * Konstruktor yang menerima pengguna aktif dari MainFrame.
@@ -122,7 +119,6 @@ public class KasirView extends JPanel implements RefreshableView {
         bangunTampilan();
         pasangShortcutKeyboard();
         pasangListenerPembayaran();
-        muatProduk(false);
         perbaruiKeranjang();
     }
 
@@ -332,10 +328,11 @@ public class KasirView extends JPanel implements RefreshableView {
         JPanel colBayar = new JPanel(new BorderLayout(0, 5));
         colBayar.setOpaque(false);
         colBayar.add(UITheme.createFieldLabel("Uang Dibayar"), BorderLayout.NORTH);
-        UITheme.styleInputField(txtBayar);
         txtBayar.setFont(UITheme.font(Font.BOLD, 14f));
+        txtBayar.setForeground(UITheme.TEXT_MAIN);
         txtBayar.setPreferredSize(new Dimension(0, 36));
-        txtBayar.setToolTipText("Masukkan nominal uang yang diterima");
+        txtBayar.setBorder(new RoundedBorder(UITheme.BORDER_INPUT, UITheme.SMALL_RADIUS, new Insets(4, 10, 4, 10)));
+        txtBayar.setToolTipText("Masukkan nominal uang yang diterima (mis. 50000 atau 50.000)");
         colBayar.add(txtBayar, BorderLayout.CENTER);
 
         JPanel colKembali = new JPanel(new BorderLayout(0, 5));
@@ -392,31 +389,70 @@ public class KasirView extends JPanel implements RefreshableView {
     // =========================================================
 
     private void muatProduk(boolean showToast) {
-        try {
-            List<Produk> hasil = produkController.daftarProduk();
-            semuaProduk.clear();
-            if (hasil != null) {
-                semuaProduk.addAll(hasil);
+        final int reqId = ++loadRequestId;
+        btnSegarkan.setEnabled(false);
+        lblJumlahProduk.setText("(memuat...)");
+
+        SwingWorker<List<Produk>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<Produk> doInBackground() throws Exception {
+                return produkController.daftarProduk();
             }
-            tampilkanProduk();
-            if (showToast) {
-                toastManager.show(
-                        "Katalog Disegarkan",
-                        semuaProduk.size() + " produk terbaru dimuat dari database.",
-                        ToastType.INFO
-                );
+
+            @Override
+            protected void done() {
+                if (reqId != loadRequestId) {
+                    return;
+                }
+                btnSegarkan.setEnabled(true);
+                try {
+                    List<Produk> hasil = get();
+                    semuaProduk.clear();
+                    if (hasil != null) {
+                        semuaProduk.addAll(hasil);
+                    }
+
+                    // Sinkronkan keranjang dengan katalog terbaru agar stok & harga tidak basi
+                    Map<Integer, Produk> katalogById = new LinkedHashMap<>();
+                    for (Produk p : semuaProduk) {
+                        katalogById.put(p.getId(), p);
+                    }
+                    List<String> perubahan = transaksiAktif.sinkronkanDenganKatalog(katalogById);
+
+                    tampilkanProduk();
+                    perbaruiKeranjang();
+
+                    if (!perubahan.isEmpty()) {
+                        String ringkasan = perubahan.get(0)
+                                + (perubahan.size() > 1 ? " (+" + (perubahan.size() - 1) + " penyesuaian lain)" : "");
+                        toastManager.show("Keranjang Disinkronkan", ringkasan, ToastType.INFO);
+                    } else if (showToast) {
+                        toastManager.show(
+                                "Katalog Disegarkan",
+                                semuaProduk.size() + " produk terbaru dimuat dari database.",
+                                ToastType.INFO
+                        );
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    panelKartuProduk.removeAll();
+                    lblJumlahProduk.setText("(0 produk)");
+                    JLabel errLbl = new JLabel("Gagal memuat produk. Periksa koneksi database.", SwingConstants.CENTER);
+                    errLbl.setFont(UITheme.font(Font.PLAIN, 13f));
+                    errLbl.setForeground(UITheme.TEXT_MUTED);
+                    panelKartuProduk.add(errLbl);
+                    panelKartuProduk.revalidate();
+                    panelKartuProduk.repaint();
+                    String msg = (cause instanceof SQLException sqlEx)
+                            ? TransaksiController.pesanSqlError(sqlEx)
+                            : "Gagal memuat daftar produk:\n" + (cause != null ? cause.getMessage() : ex.getMessage());
+                    ModernModal.error(KasirView.this, "Kesalahan Database", msg);
+                }
             }
-        } catch (SQLException ex) {
-            panelKartuProduk.removeAll();
-            lblJumlahProduk.setText("0 produk");
-            JLabel errLbl = new JLabel("Gagal memuat produk. Periksa koneksi database.", SwingConstants.CENTER);
-            errLbl.setFont(UITheme.font(Font.PLAIN, 13f));
-            errLbl.setForeground(UITheme.TEXT_MUTED);
-            panelKartuProduk.add(errLbl);
-            panelKartuProduk.revalidate();
-            panelKartuProduk.repaint();
-            ModernModal.error(this, "Kesalahan Database", "Gagal memuat daftar produk:\n" + ex.getMessage());
-        }
+        };
+        worker.execute();
     }
 
     private void tampilkanProduk() {
@@ -543,7 +579,7 @@ public class KasirView extends JPanel implements RefreshableView {
                 BorderFactory.createEmptyBorder(8, 0, 0, 0)
         ));
 
-        JLabel harga = new JLabel(formatRupiah(produk.getHarga()));
+        JLabel harga = new JLabel(UITheme.formatRupiah(produk.getHarga()));
         harga.setFont(UITheme.font(Font.BOLD, 13f));
         harga.setForeground(UITheme.TEXT_MAIN);
 
@@ -552,8 +588,11 @@ public class KasirView extends JPanel implements RefreshableView {
                 stok > 0 ? ButtonVariant.SOFT_PRIMARY : ButtonVariant.OUTLINE,
                 UITheme.SMALL_RADIUS
         );
-        konfigurasiTombol(btnTambah, 78, 28, Font.BOLD);
         btnTambah.setFont(UITheme.font(Font.BOLD, 11f));
+        Dimension tambahSize = new Dimension(78, 28);
+        btnTambah.setPreferredSize(tambahSize);
+        btnTambah.setMinimumSize(tambahSize);
+        btnTambah.setMaximumSize(tambahSize);
         btnTambah.setEnabled(stok > 0);
         btnTambah.addActionListener(e -> tambahKeKeranjang(produk));
 
@@ -563,7 +602,7 @@ public class KasirView extends JPanel implements RefreshableView {
         kartu.add(panelAtas, BorderLayout.NORTH);
         kartu.add(panelDetail, BorderLayout.CENTER);
         kartu.add(panelBawah, BorderLayout.SOUTH);
-        kartu.setToolTipText(produk.getKode() + " \u2022 " + produk.getNama() + " (" + formatRupiah(produk.getHarga()) + ")");
+        kartu.setToolTipText(produk.getKode() + " \u2022 " + produk.getNama() + " (" + UITheme.formatRupiah(produk.getHarga()) + ")");
         return kartu;
     }
 
@@ -604,11 +643,16 @@ public class KasirView extends JPanel implements RefreshableView {
     }
 
     private void tambahKeKeranjang(Produk produk) {
+        if (isProcessingCheckout) {
+            return;
+        }
         try {
             transaksiController.tambahItem(transaksiAktif, produk, 1);
             perbaruiKeranjang();
-        } catch (StokTidakCukupException | IllegalArgumentException ex) {
-            ModernModal.error(this, "Stok Tidak Mencukupi", ex.getMessage());
+        } catch (StokTidakCukupException ex) {
+            ModernModal.error(this, "Stok Tidak Mencukupi (Sisa: " + ex.getSisaStok() + ")", ex.getMessage());
+        } catch (IllegalArgumentException ex) {
+            ModernModal.error(this, "Gagal Menambah Item", ex.getMessage());
         }
     }
 
@@ -664,9 +708,9 @@ public class KasirView extends JPanel implements RefreshableView {
             }
         }
 
-        lblSubtotal.setText(formatRupiah(transaksiAktif.getSubtotalBarang()));
-        lblPajak.setText(formatRupiah(transaksiAktif.getTotalPajak()));
-        lblGrandTotal.setText(formatRupiah(transaksiAktif.getGrandTotal()));
+        lblSubtotal.setText(UITheme.formatRupiah(transaksiAktif.getSubtotalBarang()));
+        lblPajak.setText(UITheme.formatRupiah(transaksiAktif.getTotalPajak()));
+        lblGrandTotal.setText(UITheme.formatRupiah(transaksiAktif.getGrandTotal()));
 
         perbaruiPratinjauKembalian();
         panelDaftarKeranjang.revalidate();
@@ -693,7 +737,7 @@ public class KasirView extends JPanel implements RefreshableView {
         nama.setForeground(UITheme.TEXT_MAIN);
         nama.setToolTipText(produk.getNama());
 
-        JLabel hargaSatuan = new JLabel("@ " + formatRupiah(item.getHargaSatuan()));
+        JLabel hargaSatuan = new JLabel("@ " + UITheme.formatRupiah(item.getHargaSatuan()));
         hargaSatuan.setFont(UITheme.font(Font.PLAIN, 11f));
         hargaSatuan.setForeground(UITheme.TEXT_MUTED);
 
@@ -714,7 +758,7 @@ public class KasirView extends JPanel implements RefreshableView {
         btnKurang.addActionListener(e -> ubahKuantitas(produk, item.getKuantitas() - 1));
         btnTambah.addActionListener(e -> ubahKuantitas(produk, item.getKuantitas() + 1));
 
-        JLabel subtotalItem = new JLabel(formatRupiah(item.getSubtotal()));
+        JLabel subtotalItem = new JLabel(UITheme.formatRupiah(item.getSubtotal()));
         subtotalItem.setFont(UITheme.font(Font.BOLD, 12f));
         subtotalItem.setForeground(UITheme.TEXT_MAIN);
         subtotalItem.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 2));
@@ -744,6 +788,9 @@ public class KasirView extends JPanel implements RefreshableView {
     }
 
     private void ubahKuantitas(Produk produk, int kuantitasBaru) {
+        if (isProcessingCheckout) {
+            return;
+        }
         try {
             if (kuantitasBaru <= 0) {
                 transaksiController.hapusItem(transaksiAktif, produk);
@@ -751,8 +798,10 @@ public class KasirView extends JPanel implements RefreshableView {
                 transaksiController.ubahKuantitas(transaksiAktif, produk, kuantitasBaru);
             }
             perbaruiKeranjang();
-        } catch (StokTidakCukupException | IllegalArgumentException ex) {
-            ModernModal.error(this, "Stok Tidak Mencukupi", ex.getMessage());
+        } catch (StokTidakCukupException ex) {
+            ModernModal.error(this, "Stok Tidak Mencukupi (Sisa: " + ex.getSisaStok() + ")", ex.getMessage());
+        } catch (IllegalArgumentException ex) {
+            ModernModal.error(this, "Gagal Mengubah Kuantitas", ex.getMessage());
         }
     }
 
@@ -806,88 +855,151 @@ public class KasirView extends JPanel implements RefreshableView {
                 perbaruiPratinjauKembalian();
             }
         });
-        txtBayar.addActionListener(e -> prosesPembayaran());
+        txtBayar.addActionListener(e -> {
+            if (btnBayar.isEnabled()) {
+                prosesPembayaran();
+            }
+        });
     }
 
     private void perbaruiPratinjauKembalian() {
-        double nominalBayar = bacaNominalPembayaran();
-        double total = transaksiAktif == null ? 0 : transaksiAktif.getGrandTotal();
+        boolean keranjangAdaIsi = transaksiAktif != null && !transaksiAktif.getListKeranjang().isEmpty();
+        BigDecimal totalBd = BigDecimal.valueOf(transaksiAktif == null ? 0.0 : transaksiAktif.getGrandTotal())
+                .setScale(2, RoundingMode.HALF_UP);
+        Double nominalObj = bacaNominalPembayaran();
+        boolean inputTerisi = txtBayar.getText() != null && !txtBayar.getText().isBlank();
 
-        if (nominalBayar >= total && total > 0) {
-            lblKembalian.setText(formatRupiah(nominalBayar - total));
+        BigDecimal bayarBd = null;
+        if (nominalObj != null) {
+            bayarBd = BigDecimal.valueOf(nominalObj).setScale(2, RoundingMode.HALF_UP);
+        } else if (!inputTerisi && keranjangAdaIsi && totalBd.compareTo(BigDecimal.ZERO) == 0) {
+            bayarBd = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        boolean cukupBayar = keranjangAdaIsi && bayarBd != null && bayarBd.compareTo(totalBd) >= 0;
+
+        if (cukupBayar) {
+            BigDecimal kembalianBd = bayarBd.subtract(totalBd);
+            lblKembalian.setText(UITheme.formatRupiah(kembalianBd.doubleValue()));
             lblKembalian.setForeground(UITheme.SUCCESS);
             boxKembalian.setBackground(UITheme.SUCCESS_SOFT_BG);
             boxKembalian.setBorder(new RoundedBorder(UITheme.SUCCESS_BORDER, UITheme.SMALL_RADIUS, new Insets(6, 10, 6, 10)));
         } else {
-            lblKembalian.setText(formatRupiah(0));
-            lblKembalian.setForeground(nominalBayar > 0 ? UITheme.DANGER : UITheme.TEXT_MUTED);
+            lblKembalian.setText(UITheme.formatRupiah(0));
+            lblKembalian.setForeground(inputTerisi ? UITheme.DANGER : UITheme.TEXT_MUTED);
             boxKembalian.setBackground(UITheme.BG_PAGE);
             boxKembalian.setBorder(new RoundedBorder(UITheme.BORDER_DEFAULT, UITheme.SMALL_RADIUS, new Insets(6, 10, 6, 10)));
         }
 
-        btnBayar.setEnabled(
-                !transaksiAktif.getListKeranjang().isEmpty()
-                        && nominalBayar >= total
-                        && nominalBayar > 0
-        );
+        btnBayar.setEnabled(!isProcessingCheckout && cukupBayar);
     }
 
-    private double bacaNominalPembayaran() {
+    private Double bacaNominalPembayaran() {
         String teks = txtBayar.getText();
         if (teks == null || teks.isBlank()) {
-            return 0;
-        }
-        String angka = teks.replaceAll("[^0-9]", "");
-        if (angka.isEmpty()) {
-            return 0;
+            return null;
         }
         try {
-            return Long.parseLong(angka);
-        } catch (NumberFormatException ex) {
-            return 0;
+            double nilai = UITheme.parseNominalIndonesia(teks, "Kosong", "Invalid");
+            return nilai < 0 ? null : nilai;
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 
     private void prosesPembayaran() {
+        if (isProcessingCheckout) {
+            return;
+        }
         if (transaksiAktif.getListKeranjang().isEmpty()) {
             ModernModal.error(this, "Keranjang Kosong", "Tambahkan minimal 1 produk sebelum melakukan pembayaran.");
             return;
         }
 
-        double nominalBayar = bacaNominalPembayaran();
-        if (nominalBayar <= 0) {
-            ModernModal.error(this, "Nominal Belum Diisi", "Masukkan nominal uang yang dibayarkan pelanggan.");
-            txtBayar.requestFocusInWindow();
-            return;
+        Double nominalObj = bacaNominalPembayaran();
+        double total = transaksiAktif.getGrandTotal();
+        double nominalBayar;
+        if (nominalObj == null) {
+            boolean kosong = txtBayar.getText() == null || txtBayar.getText().isBlank();
+            if (kosong && total == 0.0) {
+                nominalBayar = 0.0;
+            } else {
+                ModernModal.error(this, "Nominal Tidak Valid",
+                        "Masukkan nominal uang yang valid (contoh: 50000, 50.000, atau 10505,25).");
+                txtBayar.requestFocusInWindow();
+                return;
+            }
+        } else {
+            nominalBayar = nominalObj;
         }
 
         try {
             transaksiController.prosesPembayaran(transaksiAktif, nominalBayar);
-            transaksiController.checkout(transaksiAktif);
-            Transaksi selesai = transaksiAktif;
-
-            mulaiTransaksiBaru();
-            txtBayar.setText("");
-            muatProduk(false);
-            perbaruiKeranjang();
-            toastManager.show(
-                    "Transaksi Berhasil",
-                    selesai.getIdTransaksi() + " tersimpan (" + formatRupiah(selesai.getGrandTotal()) + ").",
-                    ToastType.SUCCESS
-            );
-            ReceiptSupport.showSuccessModal(this, selesai, toastManager);
-        } catch (StokTidakCukupException ex) {
-            ModernModal.error(this, "Stok Tidak Mencukupi", ex.getMessage());
-            muatProduk(false);
-        } catch (SQLException ex) {
-            ModernModal.error(this, "Kesalahan Database", "Transaksi gagal disimpan ke database:\n" + ex.getMessage());
         } catch (IllegalArgumentException ex) {
             ModernModal.error(this, "Pembayaran Tidak Valid", ex.getMessage());
+            txtBayar.requestFocusInWindow();
+            return;
         }
+
+        final Transaksi transaksiDiproses = transaksiAktif;
+        isProcessingCheckout = true;
+        btnBayar.setEnabled(false);
+        btnBayar.setText("Memproses...");
+        btnBatal.setEnabled(false);
+
+        SwingWorker<Transaksi, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Transaksi doInBackground() throws Exception {
+                transaksiController.checkout(transaksiDiproses);
+                return transaksiDiproses;
+            }
+
+            @Override
+            protected void done() {
+                isProcessingCheckout = false;
+                btnBayar.setText("BAYAR (F9)");
+                btnBatal.setEnabled(true);
+                try {
+                    Transaksi selesai = get();
+                    mulaiTransaksiBaru();
+                    txtBayar.setText("");
+                    perbaruiKeranjang();
+                    muatProduk(false);
+                    toastManager.show(
+                            "Transaksi Berhasil",
+                            selesai.getIdTransaksi() + " tersimpan (" + UITheme.formatRupiah(selesai.getGrandTotal()) + ").",
+                            ToastType.SUCCESS
+                    );
+                    ReceiptSupport.showSuccessModal(KasirView.this, selesai, toastManager);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    perbaruiPratinjauKembalian();
+                } catch (ExecutionException ex) {
+                    perbaruiPratinjauKembalian();
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof StokTidakCukupException stokEx) {
+                        ModernModal.error(KasirView.this,
+                                "Stok Tidak Mencukupi (Sisa: " + stokEx.getSisaStok() + ")",
+                                stokEx.getMessage());
+                        muatProduk(false);
+                    } else if (cause instanceof SQLException sqlEx) {
+                        ModernModal.error(KasirView.this, "Kesalahan Database",
+                                TransaksiController.pesanSqlError(sqlEx));
+                    } else if (cause instanceof IllegalArgumentException argEx) {
+                        ModernModal.error(KasirView.this, "Transaksi Tidak Valid", argEx.getMessage());
+                        muatProduk(false);
+                    } else {
+                        ModernModal.error(KasirView.this, "Kesalahan Sistem",
+                                "Transaksi gagal diproses:\n" + (cause != null ? cause.getMessage() : ex.getMessage()));
+                    }
+                }
+            }
+        };
+        worker.execute();
     }
 
     private void batalkanTransaksi() {
-        if (transaksiAktif.getListKeranjang().isEmpty()) {
+        if (isProcessingCheckout || transaksiAktif.getListKeranjang().isEmpty()) {
             return;
         }
 
@@ -928,7 +1040,12 @@ public class KasirView extends JPanel implements RefreshableView {
         getActionMap().put("prosesBayar", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                prosesPembayaran();
+                if (btnBayar.isEnabled()) {
+                    prosesPembayaran();
+                } else if (!transaksiAktif.getListKeranjang().isEmpty()) {
+                    txtBayar.requestFocusInWindow();
+                    toastManager.show("Nominal Belum Cukup", "Masukkan uang dibayar minimal sebesar grand total.", ToastType.INFO);
+                }
             }
         });
 
@@ -972,19 +1089,12 @@ public class KasirView extends JPanel implements RefreshableView {
         if (teks == null) {
             return "-";
         }
-        String aman = teks.replace("&", "&amp;")
+        String dipotong = teks.length() > batas
+                ? teks.substring(0, Math.max(0, batas - 1)) + "\u2026"
+                : teks;
+        String aman = dipotong.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
-        if (aman.length() > batas) {
-            aman = aman.substring(0, Math.max(0, batas - 1)) + "\u2026";
-        }
         return "<html>" + aman + "</html>";
-    }
-
-    private static String formatRupiah(double nominal) {
-        NumberFormat format = NumberFormat.getCurrencyInstance(ID_LOCALE);
-        format.setMaximumFractionDigits(0);
-        format.setMinimumFractionDigits(0);
-        return format.format(nominal).replace('\u00A0', ' ');
     }
 }

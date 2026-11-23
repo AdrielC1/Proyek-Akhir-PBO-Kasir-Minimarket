@@ -76,7 +76,7 @@ public class RoundedPasswordField extends JPanel {
                 passwordField.setEchoChar(defaultEchoChar);
                 btnToggleEye.setToolTipText("Tampilkan Password");
             }
-            btnToggleEye.repaint();
+            RoundedPasswordField.this.repaint();
             passwordField.requestFocusInWindow();
         });
 
@@ -90,10 +90,6 @@ public class RoundedPasswordField extends JPanel {
 
     public char[] getPassword() {
         return passwordField.getPassword();
-    }
-
-    public void clearPassword() {
-        passwordField.setText("");
     }
 
     public void setError(boolean error) {

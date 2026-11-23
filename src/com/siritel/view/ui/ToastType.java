@@ -5,6 +5,5 @@ package com.siritel.view.ui;
  */
 public enum ToastType {
     SUCCESS,
-    INFO,
-    ERROR
+    INFO
 }

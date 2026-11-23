@@ -47,7 +47,6 @@ public class LoginView extends JFrame {
     private JPanel cardPanel;
     private int cardShakeOffset = 0;
     private Timer shakeTimer;
-    private boolean isProgrammaticChange = false;
 
     public LoginView() {
         setTitle("SI-RITEL — Login");
@@ -112,6 +111,12 @@ public class LoginView extends JFrame {
                 super.paintChildren(g2);
                 g2.dispose();
             }
+
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension pref = super.getPreferredSize();
+                return new Dimension(UITheme.CARD_WIDTH, Math.max(516, pref.height));
+            }
         };
         cardPanel.setOpaque(false);
         // Padding kartu: atas 32, kiri 32, kanan 32, bawah 28
@@ -119,7 +124,6 @@ public class LoginView extends JFrame {
                 UITheme.CARD_PADDING, UITheme.CARD_PADDING,
                 UITheme.PADDING_BOTTOM, UITheme.CARD_PADDING
         ));
-        cardPanel.setPreferredSize(new Dimension(UITheme.CARD_WIDTH, 516));
 
         // 3. Bangun Elemen Form Sesuai Tata Letak & Jarak login.png
         buildCardContent();
@@ -302,27 +306,20 @@ public class LoginView extends JFrame {
     }
 
     private void initInteractions() {
-        // DocumentListener: Hanya menyembunyikan banner jika aksi berasal dari input user fisik
         DocumentListener clearErrorListener = new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
-                if (!isProgrammaticChange) {
-                    clearErrorState();
-                }
+                clearErrorState();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
-                if (!isProgrammaticChange) {
-                    clearErrorState();
-                }
+                clearErrorState();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-                if (!isProgrammaticChange) {
-                    clearErrorState();
-                }
+                clearErrorState();
             }
         };
 
@@ -401,16 +398,9 @@ public class LoginView extends JFrame {
 
                         showError(msg, true, true);
 
-                        // Sesuai Spesifikasi Fase 1 Poin 3 & target login.png:
-                        // JANGAN kosongkan field password. Username dan password tetap terisi.
-                        // Beri fokus ke field password dan pilih seluruh teks (selectAll) agar user bisa langsung menimpa.
-                        isProgrammaticChange = true;
-                        try {
-                            txtPassword.requestFocusInWindow();
-                            txtPassword.selectAll();
-                        } finally {
-                            isProgrammaticChange = false;
-                        }
+                        // Pertahankan input username & password lalu sorot seluruh teks password agar mudah ditimpa
+                        txtPassword.requestFocusInWindow();
+                        txtPassword.selectAll();
                     }
                 } catch (Exception ex) {
                     showError("Terjadi kesalahan sistem: " + ex.getMessage(), true, true);

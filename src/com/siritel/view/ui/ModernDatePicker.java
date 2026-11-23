@@ -12,7 +12,9 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.DayOfWeek;
@@ -28,6 +30,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
@@ -97,7 +100,14 @@ public class ModernDatePicker extends JPanel {
                 } else {
                     calendarPanel.tampilkanBulan(selectedDate);
                     int popupW = calendarPanel.getPreferredSize().width + 16;
-                    int x = Math.min(0, getWidth() - popupW);
+                    int x = 0;
+                    Window owner = SwingUtilities.getWindowAncestor(ModernDatePicker.this);
+                    if (owner != null) {
+                        Point locInWin = SwingUtilities.convertPoint(ModernDatePicker.this, 0, 0, owner);
+                        if (locInWin.x + popupW > owner.getWidth() - 12) {
+                            x = Math.max(-locInWin.x + 12, getWidth() - popupW);
+                        }
+                    }
                     popup.show(ModernDatePicker.this, x, getHeight() + 4);
                 }
             }

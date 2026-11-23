@@ -14,14 +14,14 @@ Aplikasi desktop kasir (*Point of Sale*) dan manajemen inventaris ritel berbasis
 
 ---
 
-## Struktur Proyek Saat Ini
+## Struktur Proyek
 
 ```text
 Proyek PBO SI-RITEL/
 ├── README.md
 ├── docs/
 │   ├── AGENTS.md                          # Aturan arsitektur, OOP, UI, & pembagian modul
-│   ├── Database_Schema.md                 # Skema DDL PostgreSQL, seed data, & panduan query DAO
+│   ├── Database_Schema.md                 # Skema DDL PostgreSQL, migrasi, & panduan query DAO
 │   └── Java_Class_Schema_Architecture.md  # Rancangan paket, class diagram, & spesifikasi kelas
 ├── lib/
 │   └── postgresql-42.7.14.jar             # Driver JDBC PostgreSQL
@@ -31,17 +31,15 @@ Proyek PBO SI-RITEL/
             ├── Main.java                  # Entry point aplikasi
             ├── config/
             │   └── DatabaseConnection.java
-            └── view/
-                ├── MainFrame.java         # Frame utama dengan sidebar navigasi (CardLayout)
-                ├── KasirView.java
-                ├── ManajemenProdukView.java
-                ├── ManajemenPenggunaView.java
-                ├── RiwayatTransaksiView.java
-                ├── LaporanPenjualanView.java
-                └── PlaceholderSupport.java
+            ├── exception/
+            │   └── StokTidakCukupException.java
+            ├── model/                     # Entitas OOP, pewarisan Produk, interface Printable
+            ├── dao/                       # Akses JDBC PostgreSQL (Pengguna, Produk, Transaksi)
+            ├── controller/                # Logika bisnis & pemetaan SQLState
+            └── view/                      # Halaman Swing + paket komponen terpusat view/ui/
 ```
 
-> **Status saat ini:** Fondasi koneksi database (`DatabaseConnection`), entry point (`Main`), `MainFrame` dengan sidebar navigasi, serta 5 halaman placeholder kosong sudah tersedia dan siap dijalankan. Implementasi layer `model`, `dao`, `controller`, `exception`, dan isi masing-masing halaman mengikuti rancangan di folder `docs/`.
+> **Status saat ini:** Seluruh Modul 1 (Autentikasi & Manajemen Pengguna), Modul 2 (Katalog Produk, Polimorfisme Pajak & Batch FEFO), dan Modul 3 (Kasir, Riwayat Transaksi, Laporan Penjualan & Cetak A4/Struk) sudah terimplementasi penuh dengan komponen UI terpusat `com.siritel.view.ui` dan dukungan *soft delete* untuk menjaga keutuhan riwayat transaksi.
 
 ---
 

@@ -2,7 +2,6 @@ package com.siritel.view;
 
 import com.siritel.controller.TransaksiController;
 import com.siritel.model.LaporanPenjualan;
-import com.siritel.model.Pengguna;
 import com.siritel.model.Transaksi;
 import com.siritel.view.ui.ButtonVariant;
 import com.siritel.view.ui.LaporanPrinter;
@@ -27,12 +26,11 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.sql.SQLException;
-import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -40,19 +38,19 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 /**
  * Halaman laporan penjualan SI-RITEL.
  * Menggunakan komponen UI terpusat dari {@code com.siritel.view.ui}, pemilih
- * tanggal modern, penyegaran otomatis & manual, serta pratinjau/cetak dokumen A4.
+ * tanggal modern, pemuatan asinkron non-blocking, serta pratinjau/cetak dokumen A4.
  */
 public class LaporanPenjualanView extends JPanel implements RefreshableView {
 
-    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
     private static final DateTimeFormatter FORMAT_TANGGAL =
-            DateTimeFormatter.ofPattern("dd MMM yyyy", ID_LOCALE);
+            DateTimeFormatter.ofPattern("dd MMM yyyy", UITheme.ID_LOCALE);
 
     private final TransaksiController transaksiController = new TransaksiController();
     private final ToastManager toastManager = new ToastManager(this);
@@ -64,8 +62,8 @@ public class LaporanPenjualanView extends JPanel implements RefreshableView {
     private final RoundedButton btnCetak = new RoundedButton("Cetak / Pratinjau PDF", ButtonVariant.TEAL, UITheme.BUTTON_RADIUS);
 
     private final JLabel lblJumlahTransaksi = new JLabel("0");
-    private final JLabel lblTotalOmzet = new JLabel(formatRupiah(0));
-    private final JLabel lblTotalPajak = new JLabel(formatRupiah(0));
+    private final JLabel lblTotalOmzet = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblTotalPajak = new JLabel(UITheme.formatRupiah(0));
     private final JLabel lblStatus = new JLabel("Pilih periode laporan.");
 
     private final DefaultTableModel modelTabel = new DefaultTableModel(
@@ -80,21 +78,14 @@ public class LaporanPenjualanView extends JPanel implements RefreshableView {
 
     private final JTable tabelLaporan = new JTable(modelTabel);
     private LaporanPenjualan laporanAktif;
+    private int loadRequestId = 0;
 
     public LaporanPenjualanView() {
-        this(null);
-    }
-
-    /**
-     * Parameter penggunaAktif disediakan agar kompatibel dengan MainFrame.
-     */
-    public LaporanPenjualanView(Pengguna penggunaAktif) {
         setLayout(new BorderLayout(0, 14));
         setBackground(UITheme.BG_PAGE);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
         bangunTampilan();
-        muatLaporan(false);
     }
 
     @Override
@@ -309,7 +300,8 @@ public class LaporanPenjualanView extends JPanel implements RefreshableView {
                 setHorizontalAlignment(alignment);
                 setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
 
-                Object txVal = table.getModel().getValueAt(row, 1);
+                int modelRow = table.convertRowIndexToModel(row);
+                Object txVal = table.getModel().getValueAt(modelRow, 1);
                 boolean hasTx = txVal instanceof Number n && n.intValue() > 0;
                 setFont(UITheme.font(hasTx ? Font.BOLD : Font.PLAIN, 12f));
                 if (!isSelected) {
@@ -352,35 +344,66 @@ public class LaporanPenjualanView extends JPanel implements RefreshableView {
             return;
         }
 
-        try {
-            laporanAktif = transaksiController.buatLaporan(tanggalAwal, tanggalAkhir);
-            perbaruiRingkasan();
-            perbaruiTabel();
+        final int reqId = ++loadRequestId;
+        lblStatus.setText("Memuat laporan penjualan...");
+        btnTampilkan.setEnabled(false);
+        btnSegarkan.setEnabled(false);
 
-            lblStatus.setText(
-                    "Periode: " + tanggalAwal.format(FORMAT_TANGGAL)
-                            + " s/d " + tanggalAkhir.format(FORMAT_TANGGAL)
-                            + " \u2022 " + laporanAktif.hitungJumlahTransaksi() + " transaksi ditemukan."
-            );
-
-            if (showToast) {
-                toastManager.show(
-                        "Laporan Diperbarui",
-                        laporanAktif.hitungJumlahTransaksi() + " transaksi berhasil dimuat.",
-                        ToastType.INFO
-                );
+        SwingWorker<LaporanPenjualan, Void> worker = new SwingWorker<>() {
+            @Override
+            protected LaporanPenjualan doInBackground() throws Exception {
+                return transaksiController.buatLaporan(tanggalAwal, tanggalAkhir);
             }
-        } catch (SQLException ex) {
-            ModernModal.error(this, "Kesalahan Database", "Gagal mengambil laporan penjualan:\n" + ex.getMessage());
-        } catch (IllegalArgumentException ex) {
-            ModernModal.error(this, "Data Tidak Valid", ex.getMessage());
-        }
+
+            @Override
+            protected void done() {
+                if (reqId != loadRequestId) {
+                    return;
+                }
+                btnTampilkan.setEnabled(true);
+                btnSegarkan.setEnabled(true);
+                try {
+                    laporanAktif = get();
+                    perbaruiRingkasan();
+                    perbaruiTabel();
+
+                    lblStatus.setText(
+                            "Periode: " + tanggalAwal.format(FORMAT_TANGGAL)
+                                    + " s/d " + tanggalAkhir.format(FORMAT_TANGGAL)
+                                    + " \u2022 " + laporanAktif.hitungJumlahTransaksi() + " transaksi ditemukan."
+                    );
+
+                    if (showToast) {
+                        toastManager.show(
+                                "Laporan Diperbarui",
+                                laporanAktif.hitungJumlahTransaksi() + " transaksi berhasil dimuat.",
+                                ToastType.INFO
+                        );
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    lblStatus.setText("Gagal memuat laporan.");
+                    if (cause instanceof SQLException sqlEx) {
+                        ModernModal.error(LaporanPenjualanView.this, "Kesalahan Database",
+                                TransaksiController.pesanSqlError(sqlEx));
+                    } else if (cause instanceof IllegalArgumentException argEx) {
+                        ModernModal.error(LaporanPenjualanView.this, "Data Tidak Valid", argEx.getMessage());
+                    } else {
+                        ModernModal.error(LaporanPenjualanView.this, "Kesalahan Sistem",
+                                "Gagal mengambil laporan penjualan:\n" + (cause != null ? cause.getMessage() : ex.getMessage()));
+                    }
+                }
+            }
+        };
+        worker.execute();
     }
 
     private void perbaruiRingkasan() {
         lblJumlahTransaksi.setText(String.valueOf(laporanAktif.hitungJumlahTransaksi()));
-        lblTotalOmzet.setText(formatRupiah(laporanAktif.hitungTotalOmzet()));
-        lblTotalPajak.setText(formatRupiah(laporanAktif.hitungTotalPajakTerkumpul()));
+        lblTotalOmzet.setText(UITheme.formatRupiah(laporanAktif.hitungTotalOmzet()));
+        lblTotalPajak.setText(UITheme.formatRupiah(laporanAktif.hitungTotalPajakTerkumpul()));
     }
 
     private void perbaruiTabel() {
@@ -395,8 +418,8 @@ public class LaporanPenjualanView extends JPanel implements RefreshableView {
             modelTabel.addRow(new Object[]{
                     entry.getKey().format(FORMAT_TANGGAL),
                     transaksiHarian.size(),
-                    formatRupiah(omzet),
-                    formatRupiah(pajak)
+                    UITheme.formatRupiah(omzet),
+                    UITheme.formatRupiah(pajak)
             });
         }
     }
@@ -411,12 +434,5 @@ public class LaporanPenjualanView extends JPanel implements RefreshableView {
         btn.setPreferredSize(size);
         btn.setMinimumSize(size);
         btn.setMaximumSize(size);
-    }
-
-    private static String formatRupiah(double nominal) {
-        NumberFormat format = NumberFormat.getCurrencyInstance(ID_LOCALE);
-        format.setMaximumFractionDigits(0);
-        format.setMinimumFractionDigits(0);
-        return format.format(nominal).replace('\u00A0', ' ');
     }
 }

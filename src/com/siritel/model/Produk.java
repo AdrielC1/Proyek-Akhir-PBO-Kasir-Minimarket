@@ -9,6 +9,8 @@ import java.util.List;
  * Menerapkan enkapsulasi pada atribut dasar serta abstraksi perhitungan pajak dan info spesifik.
  */
 public abstract class Produk {
+    public static final double MAX_HARGA = 9_999_999_999.99;
+
     protected int id;
     protected String kode;
     protected String nama;
@@ -38,10 +40,28 @@ public abstract class Produk {
      */
     public abstract String getJenisProduk();
 
+    /**
+     * Menghitung total stok aktif yang layak jual (mengecualikan batch kedaluwarsa).
+     */
     public int getStok() {
         int total = 0;
         for (BatchProduk batch : daftarBatch) {
-            total += batch.getStokBatch();
+            if (!batch.isKadaluarsa()) {
+                total += batch.getStokBatch();
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Menghitung total stok dari batch yang sudah kedaluwarsa (tidak layak jual).
+     */
+    public int getStokKadaluarsa() {
+        int total = 0;
+        for (BatchProduk batch : daftarBatch) {
+            if (batch.isKadaluarsa()) {
+                total += batch.getStokBatch();
+            }
         }
         return total;
     }
@@ -110,6 +130,9 @@ public abstract class Produk {
     public void setHarga(double harga) {
         if (!Double.isFinite(harga) || harga < 0) {
             throw new IllegalArgumentException("Harga produk tidak boleh negatif.");
+        }
+        if (harga > MAX_HARGA) {
+            throw new IllegalArgumentException("Harga produk melebihi batas maksimum sistem (Rp 9.999.999.999,99).");
         }
         this.harga = harga;
     }

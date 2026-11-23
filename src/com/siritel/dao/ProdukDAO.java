@@ -45,24 +45,80 @@ public class ProdukDAO {
         String sql = "UPDATE produk " +
                      "SET kode = ?, nama = ?, harga = ?, jenis_produk = ?, " +
                      "berat_gram = ?, volume_ml = ?, is_dingin = ?, bulan_garansi = ? " +
-                     "WHERE id = ?";
+                     "WHERE id = ? AND is_active = TRUE";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             bindProdukParameters(ps, p);
             ps.setInt(9, p.getId());
             int affected = ps.executeUpdate();
             if (affected == 0) {
-                throw new IllegalArgumentException("Produk dengan ID " + p.getId() + " tidak ditemukan.");
+                throw new IllegalArgumentException("Produk dengan ID " + p.getId() + " tidak ditemukan atau sudah dihapus.");
             }
         }
     }
 
-    public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM produk WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
+    /**
+     * Menghapus produk dengan strategi hybrid soft-delete:
+     * - Jika sudah tercatat pada item_transaksi, produk dinonaktifkan (is_active = FALSE)
+     *   dan sisa batch stoknya dibersihkan agar histori struk tetap utuh.
+     * - Jika belum pernah ditransaksikan, baris produk dihapus permanen.
+     *
+     * @return {@code true} jika produk diarsipkan (soft delete), {@code false} jika dihapus permanen.
+     */
+    public boolean delete(int id) throws SQLException {
+        String sqlLock = "SELECT id FROM produk WHERE id = ? AND is_active = TRUE FOR UPDATE";
+        String sqlCekTransaksi = "SELECT 1 FROM item_transaksi WHERE produk_id = ? LIMIT 1";
+        String sqlSoftDelete = "UPDATE produk SET is_active = FALSE WHERE id = ? AND is_active = TRUE";
+        String sqlDeleteBatches = "DELETE FROM batch_produk WHERE produk_id = ?";
+        String sqlHardDelete = "DELETE FROM produk WHERE id = ? AND is_active = TRUE";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement psLock = conn.prepareStatement(sqlLock)) {
+                    psLock.setInt(1, id);
+                    try (ResultSet rs = psLock.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new IllegalArgumentException("Produk tidak ditemukan atau sudah dihapus.");
+                        }
+                    }
+                }
+
+                boolean pernahTransaksi;
+                try (PreparedStatement psCek = conn.prepareStatement(sqlCekTransaksi)) {
+                    psCek.setInt(1, id);
+                    try (ResultSet rs = psCek.executeQuery()) {
+                        pernahTransaksi = rs.next();
+                    }
+                }
+
+                if (pernahTransaksi) {
+                    try (PreparedStatement psSoft = conn.prepareStatement(sqlSoftDelete)) {
+                        psSoft.setInt(1, id);
+                        psSoft.executeUpdate();
+                    }
+                    try (PreparedStatement psBatch = conn.prepareStatement(sqlDeleteBatches)) {
+                        psBatch.setInt(1, id);
+                        psBatch.executeUpdate();
+                    }
+                    conn.commit();
+                    return true;
+                }
+
+                try (PreparedStatement psHard = conn.prepareStatement(sqlHardDelete)) {
+                    psHard.setInt(1, id);
+                    psHard.executeUpdate();
+                }
+                conn.commit();
+                return false;
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackErr) {
+                    e.addSuppressed(rollbackErr);
+                }
+                throw e;
+            }
         }
     }
 
@@ -74,7 +130,7 @@ public class ProdukDAO {
         Map<Integer, Produk> produkById = new LinkedHashMap<>();
         StringBuilder sql = new StringBuilder(
                 "SELECT id, kode, nama, harga, jenis_produk, berat_gram, volume_ml, is_dingin, bulan_garansi " +
-                "FROM produk WHERE 1=1"
+                "FROM produk WHERE is_active = TRUE"
         );
         List<Object> params = new ArrayList<>();
 
@@ -115,27 +171,10 @@ public class ProdukDAO {
 
     public Produk getById(int id) throws SQLException {
         String sql = "SELECT id, kode, nama, harga, jenis_produk, berat_gram, volume_ml, is_dingin, bulan_garansi " +
-                     "FROM produk WHERE id = ?";
+                     "FROM produk WHERE id = ? AND is_active = TRUE";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Produk p = mapRowToProduk(rs);
-                    p.setDaftarBatch(muatBatchByProdukId(conn, p.getId()));
-                    return p;
-                }
-            }
-        }
-        return null;
-    }
-
-    public Produk findByKode(String kode) throws SQLException {
-        String sql = "SELECT id, kode, nama, harga, jenis_produk, berat_gram, volume_ml, is_dingin, bulan_garansi " +
-                     "FROM produk WHERE kode = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, kode);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Produk p = mapRowToProduk(rs);
@@ -168,18 +207,15 @@ public class ProdukDAO {
         }
     }
 
-    public List<BatchProduk> getBatchByProdukId(int produkId) throws SQLException {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return muatBatchByProdukId(conn, produkId);
-        }
-    }
-
     public void deleteBatch(int batchId) throws SQLException {
         String sql = "DELETE FROM batch_produk WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, batchId);
-            ps.executeUpdate();
+            int affected = ps.executeUpdate();
+            if (affected == 0) {
+                throw new IllegalArgumentException("Batch stok tidak ditemukan atau sudah dihapus.");
+            }
         }
     }
 

@@ -27,10 +27,6 @@ public class Pengguna {
         return id;
     }
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
     public String getUsername() {
         return username;
     }
@@ -39,10 +35,11 @@ public class Pengguna {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username tidak boleh kosong.");
         }
-        if (username.length() > 50) {
+        String trimmed = username.trim();
+        if (trimmed.length() > 50) {
             throw new IllegalArgumentException("Username maksimal 50 karakter.");
         }
-        this.username = username.trim();
+        this.username = trimmed;
     }
 
     public String getPassword() {
@@ -67,10 +64,11 @@ public class Pengguna {
         if (namaLengkap == null || namaLengkap.isBlank()) {
             throw new IllegalArgumentException("Nama lengkap tidak boleh kosong.");
         }
-        if (namaLengkap.length() > 100) {
+        String trimmed = namaLengkap.trim();
+        if (trimmed.length() > 100) {
             throw new IllegalArgumentException("Nama lengkap maksimal 100 karakter.");
         }
-        this.namaLengkap = namaLengkap.trim();
+        this.namaLengkap = trimmed;
     }
 
     public String getRole() {

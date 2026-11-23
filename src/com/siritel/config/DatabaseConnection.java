@@ -25,6 +25,9 @@ public class DatabaseConnection {
     private static final String PROP_USER = "db.user";
     private static final String PROP_PASSWORD = "db.password";
 
+    private static final String CONNECT_TIMEOUT_SEC = "10";
+    private static final String SOCKET_TIMEOUT_SEC = "15";
+
     private static volatile DbConfig cachedConfig;
 
     private DatabaseConnection() {
@@ -32,11 +35,17 @@ public class DatabaseConnection {
     }
 
     /**
-     * Membuka koneksi baru ke database PostgreSQL berdasarkan konfigurasi aktif.
+     * Membuka koneksi baru ke database PostgreSQL berdasarkan konfigurasi aktif
+     * dengan batas waktu koneksi dan pembacaan agar UI tidak hang tanpa batas.
      */
     public static Connection getConnection() throws SQLException {
         DbConfig config = getOrLoadConfig();
-        return DriverManager.getConnection(config.url(), config.user(), config.password());
+        Properties connProps = new Properties();
+        connProps.setProperty("user", config.user());
+        connProps.setProperty("password", config.password());
+        connProps.setProperty("connectTimeout", CONNECT_TIMEOUT_SEC);
+        connProps.setProperty("socketTimeout", SOCKET_TIMEOUT_SEC);
+        return DriverManager.getConnection(config.url(), connProps);
     }
 
     private static DbConfig getOrLoadConfig() throws SQLException {

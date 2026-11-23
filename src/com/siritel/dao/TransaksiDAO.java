@@ -30,11 +30,16 @@ import java.util.TreeMap;
     
 public class TransaksiDAO {
 
-    // Mengunci batch berdasarkan urutan FEFO
+    // Memeriksa status aktif produk sebelum checkout
+    private static final String SQL_CHECK_PRODUK_AKTIF =
+        "SELECT nama, is_active FROM produk WHERE id = ? FOR SHARE";
+
+    // Mengunci batch aktif (belum kedaluwarsa) berdasarkan urutan FEFO
     private static final String SQL_LOCK_BATCH =
         "SELECT id, stok_batch " +
         "FROM batch_produk " +
         "WHERE produk_id = ? AND stok_batch > 0 " +
+        "AND (tgl_kadaluarsa IS NULL OR tgl_kadaluarsa >= CURRENT_DATE) " +
         "ORDER BY tgl_kadaluarsa ASC NULLS LAST, id ASC " +
         "FOR UPDATE";
 
@@ -58,46 +63,50 @@ public class TransaksiDAO {
         "SET stok_batch = stok_batch - ? " +
         "WHERE id = ? AND stok_batch >= ?";
 
-    // Mengambil ringkasan riwayat transaksi dengan pagination
+    // Mengambil ringkasan riwayat transaksi dengan filter tanggal, kata kunci, & pagination
     private static final String SQL_RIWAYAT_TRANSAKSI =
-    "SELECT t.id_transaksi, t.tanggal, " +
-    "p.nama_lengkap AS nama_kasir, " +
-    "COUNT(it.id) AS jumlah_item, " +
-    "t.grand_total " +
-    "FROM transaksi t " +
-    "JOIN pengguna p ON t.kasir_id = p.id " +
-    "LEFT JOIN item_transaksi it ON t.id_transaksi = it.transaksi_id " +
-    "WHERE t.tanggal >= ? AND t.tanggal < ? " +
-    "GROUP BY t.id_transaksi, t.tanggal, p.nama_lengkap, t.grand_total " +
-    "ORDER BY t.tanggal DESC, t.id_transaksi DESC " +
-    "LIMIT ? OFFSET ?";
+        "SELECT t.id_transaksi, t.tanggal, " +
+        "p.nama_lengkap AS nama_kasir, " +
+        "COUNT(it.id) AS jumlah_item, " +
+        "t.grand_total " +
+        "FROM transaksi t " +
+        "JOIN pengguna p ON t.kasir_id = p.id " +
+        "LEFT JOIN item_transaksi it ON t.id_transaksi = it.transaksi_id " +
+        "WHERE t.tanggal >= ? AND t.tanggal < ? " +
+        "AND (? = '' OR t.id_transaksi ILIKE ? OR p.nama_lengkap ILIKE ?) " +
+        "GROUP BY t.id_transaksi, t.tanggal, p.nama_lengkap, t.grand_total " +
+        "ORDER BY t.tanggal DESC, t.id_transaksi DESC " +
+        "LIMIT ? OFFSET ?";
 
-    // Mengambil header satu transaksi berdasarkan ID
+    // Mengambil header satu transaksi berdasarkan ID (termasuk kasir yang sudah dinonaktifkan)
     private static final String SQL_DETAIL_HEADER =
-    "SELECT t.id_transaksi, t.tanggal, t.kasir_id, " +
-    "p.username, p.nama_lengkap, p.role, " +
-    "t.subtotal_barang, t.total_pajak, t.grand_total, " +
-    "t.bayar, t.kembalian " +
-    "FROM transaksi t " +
-    "JOIN pengguna p ON t.kasir_id = p.id " +
-    "WHERE t.id_transaksi = ?";
-// Mengambil detail item beserta informasi produk
-private static final String SQL_DETAIL_TRANSAKSI =
-    "SELECT it.kuantitas, it.harga_satuan, " +
-    "it.pajak_satuan, it.subtotal, " +
-    "p.id AS produk_id, p.kode, p.nama, p.harga, " +
-    "p.jenis_produk, p.berat_gram, p.volume_ml, " +
-    "p.is_dingin, p.bulan_garansi " +
-    "FROM item_transaksi it " +
-    "JOIN produk p ON it.produk_id = p.id " +
-    "WHERE it.transaksi_id = ? " +
-    "ORDER BY it.id ASC";
+        "SELECT t.id_transaksi, t.tanggal, t.kasir_id, " +
+        "p.username, p.nama_lengkap, p.role, " +
+        "t.subtotal_barang, t.total_pajak, t.grand_total, " +
+        "t.bayar, t.kembalian " +
+        "FROM transaksi t " +
+        "JOIN pengguna p ON t.kasir_id = p.id " +
+        "WHERE t.id_transaksi = ?";
 
-    // Menghitung jumlah transaksi berdasarkan rentang tanggal
+    // Mengambil detail item beserta informasi produk (termasuk produk yang sudah diarsipkan)
+    private static final String SQL_DETAIL_TRANSAKSI =
+        "SELECT it.kuantitas, it.harga_satuan, " +
+        "it.pajak_satuan, it.subtotal, " +
+        "p.id AS produk_id, p.kode, p.nama, p.harga, " +
+        "p.jenis_produk, p.berat_gram, p.volume_ml, " +
+        "p.is_dingin, p.bulan_garansi " +
+        "FROM item_transaksi it " +
+        "JOIN produk p ON it.produk_id = p.id " +
+        "WHERE it.transaksi_id = ? " +
+        "ORDER BY it.id ASC";
+
+    // Menghitung jumlah transaksi berdasarkan rentang tanggal & kata kunci pencarian
     private static final String SQL_HITUNG_RIWAYAT =
-    "SELECT COUNT(*) " +
-    "FROM transaksi " +
-    "WHERE tanggal >= ? AND tanggal < ?";
+        "SELECT COUNT(*) " +
+        "FROM transaksi t " +
+        "JOIN pengguna p ON t.kasir_id = p.id " +
+        "WHERE t.tanggal >= ? AND t.tanggal < ? " +
+        "AND (? = '' OR t.id_transaksi ILIKE ? OR p.nama_lengkap ILIKE ?)";
 
     // Mengambil seluruh transaksi untuk laporan penjualan
     private static final String SQL_LAPORAN_PENJUALAN =
@@ -128,20 +137,23 @@ private static final String SQL_DETAIL_TRANSAKSI =
 
             try {
 
-                // 1. Mengunci dan memeriksa batch menggunakan FEFO
+                // 1. Pastikan seluruh produk masih aktif di database
+                pastikanProdukAktif(conn, kebutuhanStok);
+
+                // 2. Mengunci dan memeriksa batch aktif (belum kedaluwarsa) menggunakan FEFO
                 List<PenguranganBatch> daftarPengurangan =
                     rencanakanPenguranganStok(conn, kebutuhanStok);
 
-                // 2. Menyimpan header transaksi
+                // 3. Menyimpan header transaksi
                 simpanHeader(conn, transaksi);
 
-                // 3. Menyimpan seluruh detail transaksi
+                // 4. Menyimpan seluruh detail transaksi
                 simpanDetail(conn, transaksi);
 
-                // 4. Mengurangi stok setiap batch
+                // 5. Mengurangi stok setiap batch
                 kurangiStokBatch(conn, daftarPengurangan);
 
-                // 5. Menyelesaikan seluruh operasi
+                // 6. Menyelesaikan seluruh operasi
                 conn.commit();
 
             } catch (
@@ -162,71 +174,77 @@ private static final String SQL_DETAIL_TRANSAKSI =
         }
     }
 
-   /**
- * Mengambil ringkasan riwayat transaksi berdasarkan tanggal
- * dan halaman yang dipilih.
- */
-public List<TransaksiRingkas> getRiwayatTransaksi(
-        LocalDate tanggalAwal,
-        LocalDate tanggalAkhir,
-        int halaman,
-        int batas) throws SQLException {
+    /**
+     * Mengambil ringkasan riwayat transaksi berdasarkan tanggal, kata kunci pencarian,
+     * dan halaman yang dipilih.
+     */
+    public List<TransaksiRingkas> getRiwayatTransaksi(
+            LocalDate tanggalAwal,
+            LocalDate tanggalAkhir,
+            String keyword,
+            int halaman,
+            int batas) throws SQLException {
 
-    if (tanggalAwal == null || tanggalAkhir == null) {
-        throw new IllegalArgumentException(
-            "Rentang tanggal tidak boleh null."
-        );
-    }
+        if (tanggalAwal == null || tanggalAkhir == null) {
+            throw new IllegalArgumentException(
+                "Rentang tanggal tidak boleh null."
+            );
+        }
 
-    if (tanggalAwal.isAfter(tanggalAkhir)) {
-        throw new IllegalArgumentException(
-            "Tanggal awal tidak boleh melebihi tanggal akhir."
-        );
-    }
+        if (tanggalAwal.isAfter(tanggalAkhir)) {
+            throw new IllegalArgumentException(
+                "Tanggal awal tidak boleh melebihi tanggal akhir."
+            );
+        }
 
-    if (halaman < 1 || batas < 1) {
-        throw new IllegalArgumentException(
-            "Halaman dan batas data harus lebih dari 0."
-        );
-    }
+        if (halaman < 1 || batas < 1) {
+            throw new IllegalArgumentException(
+                "Halaman dan batas data harus lebih dari 0."
+            );
+        }
 
-    List<TransaksiRingkas> daftarTransaksi = new ArrayList<>();
+        List<TransaksiRingkas> daftarTransaksi = new ArrayList<>();
 
-    LocalDateTime waktuAwal = tanggalAwal.atStartOfDay();
-    LocalDateTime waktuAkhir = tanggalAkhir
-        .plusDays(1)
-        .atStartOfDay();
+        LocalDateTime waktuAwal = tanggalAwal.atStartOfDay();
+        LocalDateTime waktuAkhir = tanggalAkhir
+            .plusDays(1)
+            .atStartOfDay();
 
-    int offset = Math.multiplyExact(halaman - 1, batas);
+        String cari = (keyword == null) ? "" : keyword.trim();
+        String pola = "%" + cari + "%";
+        int offset = Math.multiplyExact(halaman - 1, batas);
 
-    try (Connection conn = DatabaseConnection.getConnection();
-         PreparedStatement ps = conn.prepareStatement(
-             SQL_RIWAYAT_TRANSAKSI)) {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                 SQL_RIWAYAT_TRANSAKSI)) {
 
-        ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
-        ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
-        ps.setInt(3, batas);
-        ps.setInt(4, offset);
+            ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
+            ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
+            ps.setString(3, cari);
+            ps.setString(4, pola);
+            ps.setString(5, pola);
+            ps.setInt(6, batas);
+            ps.setInt(7, offset);
 
-        try (ResultSet rs = ps.executeQuery()) {
+            try (ResultSet rs = ps.executeQuery()) {
 
-            while (rs.next()) {
+                while (rs.next()) {
 
-                TransaksiRingkas transaksi = new TransaksiRingkas(
-                    rs.getString("id_transaksi"),
-                    rs.getTimestamp("tanggal").toLocalDateTime(),
-                    rs.getString("nama_kasir"),
-                    rs.getInt("jumlah_item"),
-                    rs.getBigDecimal("grand_total").doubleValue()
-                );
+                    TransaksiRingkas transaksi = new TransaksiRingkas(
+                        rs.getString("id_transaksi"),
+                        rs.getTimestamp("tanggal").toLocalDateTime(),
+                        rs.getString("nama_kasir"),
+                        rs.getInt("jumlah_item"),
+                        rs.getBigDecimal("grand_total").doubleValue()
+                    );
 
-                daftarTransaksi.add(transaksi);
+                    daftarTransaksi.add(transaksi);
+                }
             }
         }
-    }
 
-    return daftarTransaksi;
-}
+        return daftarTransaksi;
+    }
         /**
  * Mengambil satu transaksi beserta seluruh detail itemnya.
  *
@@ -434,7 +452,7 @@ public Transaksi getDetailTransaksi(String idTransaksi)
             );
         }
 
-        if (bayar < grandTotal) {
+        if (toDatabaseMoney(bayar).compareTo(toDatabaseMoney(grandTotal)) < 0) {
             throw new IllegalArgumentException(
                 "Pembayaran belum mencukupi."
             );
@@ -511,6 +529,28 @@ public Transaksi getDetailTransaksi(String idTransaksi)
         return kebutuhan;
     }
 
+
+    /**
+     * Memastikan seluruh produk dalam keranjang masih aktif sebelum mengurangi stok.
+     */
+    private void pastikanProdukAktif(
+            Connection conn,
+            Map<Integer, Integer> kebutuhanStok) throws SQLException {
+
+        try (PreparedStatement ps = conn.prepareStatement(SQL_CHECK_PRODUK_AKTIF)) {
+            for (Integer produkId : kebutuhanStok.keySet()) {
+                ps.setInt(1, produkId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next() || !rs.getBoolean("is_active")) {
+                        throw new IllegalArgumentException(
+                            "Sebagian produk di keranjang sudah dihapus atau tidak aktif. "
+                                + "Segarkan katalog kasir lalu ulangi transaksi."
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     /**
      * Mengunci batch dan menyusun rencana pengurangan stok FEFO.
@@ -717,9 +757,9 @@ public Transaksi getDetailTransaksi(String idTransaksi)
      */
     private BigDecimal toDatabaseMoney(double nominal) {
 
-        if (!Double.isFinite(nominal) || nominal < 0) {
+        if (!Double.isFinite(nominal) || nominal < 0 || nominal > Produk.MAX_HARGA) {
             throw new IllegalArgumentException(
-                "Nominal transaksi tidak valid."
+                "Nominal transaksi tidak valid atau melebihi batas maksimum."
             );
         }
 
@@ -744,46 +784,54 @@ public Transaksi getDetailTransaksi(String idTransaksi)
         int kuantitas
     ) {
     }
+
     /**
- * Menghitung seluruh transaksi dalam rentang tanggal.
- */
-public int getJumlahRiwayatTransaksi(
-        LocalDate tanggalAwal,
-        LocalDate tanggalAkhir) throws SQLException {
+     * Menghitung seluruh transaksi dalam rentang tanggal & kata kunci pencarian.
+     */
+    public int getJumlahRiwayatTransaksi(
+            LocalDate tanggalAwal,
+            LocalDate tanggalAkhir,
+            String keyword) throws SQLException {
 
-    if (tanggalAwal == null || tanggalAkhir == null) {
-        throw new IllegalArgumentException(
-            "Rentang tanggal tidak boleh null."
-        );
-    }
+        if (tanggalAwal == null || tanggalAkhir == null) {
+            throw new IllegalArgumentException(
+                "Rentang tanggal tidak boleh null."
+            );
+        }
 
-    if (tanggalAwal.isAfter(tanggalAkhir)) {
-        throw new IllegalArgumentException(
-            "Tanggal awal tidak boleh melebihi tanggal akhir."
-        );
-    }
+        if (tanggalAwal.isAfter(tanggalAkhir)) {
+            throw new IllegalArgumentException(
+                "Tanggal awal tidak boleh melebihi tanggal akhir."
+            );
+        }
 
-    LocalDateTime waktuAwal = tanggalAwal.atStartOfDay();
-    LocalDateTime waktuAkhir = tanggalAkhir
-        .plusDays(1)
-        .atStartOfDay();
+        LocalDateTime waktuAwal = tanggalAwal.atStartOfDay();
+        LocalDateTime waktuAkhir = tanggalAkhir
+            .plusDays(1)
+            .atStartOfDay();
 
-    try (Connection conn = DatabaseConnection.getConnection();
-         PreparedStatement ps = conn.prepareStatement(
-             SQL_HITUNG_RIWAYAT)) {
+        String cari = (keyword == null) ? "" : keyword.trim();
+        String pola = "%" + cari + "%";
 
-        ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
-        ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                 SQL_HITUNG_RIWAYAT)) {
 
-        try (ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1);
+            ps.setTimestamp(1, Timestamp.valueOf(waktuAwal));
+            ps.setTimestamp(2, Timestamp.valueOf(waktuAkhir));
+            ps.setString(3, cari);
+            ps.setString(4, pola);
+            ps.setString(5, pola);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
         }
-    }
 
-    return 0;
-}
+        return 0;
+    }
 
 /**
  * Mengambil data transaksi untuk laporan penjualan

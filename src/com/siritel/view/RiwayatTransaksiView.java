@@ -2,7 +2,6 @@ package com.siritel.view;
 
 import com.siritel.controller.TransaksiController;
 import com.siritel.model.ItemTransaksi;
-import com.siritel.model.Pengguna;
 import com.siritel.model.Transaksi;
 import com.siritel.model.TransaksiRingkas;
 import com.siritel.view.ui.ButtonVariant;
@@ -26,12 +25,11 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
-import java.text.NumberFormat;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
+import java.util.concurrent.ExecutionException;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -42,6 +40,8 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -49,16 +49,18 @@ import javax.swing.table.DefaultTableModel;
 
 /**
  * Halaman riwayat transaksi SI-RITEL.
- * Menggunakan komponen UI terpusat dari {@code com.siritel.view.ui} serta
- * mendukung penyegaran otomatis dan manual dari database.
+ * Mendukung pencarian server-side lintas seluruh halaman, pemuatan asinkron non-blocking,
+ * serta pencetakan ulang struk transaksi historis.
  */
 public class RiwayatTransaksiView extends JPanel implements RefreshableView {
 
     private static final int BATAS_PER_HALAMAN = 10;
-    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
 
     private static final DateTimeFormatter FORMAT_TANGGAL_WAKTU =
-            DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", ID_LOCALE);
+            DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", UITheme.ID_LOCALE);
+
+    private record RiwayatPageData(int totalTransaksi, int halamanFinal, List<TransaksiRingkas> items) {
+    }
 
     private final TransaksiController transaksiController = new TransaksiController();
     private final ToastManager toastManager = new ToastManager(this);
@@ -92,11 +94,11 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
     private final JLabel lblTanggal = new JLabel("-");
     private final JLabel lblKasir = new JLabel("-");
     private final JLabel lblStatus = new JLabel("Pilih transaksi");
-    private final JLabel lblSubtotal = new JLabel(formatRupiah(0));
-    private final JLabel lblPajak = new JLabel(formatRupiah(0));
-    private final JLabel lblGrandTotal = new JLabel(formatRupiah(0));
-    private final JLabel lblBayar = new JLabel(formatRupiah(0));
-    private final JLabel lblKembalian = new JLabel(formatRupiah(0));
+    private final JLabel lblSubtotal = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblPajak = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblGrandTotal = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblBayar = new JLabel(UITheme.formatRupiah(0));
+    private final JLabel lblKembalian = new JLabel(UITheme.formatRupiah(0));
 
     private final DefaultTableModel modelDetail = new DefaultTableModel(
             new Object[]{"Produk", "Qty", "Harga", "Subtotal"},
@@ -111,30 +113,31 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
     private final JTable tabelDetail = new JTable(modelDetail);
     private final RoundedButton btnCetak = new RoundedButton("Cetak Struk", ButtonVariant.PRIMARY, UITheme.BUTTON_RADIUS);
 
-    private List<TransaksiRingkas> daftarTransaksi = new ArrayList<>();
     private LocalDate tanggalAwalAktif = LocalDate.now().withDayOfMonth(1);
     private LocalDate tanggalAkhirAktif = LocalDate.now();
     private int halamanAktif = 1;
     private int jumlahSeluruhTransaksi = 0;
     private Transaksi transaksiTerpilih;
+    private boolean isUpdatingFilter = false;
+    private boolean isRefreshingTable = false;
+    private int listRequestId = 0;
+    private int detailRequestId = 0;
+    private final Timer searchDebounceTimer;
 
     public RiwayatTransaksiView() {
-        this(null);
-    }
-
-    /**
-     * Konstruktor yang menerima pengguna aktif dari MainFrame.
-     */
-    public RiwayatTransaksiView(Pengguna penggunaAktif) {
         setLayout(new BorderLayout(14, 0));
         setBackground(UITheme.BG_PAGE);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
+        searchDebounceTimer = new Timer(300, e -> {
+            halamanAktif = 1;
+            muatRiwayat(false);
+        });
+        searchDebounceTimer.setRepeats(false);
+
         aturTabel();
         bangunTampilan();
         pasangListener();
-
-        muatRiwayat(false);
     }
 
     @Override
@@ -442,26 +445,36 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
         btnCetak.addActionListener(e -> ReceiptSupport.printStruk(this, transaksiTerpilih, toastManager));
 
         tabelTransaksi.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
+            if (!e.getValueIsAdjusting() && !isRefreshingTable) {
                 tampilkanDetailTerpilih();
             }
         });
 
-        txtCari.addActionListener(e -> tampilkanTabelHalaman());
+        txtCari.addActionListener(e -> {
+            searchDebounceTimer.stop();
+            halamanAktif = 1;
+            muatRiwayat(false);
+        });
         txtCari.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
-                tampilkanTabelHalaman();
+                if (!isUpdatingFilter) {
+                    searchDebounceTimer.restart();
+                }
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
-                tampilkanTabelHalaman();
+                if (!isUpdatingFilter) {
+                    searchDebounceTimer.restart();
+                }
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-                tampilkanTabelHalaman();
+                if (!isUpdatingFilter) {
+                    searchDebounceTimer.restart();
+                }
             }
         });
 
@@ -494,108 +507,163 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
             return;
         }
 
+        searchDebounceTimer.stop();
         tanggalAwalAktif = awal;
         tanggalAkhirAktif = akhir;
         halamanAktif = 1;
-        txtCari.setText("");
+        isUpdatingFilter = true;
+        try {
+            txtCari.setText("");
+        } finally {
+            isUpdatingFilter = false;
+        }
         muatRiwayat(false);
     }
 
     private void resetFilter() {
+        searchDebounceTimer.stop();
         tanggalAwalAktif = LocalDate.now().withDayOfMonth(1);
         tanggalAkhirAktif = LocalDate.now();
         dpTanggalAwal.setDate(tanggalAwalAktif);
         dpTanggalAkhir.setDate(tanggalAkhirAktif);
-        txtCari.setText("");
+        isUpdatingFilter = true;
+        try {
+            txtCari.setText("");
+        } finally {
+            isUpdatingFilter = false;
+        }
         halamanAktif = 1;
         muatRiwayat(false);
         toastManager.show("Filter Direset", "Menampilkan transaksi bulan berjalan.", ToastType.INFO);
     }
 
     private void muatRiwayat(boolean showToast) {
-        try {
-            jumlahSeluruhTransaksi = transaksiController.getJumlahRiwayatTransaksi(
-                    tanggalAwalAktif,
-                    tanggalAkhirAktif
-            );
+        final int reqId = ++listRequestId;
+        final LocalDate awal = tanggalAwalAktif;
+        final LocalDate akhir = tanggalAkhirAktif;
+        final String keyword = txtCari.getText() == null ? "" : txtCari.getText().trim();
+        final int targetPage = Math.max(1, halamanAktif);
 
-            int totalHalaman = hitungJumlahHalaman();
-            if (halamanAktif > totalHalaman && totalHalaman > 0) {
-                halamanAktif = totalHalaman;
-            }
+        lblInfoHalaman.setText("Memuat data...");
+        btnSegarkan.setEnabled(false);
 
-            daftarTransaksi = transaksiController.getRiwayatTransaksi(
-                    tanggalAwalAktif,
-                    tanggalAkhirAktif,
-                    halamanAktif,
-                    BATAS_PER_HALAMAN
-            );
-
-            tampilkanTabelHalaman();
-            perbaruiPagination();
-
-            if (daftarTransaksi.isEmpty()) {
-                kosongkanDetail();
-            } else if (tabelTransaksi.getSelectedRow() < 0 && modelTabel.getRowCount() > 0) {
-                tabelTransaksi.setRowSelectionInterval(0, 0);
-            }
-
-            if (showToast) {
-                toastManager.show(
-                        "Riwayat Disegarkan",
-                        jumlahSeluruhTransaksi + " transaksi ditemukan pada periode aktif.",
-                        ToastType.INFO
+        SwingWorker<RiwayatPageData, Void> worker = new SwingWorker<>() {
+            @Override
+            protected RiwayatPageData doInBackground() throws Exception {
+                int total = transaksiController.getJumlahRiwayatTransaksi(awal, akhir, keyword);
+                int totalHalaman = (int) Math.ceil((double) total / BATAS_PER_HALAMAN);
+                int page = targetPage;
+                if (totalHalaman > 0 && page > totalHalaman) {
+                    page = totalHalaman;
+                } else if (totalHalaman == 0) {
+                    page = 1;
+                }
+                List<TransaksiRingkas> items = transaksiController.getRiwayatTransaksi(
+                        awal, akhir, keyword, page, BATAS_PER_HALAMAN
                 );
+                return new RiwayatPageData(total, page, items);
             }
-        } catch (Exception ex) {
-            ModernModal.error(this, "Kesalahan Database", "Gagal memuat riwayat transaksi:\n" + ex.getMessage());
-        }
-    }
 
-    private void tampilkanTabelHalaman() {
-        modelTabel.setRowCount(0);
+            @Override
+            protected void done() {
+                if (reqId != listRequestId) {
+                    return;
+                }
+                btnSegarkan.setEnabled(true);
+                try {
+                    RiwayatPageData data = get();
+                    jumlahSeluruhTransaksi = data.totalTransaksi();
+                    halamanAktif = data.halamanFinal();
 
-        String kataKunci = txtCari.getText() == null
-                ? ""
-                : txtCari.getText().trim().toLowerCase(Locale.ROOT);
+                    isRefreshingTable = true;
+                    try {
+                        modelTabel.setRowCount(0);
+                        for (TransaksiRingkas transaksi : data.items()) {
+                            modelTabel.addRow(new Object[]{
+                                    transaksi.getIdTransaksi(),
+                                    transaksi.getTanggal().format(FORMAT_TANGGAL_WAKTU),
+                                    transaksi.getNamaKasir(),
+                                    transaksi.getJumlahItem() + " item",
+                                    UITheme.formatRupiah(transaksi.getGrandTotal())
+                            });
+                        }
+                    } finally {
+                        isRefreshingTable = false;
+                    }
 
-        for (TransaksiRingkas transaksi : daftarTransaksi) {
-            boolean cocok = transaksi.getIdTransaksi().toLowerCase(Locale.ROOT).contains(kataKunci)
-                    || transaksi.getNamaKasir().toLowerCase(Locale.ROOT).contains(kataKunci);
+                    perbaruiPagination();
 
-            if (cocok) {
-                modelTabel.addRow(new Object[]{
-                        transaksi.getIdTransaksi(),
-                        transaksi.getTanggal().format(FORMAT_TANGGAL_WAKTU),
-                        transaksi.getNamaKasir(),
-                        transaksi.getJumlahItem() + " item",
-                        formatRupiah(transaksi.getGrandTotal())
-                });
+                    if (modelTabel.getRowCount() == 0) {
+                        kosongkanDetail();
+                    } else {
+                        tabelTransaksi.setRowSelectionInterval(0, 0);
+                        tampilkanDetailTerpilih();
+                    }
+
+                    if (showToast) {
+                        toastManager.show(
+                                "Riwayat Disegarkan",
+                                jumlahSeluruhTransaksi + " transaksi ditemukan pada periode aktif.",
+                                ToastType.INFO
+                        );
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    lblInfoHalaman.setText("Gagal memuat data");
+                    String msg = (cause instanceof SQLException sqlEx)
+                            ? TransaksiController.pesanSqlError(sqlEx)
+                            : "Gagal memuat riwayat transaksi:\n" + (cause != null ? cause.getMessage() : ex.getMessage());
+                    ModernModal.error(RiwayatTransaksiView.this, "Kesalahan Database", msg);
+                }
             }
-        }
-
-        if (modelTabel.getRowCount() == 0) {
-            kosongkanDetail();
-        }
+        };
+        worker.execute();
     }
 
     private void tampilkanDetailTerpilih() {
         int baris = tabelTransaksi.getSelectedRow();
-        if (baris < 0) {
+        if (baris < 0 || baris >= modelTabel.getRowCount()) {
             return;
         }
 
         String idTransaksi = modelTabel.getValueAt(baris, 0).toString();
-        try {
-            transaksiTerpilih = transaksiController.getDetailTransaksi(idTransaksi);
-            if (transaksiTerpilih == null) {
-                kosongkanDetail();
-                return;
+        final int reqId = ++detailRequestId;
+        lblStatus.setText("Memuat...");
+        btnCetak.setEnabled(false);
+
+        SwingWorker<Transaksi, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Transaksi doInBackground() throws Exception {
+                return transaksiController.getDetailTransaksi(idTransaksi);
             }
-            isiPanelDetail(transaksiTerpilih);
-        } catch (Exception ex) {
-            ModernModal.error(this, "Kesalahan Database", "Gagal mengambil detail transaksi:\n" + ex.getMessage());
-        }
+
+            @Override
+            protected void done() {
+                if (reqId != detailRequestId) {
+                    return;
+                }
+                try {
+                    transaksiTerpilih = get();
+                    if (transaksiTerpilih == null) {
+                        kosongkanDetail();
+                        return;
+                    }
+                    isiPanelDetail(transaksiTerpilih);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    kosongkanDetail();
+                    String msg = (cause instanceof SQLException sqlEx)
+                            ? TransaksiController.pesanSqlError(sqlEx)
+                            : "Gagal mengambil detail transaksi:\n" + (cause != null ? cause.getMessage() : ex.getMessage());
+                    ModernModal.error(RiwayatTransaksiView.this, "Kesalahan Database", msg);
+                }
+            }
+        };
+        worker.execute();
     }
 
     private void isiPanelDetail(Transaksi transaksi) {
@@ -613,21 +681,22 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
             modelDetail.addRow(new Object[]{
                     item.getProduk().getNama(),
                     item.getKuantitas(),
-                    formatRupiah(item.getHargaSatuan()),
-                    formatRupiah(item.getSubtotal())
+                    UITheme.formatRupiah(item.getHargaSatuan()),
+                    UITheme.formatRupiah(item.getSubtotal())
             });
         }
 
-        lblSubtotal.setText(formatRupiah(transaksi.getSubtotalBarang()));
-        lblPajak.setText(formatRupiah(transaksi.getTotalPajak()));
-        lblGrandTotal.setText(formatRupiah(transaksi.getGrandTotal()));
-        lblBayar.setText(formatRupiah(transaksi.getBayar()));
-        lblKembalian.setText(formatRupiah(transaksi.getKembalian()));
+        lblSubtotal.setText(UITheme.formatRupiah(transaksi.getSubtotalBarang()));
+        lblPajak.setText(UITheme.formatRupiah(transaksi.getTotalPajak()));
+        lblGrandTotal.setText(UITheme.formatRupiah(transaksi.getGrandTotal()));
+        lblBayar.setText(UITheme.formatRupiah(transaksi.getBayar()));
+        lblKembalian.setText(UITheme.formatRupiah(transaksi.getKembalian()));
 
         btnCetak.setEnabled(true);
     }
 
     private void kosongkanDetail() {
+        detailRequestId++;
         transaksiTerpilih = null;
 
         lblIdTransaksi.setText("-");
@@ -640,11 +709,11 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
 
         modelDetail.setRowCount(0);
 
-        lblSubtotal.setText(formatRupiah(0));
-        lblPajak.setText(formatRupiah(0));
-        lblGrandTotal.setText(formatRupiah(0));
-        lblBayar.setText(formatRupiah(0));
-        lblKembalian.setText(formatRupiah(0));
+        lblSubtotal.setText(UITheme.formatRupiah(0));
+        lblPajak.setText(UITheme.formatRupiah(0));
+        lblGrandTotal.setText(UITheme.formatRupiah(0));
+        lblBayar.setText(UITheme.formatRupiah(0));
+        lblKembalian.setText(UITheme.formatRupiah(0));
 
         btnCetak.setEnabled(false);
     }
@@ -704,12 +773,5 @@ public class RiwayatTransaksiView extends JPanel implements RefreshableView {
         btn.setPreferredSize(size);
         btn.setMinimumSize(size);
         btn.setMaximumSize(size);
-    }
-
-    private static String formatRupiah(double nominal) {
-        NumberFormat format = NumberFormat.getCurrencyInstance(ID_LOCALE);
-        format.setMaximumFractionDigits(0);
-        format.setMinimumFractionDigits(0);
-        return format.format(nominal).replace('\u00A0', ' ');
     }
 }

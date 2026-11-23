@@ -36,16 +36,17 @@ DROP TABLE IF EXISTS pengguna CASCADE;
 -- 1. Tabel Pengguna
 CREATE TABLE pengguna (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
+    username VARCHAR(50) NOT NULL,
     password VARCHAR(255) NOT NULL,
     nama_lengkap VARCHAR(100) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('Admin', 'Kasir'))
+    role VARCHAR(20) NOT NULL CHECK (role IN ('Admin', 'Kasir')),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- 2. Tabel Master Produk (Single Table Inheritance)
 CREATE TABLE produk (
     id SERIAL PRIMARY KEY,
-    kode VARCHAR(30) NOT NULL UNIQUE,
+    kode VARCHAR(30) NOT NULL,
     nama VARCHAR(150) NOT NULL,
     harga NUMERIC(12, 2) NOT NULL CHECK (harga >= 0),
     jenis_produk VARCHAR(20) NOT NULL CHECK (jenis_produk IN ('MAKANAN', 'MINUMAN', 'ELEKTRONIK')),
@@ -60,6 +61,9 @@ CREATE TABLE produk (
     -- Atribut khusus subclass Elektronik
     bulan_garansi INT CHECK (bulan_garansi IS NULL OR bulan_garansi >= 0),
 
+    -- Status aktif untuk soft delete produk yang sudah memiliki histori transaksi
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
     -- Memastikan atribut spesifik hanya terisi sesuai jenis_produk
     CONSTRAINT chk_atribut_jenis_produk CHECK (
         (jenis_produk = 'MAKANAN' AND berat_gram IS NOT NULL AND volume_ml IS NULL AND is_dingin IS NULL AND bulan_garansi IS NULL) OR
@@ -67,6 +71,10 @@ CREATE TABLE produk (
         (jenis_produk = 'ELEKTRONIK' AND bulan_garansi IS NOT NULL AND berat_gram IS NULL AND volume_ml IS NULL AND is_dingin IS NULL)
     )
 );
+
+-- Indeks unik parsial agar kode/username bisa dipakai ulang setelah data dinonaktifkan (soft delete)
+CREATE UNIQUE INDEX uq_pengguna_username_aktif ON pengguna(username) WHERE is_active = TRUE;
+CREATE UNIQUE INDEX uq_produk_kode_aktif ON produk(kode) WHERE is_active = TRUE;
 
 -- 3. Tabel Batch Produk (Stok Masuk & Kedaluwarsa per Batch)
 CREATE TABLE batch_produk (
@@ -143,7 +151,7 @@ INSERT INTO batch_produk (produk_id, tgl_masuk, tgl_kadaluarsa, stok_batch) VALU
   ```sql
   SELECT id, username, nama_lengkap, role
   FROM pengguna
-  WHERE username = ? AND password = crypt(?, password);
+  WHERE username = ? AND password = crypt(?, password) AND is_active = TRUE;
   ```
 * **Insert Pengguna Baru:**
   ```sql
@@ -154,15 +162,16 @@ INSERT INTO batch_produk (produk_id, tgl_masuk, tgl_kadaluarsa, stok_batch) VALU
   ```sql
   UPDATE pengguna
   SET username = ?, password = crypt(?, gen_salt('bf')), nama_lengkap = ?, role = ?
-  WHERE id = ?;
+  WHERE id = ? AND is_active = TRUE;
   ```
 
 ### B. Pemotongan Stok FEFO saat Checkout (`TransaksiDAO`)
-* Ambil batch aktif berurutan dari tanggal kedaluwarsa terdekat (`NULLS LAST` untuk elektronik) dengan kunci baris `FOR UPDATE` di dalam blok `conn.setAutoCommit(false)`:
+* Ambil batch aktif yang **belum kedaluwarsa** berurutan dari tanggal kedaluwarsa terdekat (`NULLS LAST` untuk elektronik) dengan kunci baris `FOR UPDATE` di dalam blok `conn.setAutoCommit(false)`:
   ```sql
   SELECT id, stok_batch
   FROM batch_produk
   WHERE produk_id = ? AND stok_batch > 0
+    AND (tgl_kadaluarsa IS NULL OR tgl_kadaluarsa >= CURRENT_DATE)
   ORDER BY tgl_kadaluarsa ASC NULLS LAST, id ASC
   FOR UPDATE;
   ```
@@ -173,6 +182,22 @@ INSERT INTO batch_produk (produk_id, tgl_masuk, tgl_kadaluarsa, stok_batch) VALU
   SELECT t.*, p.nama_lengkap AS nama_kasir
   FROM transaksi t
   JOIN pengguna p ON t.kasir_id = p.id
-  WHERE t.tanggal::date BETWEEN ? AND ?
+  WHERE t.tanggal >= ? AND t.tanggal < ?
   ORDER BY t.tanggal DESC;
   ```
+
+---
+
+## 4. Skrip Migrasi Database Eksisting (Soft Delete)
+
+Jika database sudah dibuat sebelum penambahan kolom `is_active`, jalankan migrasi berikut:
+
+```sql
+ALTER TABLE produk ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE produk DROP CONSTRAINT IF EXISTS produk_kode_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_produk_kode_aktif ON produk(kode) WHERE is_active = TRUE;
+
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE pengguna DROP CONSTRAINT IF EXISTS pengguna_username_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pengguna_username_aktif ON pengguna(username) WHERE is_active = TRUE;
+```

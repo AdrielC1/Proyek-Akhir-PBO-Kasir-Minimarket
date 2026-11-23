@@ -5,6 +5,7 @@ import com.siritel.model.BatchProduk;
 import com.siritel.model.Produk;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -17,22 +18,8 @@ public class ProdukController {
         this.produkDAO = new ProdukDAO();
     }
 
-    public ProdukController(ProdukDAO produkDAO) {
-        if (produkDAO == null) {
-            throw new IllegalArgumentException("ProdukDAO tidak boleh null.");
-        }
-        this.produkDAO = produkDAO;
-    }
-
     public List<Produk> daftarProduk() throws SQLException {
         return produkDAO.getAll();
-    }
-
-    public Produk cariProdukById(int id) throws SQLException {
-        if (id <= 0) {
-            throw new IllegalArgumentException("ID produk harus lebih dari 0.");
-        }
-        return produkDAO.getById(id);
     }
 
     public void tambahProduk(Produk p) throws SQLException {
@@ -49,14 +36,32 @@ public class ProdukController {
         if (p.getId() <= 0) {
             throw new IllegalArgumentException("ID produk tidak valid untuk pembaruan.");
         }
+        Produk lama = produkDAO.getById(p.getId());
+        if (lama == null) {
+            throw new IllegalArgumentException("Produk dengan ID " + p.getId() + " tidak ditemukan atau sudah dihapus.");
+        }
+        boolean lamaElektronik = "ELEKTRONIK".equals(lama.getJenisProduk());
+        boolean baruElektronik = "ELEKTRONIK".equals(p.getJenisProduk());
+        if (lamaElektronik != baruElektronik && !lama.getDaftarBatch().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Jenis produk tidak dapat diubah antara Elektronik dan Makanan/Minuman "
+                            + "selama masih memiliki batch stok. Hapus batch lama terlebih dahulu."
+            );
+        }
         produkDAO.update(p);
     }
 
-    public void hapusProduk(int id) throws SQLException {
+    /**
+     * Menghapus produk dari katalog aktif.
+     *
+     * @return {@code true} jika produk diarsipkan (soft delete) karena memiliki riwayat transaksi,
+     *         {@code false} jika produk dihapus permanen.
+     */
+    public boolean hapusProduk(int id) throws SQLException {
         if (id <= 0) {
             throw new IllegalArgumentException("ID produk tidak valid.");
         }
-        produkDAO.delete(id);
+        return produkDAO.delete(id);
     }
 
     /**
@@ -94,18 +99,20 @@ public class ProdukController {
 
         if ("ELEKTRONIK".equals(produk.getJenisProduk())) {
             batch.setTglKadaluarsa(null);
-        } else if (batch.getTglKadaluarsa() == null) {
-            throw new IllegalArgumentException("Tanggal kedaluwarsa wajib diisi untuk produk Makanan dan Minuman.");
+        } else {
+            LocalDate exp = batch.getTglKadaluarsa();
+            if (exp == null) {
+                throw new IllegalArgumentException("Tanggal kedaluwarsa wajib diisi untuk produk Makanan dan Minuman.");
+            }
+            if (exp.isBefore(batch.getTglMasuk())) {
+                throw new IllegalArgumentException("Tanggal kedaluwarsa tidak boleh lebih awal dari tanggal masuk.");
+            }
+            if (exp.isBefore(LocalDate.now())) {
+                throw new IllegalArgumentException("Tanggal kedaluwarsa tidak boleh sudah lewat dari hari ini.");
+            }
         }
 
         produkDAO.tambahBatch(batch);
-    }
-
-    public List<BatchProduk> daftarBatchProduk(int produkId) throws SQLException {
-        if (produkId <= 0) {
-            throw new IllegalArgumentException("ID produk tidak valid.");
-        }
-        return produkDAO.getBatchByProdukId(produkId);
     }
 
     public void hapusBatch(int batchId) throws SQLException {
@@ -138,19 +145,22 @@ public class ProdukController {
         String state = e.getSQLState();
         if (state != null) {
             if ("23505".equals(state)) {
-                return "Kode produk sudah digunakan. Gunakan kode produk lain.";
+                return "Kode produk sudah digunakan oleh produk aktif lain. Gunakan kode produk lain.";
             }
             if ("23503".equals(state)) {
-                return "Produk tidak dapat dihapus karena sudah tercatat dalam riwayat transaksi.";
+                return "Produk masih terkait data transaksi di database.";
             }
             if ("23514".equals(state)) {
                 return "Data produk melanggar batasan database (periksa harga, stok, atau atribut jenis).";
+            }
+            if ("22003".equals(state)) {
+                return "Nilai angka atau harga melebihi batas kapasitas database.";
             }
             if (state.startsWith("08")) {
                 return "Tidak dapat terhubung ke database. Pastikan PostgreSQL berjalan dan konfigurasi koneksi benar.";
             }
             if (state.startsWith("28")) {
-                return "Autentikasi database gagal. Periksa konfigurasi di DatabaseConnection.";
+                return "Autentikasi database gagal. Periksa konfigurasi di db.properties atau environment variable.";
             }
         }
         return "Terjadi kesalahan database: " + e.getMessage();

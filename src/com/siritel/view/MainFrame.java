@@ -57,13 +57,12 @@ public class MainFrame extends JFrame {
     private final Map<String, String> pageTitles = new LinkedHashMap<>();
     private final Map<String, JPanel> pagePanels = new LinkedHashMap<>();
     private String activeKey;
-    private final Pengguna penggunaAktif;
-
-    public MainFrame() {
-        this(AuthController.getPenggunaAktif());
-    }
+    private Pengguna penggunaAktif;
 
     public MainFrame(Pengguna penggunaAktif) {
+        if (penggunaAktif == null) {
+            throw new IllegalArgumentException("Pengguna aktif tidak boleh null.");
+        }
         this.penggunaAktif = penggunaAktif;
 
         setTitle("SI-RITEL — Sistem Informasi Kasir & Inventaris Ritel");
@@ -85,9 +84,7 @@ public class MainFrame extends JFrame {
 
     private List<NavItem> buildNavItems() {
         List<NavItem> items = new ArrayList<>();
-        String role = (penggunaAktif != null && penggunaAktif.getRole() != null)
-                ? penggunaAktif.getRole()
-                : "Admin";
+        String role = penggunaAktif.getRole();
 
         // Kasir dapat diakses oleh Admin dan Kasir
         items.add(new NavItem("kasir", "Kasir", new KasirView(penggunaAktif)));
@@ -97,17 +94,25 @@ public class MainFrame extends JFrame {
             items.add(new NavItem("produk", "Manajemen Produk & Batch", new ManajemenProdukView()));
 
             // Modul 1: Manajemen Pengguna
-            items.add(new NavItem("pengguna", "Manajemen Pengguna", new ManajemenPenggunaView()));
+            items.add(new NavItem("pengguna", "Manajemen Pengguna",
+                    new ManajemenPenggunaView(this::perbaruiProfilAktif)));
         }
 
         // Riwayat Transaksi dapat diakses oleh Admin dan Kasir
-        items.add(new NavItem("riwayat", "Riwayat Transaksi", new RiwayatTransaksiView(penggunaAktif)));
+        items.add(new NavItem("riwayat", "Riwayat Transaksi", new RiwayatTransaksiView()));
 
         if ("Admin".equalsIgnoreCase(role)) {
-            items.add(new NavItem("laporan", "Laporan Penjualan", new LaporanPenjualanView(penggunaAktif)));
+            items.add(new NavItem("laporan", "Laporan Penjualan", new LaporanPenjualanView()));
         }
 
         return items;
+    }
+
+    private void perbaruiProfilAktif(Pengguna terbaru) {
+        if (terbaru != null) {
+            this.penggunaAktif = terbaru;
+            userProfileLabel.setText(terbaru.getNamaLengkap() + " (" + terbaru.getRole() + ")");
+        }
     }
 
     private JPanel buildSidebar(List<NavItem> navItems) {
@@ -150,12 +155,12 @@ public class MainFrame extends JFrame {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(239, 246, 255));
+                g2.setColor(UITheme.BRAND_ICON_BG);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                g2.setColor(new Color(219, 234, 254));
+                g2.setColor(UITheme.BRAND_ICON_BORDER);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
 
-                g2.setColor(new Color(37, 99, 235));
+                g2.setColor(UITheme.PRIMARY_BLUE);
                 int cx = getWidth() / 2;
                 int cy = getHeight() / 2;
                 g2.drawRoundRect(cx - 8, cy - 5, 16, 13, 3, 3);
@@ -170,11 +175,11 @@ public class MainFrame extends JFrame {
         textPanel.setOpaque(false);
 
         JLabel title = new JLabel("SI-RITEL");
-        title.setFont(new Font("SansSerif", Font.BOLD, 16));
+        title.setFont(UITheme.font(Font.BOLD, 16f));
         title.setForeground(TEXT_DARK);
 
         JLabel subtitle = new JLabel("Kasir Ritel Modern");
-        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        subtitle.setFont(UITheme.font(Font.PLAIN, 11f));
         subtitle.setForeground(TEXT_MUTED);
 
         textPanel.add(title);
@@ -202,7 +207,7 @@ public class MainFrame extends JFrame {
             }
         };
         button.setHorizontalAlignment(SwingConstants.LEFT);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        button.setFont(UITheme.font(Font.PLAIN, 13f));
         button.setForeground(BTN_TEXT);
         button.setBackground(SIDEBAR_BG);
         button.setOpaque(true);
@@ -244,7 +249,7 @@ public class MainFrame extends JFrame {
         // Area Judul Halaman di Kiri
         JPanel titleBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         titleBox.setOpaque(false);
-        pageHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        pageHeaderLabel.setFont(UITheme.font(Font.BOLD, 18f));
         pageHeaderLabel.setForeground(TEXT_DARK);
         titleBox.add(pageHeaderLabel);
         headerBar.add(titleBox, BorderLayout.WEST);
@@ -253,13 +258,9 @@ public class MainFrame extends JFrame {
         JPanel rightBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         rightBar.setOpaque(false);
 
-        // Header tetap berformat "nama (role)" sesuai spesifikasi Adaptasi Wajib
-        String userDisplay = (penggunaAktif != null)
-                ? penggunaAktif.getNamaLengkap() + " (" + penggunaAktif.getRole() + ")"
-                : "Tamu";
-        userProfileLabel.setText(userDisplay);
-        userProfileLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
-        userProfileLabel.setForeground(new Color(30, 41, 59));
+        userProfileLabel.setText(penggunaAktif.getNamaLengkap() + " (" + penggunaAktif.getRole() + ")");
+        userProfileLabel.setFont(UITheme.font(Font.BOLD, 13f));
+        userProfileLabel.setForeground(UITheme.TEXT_MAIN);
         rightBar.add(userProfileLabel);
 
         // Tombol Keluar bergaya standar UI SI-RITEL
@@ -287,14 +288,13 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Berpindah ke halaman target di area utama, menyegarkan datanya bila sudah
-     * pernah dimuat sebelumnya, dan menandai tombol sidebar yang aktif.
+     * Berpindah ke halaman target di area utama, memuat/menyegarkan datanya secara
+     * lazy via RefreshableView, dan menandai tombol sidebar yang aktif.
      */
     public void navigateTo(String key) {
         if (!pageTitles.containsKey(key)) {
             return;
         }
-        boolean shouldRefresh = (activeKey != null);
         activeKey = key;
         cardLayout.show(contentCards, key);
         pageHeaderLabel.setText(pageTitles.get(key));
@@ -304,15 +304,13 @@ public class MainFrame extends JFrame {
             JButton button = entry.getValue();
             button.setBackground(isActive ? BTN_ACTIVE_BG : SIDEBAR_BG);
             button.setForeground(isActive ? BTN_ACTIVE_TEXT : BTN_TEXT);
-            button.setFont(new Font("SansSerif", isActive ? Font.BOLD : Font.PLAIN, 13));
+            button.setFont(UITheme.font(isActive ? Font.BOLD : Font.PLAIN, 13f));
             button.repaint();
         }
 
-        if (shouldRefresh) {
-            JPanel targetPanel = pagePanels.get(key);
-            if (targetPanel instanceof RefreshableView refreshable) {
-                refreshable.refreshData();
-            }
+        JPanel targetPanel = pagePanels.get(key);
+        if (targetPanel instanceof RefreshableView refreshable) {
+            refreshable.refreshData();
         }
     }
 }

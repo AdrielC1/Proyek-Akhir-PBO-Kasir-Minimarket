@@ -32,10 +32,6 @@ public class RoundedButton extends JButton {
         setPreferredSize(new Dimension(UITheme.CONTENT_WIDTH, UITheme.BUTTON_HEIGHT));
     }
 
-    public RoundedButton(String text, ButtonVariant variant) {
-        this(text, variant, UITheme.BUTTON_RADIUS, false);
-    }
-
     public RoundedButton(String text, ButtonVariant variant, int radius) {
         this(text, variant, radius, false);
     }
@@ -47,9 +43,6 @@ public class RoundedButton extends JButton {
         this.solidDisabledPrimary = solidDisabledPrimary;
 
         setFont(UITheme.font(variant == ButtonVariant.OUTLINE ? Font.PLAIN : Font.BOLD, 12f));
-        setForeground(variant == ButtonVariant.PRIMARY || variant == ButtonVariant.TEAL || variant == ButtonVariant.DANGER
-                ? Color.WHITE
-                : UITheme.TEXT_LABEL);
         setFocusPainted(false);
         setBorderPainted(false);
         setContentAreaFilled(false);
@@ -89,9 +82,6 @@ public class RoundedButton extends JButton {
     public void setVariant(ButtonVariant variant) {
         if (variant != null && this.variant != variant) {
             this.variant = variant;
-            setForeground(variant == ButtonVariant.PRIMARY || variant == ButtonVariant.TEAL || variant == ButtonVariant.DANGER
-                    ? Color.WHITE
-                    : (variant == ButtonVariant.SOFT_PRIMARY ? UITheme.PRIMARY_BLUE : UITheme.TEXT_LABEL));
             repaint();
         }
     }

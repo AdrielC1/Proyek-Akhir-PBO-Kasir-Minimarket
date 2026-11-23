@@ -16,7 +16,6 @@ import javax.swing.JTextField;
  */
 public class RoundedTextField extends JTextField {
     private static final int ICON_X = 12;
-    private static final int ICON_SIZE = 18;
     private static final int TEXT_LEFT_MARGIN = 40;
 
     private boolean isFocused = false;

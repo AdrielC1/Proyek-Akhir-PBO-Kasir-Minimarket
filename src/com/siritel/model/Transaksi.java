@@ -3,15 +3,20 @@ package com.siritel.model;
 
 import com.siritel.exception.StokTidakCukupException;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
-public class Transaksi implements printable {
+public class Transaksi implements Printable {
+
+    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
 
     private String idTransaksi;
     private LocalDateTime tanggal;
@@ -64,25 +69,46 @@ public class Transaksi implements printable {
         double bayar,
         double kembalian) {
 
-    if (idTransaksi == null || idTransaksi.isBlank()) {
-        throw new IllegalArgumentException("ID transaksi tidak valid.");
+        if (idTransaksi == null || idTransaksi.isBlank()) {
+            throw new IllegalArgumentException("ID transaksi tidak valid.");
+        }
+
+        if (tanggal == null || kasir == null || listKeranjang == null) {
+            throw new IllegalArgumentException("Data transaksi tidak lengkap.");
+        }
+
+        if (listKeranjang.contains(null)) {
+            throw new IllegalArgumentException("Daftar item transaksi tidak boleh berisi null.");
+        }
+
+        if (!isValidMoney(subtotalBarang) || !isValidMoney(totalPajak)
+                || !isValidMoney(grandTotal) || !isValidMoney(bayar) || !isValidMoney(kembalian)) {
+            throw new IllegalArgumentException("Data nominal transaksi tidak valid.");
+        }
+
+        this.idTransaksi = idTransaksi;
+        this.tanggal = tanggal;
+        this.kasir = kasir;
+        this.listKeranjang = new ArrayList<>(listKeranjang);
+
+        this.subtotalBarang = roundMoney(subtotalBarang);
+        this.totalPajak = roundMoney(totalPajak);
+        this.grandTotal = roundMoney(grandTotal);
+        this.bayar = roundMoney(bayar);
+        this.kembalian = roundMoney(kembalian);
     }
 
-    if (tanggal == null || kasir == null || listKeranjang == null) {
-        throw new IllegalArgumentException("Data transaksi tidak lengkap.");
+    // Memperbarui ID dan timestamp tepat saat checkout dilakukan
+    public void siapkanCheckout(String idTransaksiBaru, LocalDateTime waktuCheckout) {
+        if (idTransaksiBaru == null || idTransaksiBaru.isBlank() || idTransaksiBaru.length() > 30) {
+            throw new IllegalArgumentException("ID transaksi checkout tidak valid.");
+        }
+        if (waktuCheckout == null) {
+            throw new IllegalArgumentException("Waktu checkout tidak boleh null.");
+        }
+        this.idTransaksi = idTransaksiBaru.trim();
+        this.tanggal = waktuCheckout;
     }
-
-    this.idTransaksi = idTransaksi;
-    this.tanggal = tanggal;
-    this.kasir = kasir;
-    this.listKeranjang = new ArrayList<>(listKeranjang);
-
-    this.subtotalBarang = subtotalBarang;
-    this.totalPajak = totalPajak;
-    this.grandTotal = grandTotal;
-    this.bayar = bayar;
-    this.kembalian = kembalian;
-}
 
     // Menambahkan produk ke keranjang
     public void tambahItem(Produk produk, int qty)
@@ -101,34 +127,16 @@ public class Transaksi implements printable {
         }
 
         int stokTersedia = produk.getStok();
-        ItemTransaksi itemDitemukan = null;
-        int kuantitasDiKeranjang = 0;
-
-        // Memeriksa apakah produk sudah ada di keranjang
-        for (ItemTransaksi item : listKeranjang) {
-
-            boolean produkSama =
-                item.getProduk() == produk ||
-                (produk.getId() > 0 &&
-                 item.getProduk().getId() == produk.getId());
-
-            if (produkSama) {
-                itemDitemukan = item;
-                kuantitasDiKeranjang = item.getKuantitas();
-                break;
-            }
-        }
+        ItemTransaksi itemDitemukan = cariItem(produk);
+        int kuantitasDiKeranjang = (itemDitemukan != null) ? itemDitemukan.getKuantitas() : 0;
 
         // Menghitung total kuantitas setelah penambahan
-        long kuantitasBaru =
-            (long) kuantitasDiKeranjang + qty;
+        long kuantitasBaru = (long) kuantitasDiKeranjang + qty;
 
         // Validasi stok
         if (kuantitasBaru > stokTersedia) {
 
-            int sisaStok = Math.max(
-                0, stokTersedia - kuantitasDiKeranjang
-            );
+            int sisaStok = Math.max(0, stokTersedia - kuantitasDiKeranjang);
 
             throw new StokTidakCukupException(
                 "Stok produk tidak mencukupi. " +
@@ -139,21 +147,66 @@ public class Transaksi implements printable {
 
         // Jika produk sudah ada, tambahkan kuantitasnya
         if (itemDitemukan != null) {
-
-            itemDitemukan.setKuantitas(
-                (int) kuantitasBaru
-            );
-
+            itemDitemukan.setKuantitas((int) kuantitasBaru);
         } else {
-
             // Jika belum ada, buat item transaksi baru
-            listKeranjang.add(
-                new ItemTransaksi(produk, qty)
-            );
+            listKeranjang.add(new ItemTransaksi(produk, qty));
         }
 
         // Memperbarui total dan mereset pembayaran
         perbaruiTotal();
+    }
+
+    // Menyinkronkan keranjang aktif dengan data katalog terbaru dari database
+    public List<String> sinkronkanDenganKatalog(Map<Integer, Produk> katalogTerbaru) {
+        List<String> perubahan = new ArrayList<>();
+        if (katalogTerbaru == null || listKeranjang.isEmpty()) {
+            return perubahan;
+        }
+
+        List<ItemTransaksi> hasilBaru = new ArrayList<>();
+        boolean perluHitungUlang = false;
+
+        for (ItemTransaksi itemLama : listKeranjang) {
+            Produk produkLama = itemLama.getProduk();
+            Produk terbaru = katalogTerbaru.get(produkLama.getId());
+
+            if (terbaru == null) {
+                perubahan.add("'" + produkLama.getNama() + "' dihapus dari keranjang karena sudah tidak tersedia.");
+                perluHitungUlang = true;
+                continue;
+            }
+
+            int stokAktif = terbaru.getStok();
+            if (stokAktif <= 0) {
+                perubahan.add("'" + terbaru.getNama() + "' dihapus dari keranjang karena stok aktif habis.");
+                perluHitungUlang = true;
+                continue;
+            }
+
+            int qtyBaru = Math.min(itemLama.getKuantitas(), stokAktif);
+            if (qtyBaru < itemLama.getKuantitas()) {
+                perubahan.add("Jumlah '" + terbaru.getNama() + "' disesuaikan menjadi " + qtyBaru + " sesuai stok tersedia.");
+                perluHitungUlang = true;
+            }
+
+            ItemTransaksi itemBaru = new ItemTransaksi(terbaru, qtyBaru);
+            if (Double.compare(itemBaru.getHargaSatuan(), itemLama.getHargaSatuan()) != 0
+                    || Double.compare(itemBaru.getPajakSatuan(), itemLama.getPajakSatuan()) != 0) {
+                perubahan.add("Harga/pajak '" + terbaru.getNama() + "' diperbarui mengikuti katalog terbaru.");
+                perluHitungUlang = true;
+            }
+
+            hasilBaru.add(itemBaru);
+        }
+
+        listKeranjang.clear();
+        listKeranjang.addAll(hasilBaru);
+
+        if (perluHitungUlang) {
+            perbaruiTotal();
+        }
+        return perubahan;
     }
 
     // Mencari item berdasarkan objek atau ID produk
@@ -202,7 +255,7 @@ public class Transaksi implements printable {
 
         if (qty > stokTersedia) {
             throw new StokTidakCukupException(
-                "Stok produk tidak mencukupi.",
+                "Stok produk tidak mencukupi. Stok aktif tersedia: " + stokTersedia,
                 stokTersedia
             );
         }
@@ -245,12 +298,11 @@ public class Transaksi implements printable {
         perbaruiTotal();
     }
 
-    // Memperbarui seluruh perhitungan transaksi
+    // Memperbarui seluruh perhitungan transaksi dalam satu kali iterasi
     private void perbaruiTotal() {
-
-        hitungSubtotalBarang();
-        hitungTotalPajak();
-        hitungGrandTotal();
+        double sub = hitungSubtotalBarang();
+        double pjk = hitungTotalPajak();
+        this.grandTotal = roundMoney(sub + pjk);
 
         // Pembayaran sebelumnya tidak berlaku lagi
         resetPembayaran();
@@ -258,45 +310,39 @@ public class Transaksi implements printable {
 
     // Mereset nominal pembayaran dan kembalian
     private void resetPembayaran() {
-
         this.bayar = 0;
         this.kembalian = 0;
     }
 
     // Menghitung subtotal seluruh barang
     public double hitungSubtotalBarang() {
-
-        subtotalBarang = 0;
-
+        BigDecimal total = BigDecimal.ZERO;
         for (ItemTransaksi item : listKeranjang) {
-            subtotalBarang += item.hitungSubtotal();
+            total = total.add(toMoneyDecimal(item.hitungSubtotal()));
         }
-
+        subtotalBarang = total.doubleValue();
         return subtotalBarang;
     }
 
     // Menghitung total pajak seluruh barang
     public double hitungTotalPajak() {
-
-        totalPajak = 0;
-
+        BigDecimal total = BigDecimal.ZERO;
         for (ItemTransaksi item : listKeranjang) {
-            totalPajak += item.hitungPajakItem();
+            total = total.add(toMoneyDecimal(item.hitungPajakItem()));
         }
-
+        totalPajak = total.doubleValue();
         return totalPajak;
     }
 
     // Menghitung grand total
     public double hitungGrandTotal() {
-
-        grandTotal =
-            hitungSubtotalBarang() + hitungTotalPajak();
-
+        BigDecimal sub = toMoneyDecimal(hitungSubtotalBarang());
+        BigDecimal pjk = toMoneyDecimal(hitungTotalPajak());
+        grandTotal = sub.add(pjk).doubleValue();
         return grandTotal;
     }
 
-    // Memproses pembayaran
+    // Memproses pembayaran dengan perbandingan presisi BigDecimal (2 desimal)
     public void prosesBayar(double nominal) {
 
         if (!Double.isFinite(nominal) || nominal < 0) {
@@ -311,16 +357,17 @@ public class Transaksi implements printable {
             );
         }
 
-        double total = hitungGrandTotal();
+        BigDecimal totalBd = toMoneyDecimal(hitungGrandTotal());
+        BigDecimal nominalBd = toMoneyDecimal(nominal);
 
-        if (nominal < total) {
+        if (nominalBd.compareTo(totalBd) < 0) {
             throw new IllegalArgumentException(
                 "Uang pembayaran tidak mencukupi."
             );
         }
 
-        this.bayar = nominal;
-        this.kembalian = nominal - total;
+        this.bayar = nominalBd.doubleValue();
+        this.kembalian = nominalBd.subtract(totalBd).doubleValue();
     }
 
     // Getter
@@ -360,14 +407,9 @@ public class Transaksi implements printable {
         return kembalian;
     }
 
-    // Implementasi interface printable
+    // Implementasi interface Printable
     @Override
     public String cetak() {
-
-        NumberFormat rupiah =
-            NumberFormat.getCurrencyInstance(
-                new Locale("id", "ID")
-            );
 
         DateTimeFormatter formatTanggal =
             DateTimeFormatter.ofPattern(
@@ -399,37 +441,58 @@ public class Transaksi implements printable {
 
             nota.append(item.getKuantitas())
                 .append(" x ")
-                .append(rupiah.format(item.getHargaSatuan()))
+                .append(formatRupiah(item.getHargaSatuan()))
                 .append(" = ")
-                .append(rupiah.format(item.getSubtotal()))
+                .append(formatRupiah(item.getSubtotal()))
                 .append("\n");
 
             nota.append("Pajak: ")
-                .append(rupiah.format(item.hitungPajakItem()))
+                .append(formatRupiah(item.hitungPajakItem()))
                 .append("\n");
         }
 
         nota.append("------------------------------------\n");
 
         nota.append("Subtotal : ")
-            .append(rupiah.format(subtotalBarang)).append("\n");
+            .append(formatRupiah(subtotalBarang)).append("\n");
 
         nota.append("Pajak    : ")
-            .append(rupiah.format(totalPajak)).append("\n");
+            .append(formatRupiah(totalPajak)).append("\n");
 
         nota.append("Total    : ")
-            .append(rupiah.format(grandTotal)).append("\n");
+            .append(formatRupiah(grandTotal)).append("\n");
 
         nota.append("Bayar    : ")
-            .append(rupiah.format(bayar)).append("\n");
+            .append(formatRupiah(bayar)).append("\n");
 
         nota.append("Kembali  : ")
-            .append(rupiah.format(kembalian)).append("\n");
+            .append(formatRupiah(kembalian)).append("\n");
 
         nota.append("====================================\n");
         nota.append("        Terima kasih!\n");
         nota.append("====================================\n");
 
         return nota.toString();
+    }
+
+    private static boolean isValidMoney(double nominal) {
+        return Double.isFinite(nominal) && nominal >= 0;
+    }
+
+    private static BigDecimal toMoneyDecimal(double nominal) {
+        return BigDecimal.valueOf(nominal).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static double roundMoney(double nominal) {
+        return toMoneyDecimal(nominal).doubleValue();
+    }
+
+    private static String formatRupiah(double nominal) {
+        BigDecimal bd = toMoneyDecimal(nominal);
+        boolean adaSen = bd.stripTrailingZeros().scale() > 0;
+        NumberFormat nf = NumberFormat.getNumberInstance(ID_LOCALE);
+        nf.setMinimumFractionDigits(adaSen ? 2 : 0);
+        nf.setMaximumFractionDigits(adaSen ? 2 : 0);
+        return "Rp " + nf.format(bd);
     }
 }

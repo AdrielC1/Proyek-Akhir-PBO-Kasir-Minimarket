@@ -28,7 +28,10 @@ import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -44,6 +47,9 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
@@ -59,9 +65,13 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
 
     private final AuthController authController = new AuthController();
     private final ToastManager toastManager = new ToastManager(this);
+    private final Consumer<Pengguna> onCurrentUserUpdated;
     private List<Pengguna> daftarPenggunaSaatIni = new ArrayList<>();
     private Pengguna penggunaTerpilih;
     private boolean isRefreshingTable = false;
+    private boolean isPopulatingForm = false;
+    private boolean isFormDirty = false;
+    private int loadRequestId = 0;
 
     // Panel Kiri (Tabel Akun Pengguna)
     private final DefaultTableModel tableModel;
@@ -90,7 +100,8 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
     private final RoundedButton btnBatal = new RoundedButton("Batal", ButtonVariant.OUTLINE, 10);
     private final RoundedButton btnSimpan = new RoundedButton("Simpan", ButtonVariant.PRIMARY, 10);
 
-    public ManajemenPenggunaView() {
+    public ManajemenPenggunaView(Consumer<Pengguna> onCurrentUserUpdated) {
+        this.onCurrentUserUpdated = onCurrentUserUpdated;
         setLayout(new BorderLayout(14, 0));
         setBackground(UITheme.BG_PAGE);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -111,13 +122,11 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         // 2. Susun Kartu Kiri (Daftar) & Kartu Kanan (Form Dinamis, tersembunyi di awal)
         add(buildTableCard(), BorderLayout.CENTER);
         sideCard = buildSideEditorCard();
-        sideCard.setVisible(false);
         add(sideCard, BorderLayout.EAST);
 
-        // 3. Event Handlers & Muat Data Awal
+        // 3. Event Handlers & State Awal (data dimuat lazy saat tab ditampilkan)
         initActions();
         tutupSidePanel();
-        muatDataTabel();
     }
 
     private JPanel buildTableCard() {
@@ -134,7 +143,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
         footer.setBorder(BorderFactory.createEmptyBorder(4, 2, 0, 2));
-        lblRingkasanTabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblRingkasanTabel.setFont(UITheme.font(Font.PLAIN, 12f));
         lblRingkasanTabel.setForeground(UITheme.TEXT_MUTED);
         footer.add(lblRingkasanTabel, BorderLayout.WEST);
         mainCard.add(footer, BorderLayout.SOUTH);
@@ -149,7 +158,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         gbc.gridy = 0;
 
         JLabel lblSection = new JLabel("Daftar Akun Pengguna");
-        lblSection.setFont(new Font("SansSerif", Font.BOLD, 14));
+        lblSection.setFont(UITheme.font(Font.BOLD, 14f));
         lblSection.setForeground(UITheme.TEXT_MAIN);
         gbc.gridx = 0;
         gbc.weightx = 1.0;
@@ -191,15 +200,15 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
 
         JPanel titleGroup = new JPanel(new GridLayout(2, 1, 0, 2));
         titleGroup.setOpaque(false);
-        lblFormTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
+        lblFormTitle.setFont(UITheme.font(Font.BOLD, 16f));
         lblFormTitle.setForeground(UITheme.TEXT_MAIN);
-        lblFormSubtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblFormSubtitle.setFont(UITheme.font(Font.PLAIN, 12f));
         lblFormSubtitle.setForeground(UITheme.TEXT_MUTED);
         titleGroup.add(lblFormTitle);
         titleGroup.add(lblFormSubtitle);
         headerWrapper.add(titleGroup, BorderLayout.CENTER);
 
-        btnTutupPanel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        btnTutupPanel.setFont(UITheme.font(Font.BOLD, 16f));
         btnTutupPanel.setPreferredSize(new Dimension(28, 28));
         btnTutupPanel.setToolTipText("Tutup panel");
         JPanel closeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
@@ -253,8 +262,8 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         bgRole.add(rbKasir);
         rbAdmin.setOpaque(false);
         rbKasir.setOpaque(false);
-        rbAdmin.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        rbKasir.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        rbAdmin.setFont(UITheme.font(Font.PLAIN, 13f));
+        rbKasir.setFont(UITheme.font(Font.PLAIN, 13f));
         rbAdmin.setForeground(UITheme.TEXT_MAIN);
         rbKasir.setForeground(UITheme.TEXT_MAIN);
         rbAdmin.setFocusPainted(false);
@@ -278,7 +287,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         passPanel.setBackground(Color.WHITE);
         passPanel.setBorder(new RoundedBorder(UITheme.BORDER_INPUT, UITheme.SMALL_RADIUS, new Insets(1, 4, 1, 6)));
 
-        txtPassword.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        txtPassword.setFont(UITheme.font(Font.PLAIN, 12f));
         txtPassword.setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 4));
         txtPassword.setOpaque(false);
         txtPassword.setPreferredSize(new Dimension(0, 30));
@@ -288,7 +297,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
 
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 16, 0);
-        lblPassNote.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        lblPassNote.setFont(UITheme.font(Font.PLAIN, 11f));
         lblPassNote.setForeground(UITheme.TEXT_MUTED);
         form.add(lblPassNote, gbc);
 
@@ -364,7 +373,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
     private void konfigurasiTabelPengguna() {
         tablePengguna.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tablePengguna.setRowHeight(42);
-        tablePengguna.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        tablePengguna.setFont(UITheme.font(Font.PLAIN, 13f));
         tablePengguna.setForeground(UITheme.TEXT_MAIN);
         tablePengguna.setGridColor(UITheme.BG_HOVER);
         tablePengguna.setSelectionBackground(UITheme.PRIMARY_SOFT_BG);
@@ -372,7 +381,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         tablePengguna.setShowVerticalLines(false);
         tablePengguna.getTableHeader().setReorderingAllowed(false);
 
-        tablePengguna.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 11));
+        tablePengguna.getTableHeader().setFont(UITheme.font(Font.BOLD, 11f));
         tablePengguna.getTableHeader().setBackground(UITheme.BG_PAGE);
         tablePengguna.getTableHeader().setForeground(UITheme.TEXT_MUTED);
         tablePengguna.getTableHeader().setPreferredSize(new Dimension(0, 38));
@@ -386,7 +395,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
                                                            boolean hasFocus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 setHorizontalAlignment(SwingConstants.CENTER);
-                setFont(new Font("SansSerif", Font.BOLD, 12));
+                setFont(UITheme.font(Font.BOLD, 12f));
                 setForeground(UITheme.TEXT_MUTED);
                 setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
                 return this;
@@ -398,15 +407,22 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
                                                            boolean hasFocus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                setFont(new Font("SansSerif", Font.BOLD, 12));
+                setFont(UITheme.font(Font.BOLD, 12f));
                 setForeground(isSelected ? UITheme.PRIMARY_BLUE : UITheme.TEXT_MAIN);
                 setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
                 return this;
             }
         };
 
-        DefaultTableCellRenderer textRenderer = new DefaultTableCellRenderer();
-        textRenderer.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+        DefaultTableCellRenderer textRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+                return this;
+            }
+        };
 
         DefaultTableCellRenderer roleRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -414,7 +430,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
                                                            boolean hasFocus, int row, int column) {
                 String role = value != null ? value.toString() : "";
                 JLabel badge = new JLabel(role, SwingConstants.CENTER);
-                badge.setFont(new Font("SansSerif", Font.BOLD, 11));
+                badge.setFont(UITheme.font(Font.BOLD, 11f));
                 badge.setOpaque(true);
                 badge.setBorder(BorderFactory.createEmptyBorder(3, 10, 3, 10));
 
@@ -447,10 +463,46 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
 
     @Override
     public void refreshData() {
-        muatDataTabel();
+        muatDataTabel(true);
     }
 
     private void initActions() {
+        DocumentListener dirtyTracker = new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
+            }
+        };
+        txtUsername.getDocument().addDocumentListener(dirtyTracker);
+        txtNamaLengkap.getDocument().addDocumentListener(dirtyTracker);
+        txtPassword.getDocument().addDocumentListener(dirtyTracker);
+        rbAdmin.addActionListener(e -> {
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+        });
+        rbKasir.addActionListener(e -> {
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+        });
+
         tablePengguna.getSelectionModel().addListSelectionListener(e -> {
             if (e.getValueIsAdjusting() || isRefreshingTable) {
                 return;
@@ -474,7 +526,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
             txtUsername.requestFocusInWindow();
         });
 
-        btnSegarkan.addActionListener(e -> muatDataTabel());
+        btnSegarkan.addActionListener(e -> muatDataTabel(false));
         btnTutupPanel.addActionListener(e -> tutupSidePanel());
         btnBatal.addActionListener(e -> tutupSidePanel());
         btnSimpan.addActionListener(e -> simpanPengguna());
@@ -505,35 +557,47 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
     }
 
     private void masukModeTambah() {
-        penggunaTerpilih = null;
-        lblFormTitle.setText("Tambah Pengguna");
-        lblFormSubtitle.setText("Buat kredensial akun kasir atau admin baru");
-        btnHapusForm.setVisible(false);
+        isPopulatingForm = true;
+        try {
+            penggunaTerpilih = null;
+            lblFormTitle.setText("Tambah Pengguna");
+            lblFormSubtitle.setText("Buat kredensial akun kasir atau admin baru");
+            btnHapusForm.setVisible(false);
 
-        txtUsername.setText("");
-        txtNamaLengkap.setText("");
-        txtPassword.setText("");
-        resetVisibilityPassword();
-        rbAdmin.setSelected(true);
-        lblPassNote.setText("Minimal 6 karakter");
+            txtUsername.setText("");
+            txtNamaLengkap.setText("");
+            txtPassword.setText("");
+            resetVisibilityPassword();
+            rbAdmin.setSelected(true);
+            lblPassNote.setText("Minimal 6 karakter");
+            isFormDirty = false;
+        } finally {
+            isPopulatingForm = false;
+        }
     }
 
     private void masukModeUbah(Pengguna p) {
-        penggunaTerpilih = p;
-        lblFormTitle.setText("Ubah Pengguna");
-        lblFormSubtitle.setText(p.getUsername() + " \u2022 " + p.getNamaLengkap());
-        btnHapusForm.setVisible(true);
+        isPopulatingForm = true;
+        try {
+            penggunaTerpilih = p;
+            lblFormTitle.setText("Ubah Pengguna");
+            lblFormSubtitle.setText(p.getUsername() + " \u2022 " + p.getNamaLengkap());
+            btnHapusForm.setVisible(true);
 
-        txtUsername.setText(p.getUsername());
-        txtNamaLengkap.setText(p.getNamaLengkap());
-        txtPassword.setText("");
-        resetVisibilityPassword();
-        if ("Admin".equalsIgnoreCase(p.getRole())) {
-            rbAdmin.setSelected(true);
-        } else {
-            rbKasir.setSelected(true);
+            txtUsername.setText(p.getUsername());
+            txtNamaLengkap.setText(p.getNamaLengkap());
+            txtPassword.setText("");
+            resetVisibilityPassword();
+            if ("Admin".equalsIgnoreCase(p.getRole())) {
+                rbAdmin.setSelected(true);
+            } else {
+                rbKasir.setSelected(true);
+            }
+            lblPassNote.setText("*(Kosongkan jika tidak ingin mengganti password)");
+            isFormDirty = false;
+        } finally {
+            isPopulatingForm = false;
         }
-        lblPassNote.setText("*(Kosongkan jika tidak ingin mengganti password)");
     }
 
     private void resetVisibilityPassword() {
@@ -545,7 +609,8 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
     private void simpanPengguna() {
         String username = txtUsername.getText();
         String namaLengkap = txtNamaLengkap.getText();
-        String password = new String(txtPassword.getPassword());
+        char[] passChars = txtPassword.getPassword();
+        String password = new String(passChars);
         String role = rbAdmin.isSelected() ? "Admin" : "Kasir";
 
         try {
@@ -553,7 +618,7 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
                 Pengguna baru = new Pengguna(0, username, password, namaLengkap, role);
                 authController.tambahPengguna(baru);
                 tutupSidePanel();
-                muatDataTabel();
+                muatDataTabel(false);
                 toastManager.show(
                         "Pengguna Ditambahkan",
                         "Akun '" + baru.getUsername() + "' berhasil dibuat.",
@@ -569,8 +634,14 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
                         role
                 );
                 authController.ubahPengguna(diperbarui, gantiPassword);
+
+                Pengguna sesi = AuthController.getPenggunaAktif();
+                if (onCurrentUserUpdated != null && sesi != null && sesi.getId() == diperbarui.getId()) {
+                    onCurrentUserUpdated.accept(sesi);
+                }
+
                 tutupSidePanel();
-                muatDataTabel();
+                muatDataTabel(false);
                 toastManager.show(
                         "Pengguna Diperbarui",
                         "Data akun '" + diperbarui.getUsername() + "' berhasil diperbarui.",
@@ -581,6 +652,8 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
             ModernModal.error(this, "Kesalahan Validasi", ex.getMessage());
         } catch (SQLException ex) {
             ModernModal.error(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
+        } finally {
+            Arrays.fill(passChars, '\0');
         }
     }
 
@@ -609,12 +682,14 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         }
 
         try {
-            authController.hapusPengguna(id);
+            boolean archived = authController.hapusPengguna(id);
             tutupSidePanel();
-            muatDataTabel();
+            muatDataTabel(false);
             toastManager.show(
                     "Pengguna Dihapus",
-                    "Akun '" + username + "' berhasil dihapus.",
+                    archived
+                            ? "Akun '" + username + "' dinonaktifkan (riwayat transaksi tetap terjaga)."
+                            : "Akun '" + username + "' berhasil dihapus.",
                     ToastType.SUCCESS
             );
         } catch (IllegalArgumentException ex) {
@@ -624,53 +699,79 @@ public class ManajemenPenggunaView extends JPanel implements RefreshableView {
         }
     }
 
-    private void muatDataTabel() {
-        isRefreshingTable = true;
-        try {
-            Integer selectedId = (penggunaTerpilih != null && sideCard.isVisible())
-                    ? penggunaTerpilih.getId()
-                    : null;
+    private void muatDataTabel(boolean preserveDirtyForm) {
+        final int reqId = ++loadRequestId;
+        lblRingkasanTabel.setText("Memuat data pengguna...");
+        btnSegarkan.setEnabled(false);
 
-            daftarPenggunaSaatIni = new ArrayList<>();
-            tableModel.setRowCount(0);
+        SwingWorker<List<Pengguna>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<Pengguna> doInBackground() throws Exception {
+                return authController.daftarPengguna();
+            }
 
-            List<Pengguna> list = authController.daftarPengguna();
-            daftarPenggunaSaatIni.addAll(list);
+            @Override
+            protected void done() {
+                if (reqId != loadRequestId) {
+                    return;
+                }
+                btnSegarkan.setEnabled(true);
+                isRefreshingTable = true;
+                try {
+                    List<Pengguna> list = get();
+                    Integer selectedId = (penggunaTerpilih != null && sideCard.isVisible())
+                            ? penggunaTerpilih.getId()
+                            : null;
 
-            int indexToSelect = -1;
-            for (int i = 0; i < daftarPenggunaSaatIni.size(); i++) {
-                Pengguna p = daftarPenggunaSaatIni.get(i);
-                tableModel.addRow(new Object[]{
-                        p.getId(),
-                        p.getUsername(),
-                        p.getNamaLengkap(),
-                        p.getRole()
-                });
-                if (selectedId != null && p.getId() == selectedId) {
-                    indexToSelect = i;
+                    daftarPenggunaSaatIni = new ArrayList<>(list);
+                    tableModel.setRowCount(0);
+
+                    int indexToSelect = -1;
+                    for (int i = 0; i < daftarPenggunaSaatIni.size(); i++) {
+                        Pengguna p = daftarPenggunaSaatIni.get(i);
+                        tableModel.addRow(new Object[]{
+                                p.getId(),
+                                p.getUsername(),
+                                p.getNamaLengkap(),
+                                p.getRole()
+                        });
+                        if (selectedId != null && p.getId() == selectedId) {
+                            indexToSelect = i;
+                        }
+                    }
+
+                    lblRingkasanTabel.setText("Menampilkan " + daftarPenggunaSaatIni.size() + " pengguna");
+
+                    if (indexToSelect >= 0) {
+                        tablePengguna.setRowSelectionInterval(indexToSelect, indexToSelect);
+                        if (!(preserveDirtyForm && isFormDirty)) {
+                            masukModeUbah(daftarPenggunaSaatIni.get(indexToSelect));
+                        }
+                    } else if (selectedId != null) {
+                        masukModeTambah();
+                        sideCard.setVisible(false);
+                        revalidate();
+                        repaint();
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    lblRingkasanTabel.setText("Gagal memuat pengguna");
+                    Throwable cause = ex.getCause();
+                    String msg = (cause instanceof SQLException sqlEx)
+                            ? AuthController.pesanSqlError(sqlEx)
+                            : "Gagal memuat daftar pengguna:\n" + (cause != null ? cause.getMessage() : ex.getMessage());
+                    ModernModal.error(ManajemenPenggunaView.this, "Kesalahan Database", msg);
+                } finally {
+                    isRefreshingTable = false;
                 }
             }
-
-            lblRingkasanTabel.setText("Menampilkan " + daftarPenggunaSaatIni.size() + " pengguna");
-
-            if (indexToSelect >= 0) {
-                tablePengguna.setRowSelectionInterval(indexToSelect, indexToSelect);
-                masukModeUbah(daftarPenggunaSaatIni.get(indexToSelect));
-            } else if (selectedId != null) {
-                masukModeTambah();
-                sideCard.setVisible(false);
-                revalidate();
-                repaint();
-            }
-        } catch (SQLException ex) {
-            ModernModal.error(this, "Kesalahan Database", AuthController.pesanSqlError(ex));
-        } finally {
-            isRefreshingTable = false;
-        }
+        };
+        worker.execute();
     }
 
     private static void konfigurasiTombol(RoundedButton btn, int width, int height, int fontStyle) {
-        btn.setFont(new Font("SansSerif", fontStyle, 12));
+        btn.setFont(UITheme.font(fontStyle, 12f));
         Dimension size = new Dimension(width, height);
         btn.setPreferredSize(size);
         btn.setMinimumSize(size);

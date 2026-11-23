@@ -3,18 +3,25 @@ package com.siritel.controller;
 
 import com.siritel.dao.TransaksiDAO;
 import com.siritel.exception.StokTidakCukupException;
-import com.siritel.model.Transaksi;
+import com.siritel.model.LaporanPenjualan;
 import com.siritel.model.Pengguna;
 import com.siritel.model.Produk;
+import com.siritel.model.Transaksi;
 import com.siritel.model.TransaksiRingkas;
-import com.siritel.model.LaporanPenjualan;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class TransaksiController {
+
+    private static final DateTimeFormatter ID_TIME_FMT =
+            DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final TransaksiDAO transaksiDAO;
 
@@ -22,19 +29,6 @@ public class TransaksiController {
     public TransaksiController() {
         this.transaksiDAO = new TransaksiDAO();
     }
-
-    // Constructor untuk dependency injection
-    public TransaksiController(TransaksiDAO transaksiDAO) {
-
-        if (transaksiDAO == null) {
-            throw new IllegalArgumentException(
-                "TransaksiDAO tidak boleh null."
-            );
-        }
-
-        this.transaksiDAO = transaksiDAO;
-    }
-
 
     // Menambahkan produk ke keranjang
     public void tambahItem(
@@ -85,8 +79,7 @@ public class TransaksiController {
         transaksi.prosesBayar(nominal);
     }
 
-
-    // Membuat objek transaksi dengan ID otomatis
+    // Membuat objek transaksi baru (ID dan waktu final ditetapkan saat checkout)
     public Transaksi buatTransaksi(Pengguna kasir) {
 
         if (kasir == null) {
@@ -95,14 +88,11 @@ public class TransaksiController {
             );
         }
 
-        String idTransaksi = "TRX-" +
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-                .format(LocalDateTime.now());
-
-        return new Transaksi(idTransaksi, kasir);
+        LocalDateTime sekarang = LocalDateTime.now();
+        return new Transaksi(generateIdTransaksi(kasir, sekarang), kasir);
     }
 
-    // Memproses checkout transaksi
+    // Memproses checkout transaksi dengan ID unik dan waktu real-time saat bayar
     public void checkout(Transaksi transaksi)
             throws SQLException, StokTidakCukupException {
 
@@ -118,47 +108,57 @@ public class TransaksiController {
             );
         }
 
-        if (transaksi.getBayar() < transaksi.getGrandTotal()) {
+        BigDecimal bayarBd = BigDecimal.valueOf(transaksi.getBayar()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalBd = BigDecimal.valueOf(transaksi.getGrandTotal()).setScale(2, RoundingMode.HALF_UP);
+        if (bayarBd.compareTo(totalBd) < 0) {
             throw new IllegalArgumentException(
                 "Pembayaran belum mencukupi."
             );
         }
 
+        LocalDateTime waktuCheckout = LocalDateTime.now();
+        transaksi.siapkanCheckout(
+            generateIdTransaksi(transaksi.getKasir(), waktuCheckout),
+            waktuCheckout
+        );
 
-        
         // Menyerahkan proses penyimpanan kepada DAO
         transaksiDAO.simpanTransaksi(transaksi);
-
     }
+
     /**
-     * Mengambil riwayat transaksi berdasarkan rentang tanggal.
+     * Mengambil riwayat transaksi berdasarkan rentang tanggal dan kata kunci pencarian.
      */
     public List<TransaksiRingkas> getRiwayatTransaksi(
-        LocalDate tanggalAwal,
-        LocalDate tanggalAkhir,
-        int halaman,
-        int batas) throws SQLException {
+            LocalDate tanggalAwal,
+            LocalDate tanggalAkhir,
+            String keyword,
+            int halaman,
+            int batas) throws SQLException {
 
-    return transaksiDAO.getRiwayatTransaksi(
-        tanggalAwal,
-        tanggalAkhir,
-        halaman,
-        batas
-    );
-}
+        return transaksiDAO.getRiwayatTransaksi(
+            tanggalAwal,
+            tanggalAkhir,
+            keyword,
+            halaman,
+            batas
+        );
+    }
 
-/**
- * Menghitung jumlah transaksi berdasarkan rentang tanggal.
- */
-public int getJumlahRiwayatTransaksi(
-        LocalDate tanggalAwal,
-        LocalDate tanggalAkhir) throws SQLException {
+    /**
+     * Menghitung jumlah transaksi berdasarkan rentang tanggal dan kata kunci pencarian.
+     */
+    public int getJumlahRiwayatTransaksi(
+            LocalDate tanggalAwal,
+            LocalDate tanggalAkhir,
+            String keyword) throws SQLException {
 
-    return transaksiDAO.getJumlahRiwayatTransaksi(
-        tanggalAwal,
-        tanggalAkhir
-    );
-}
+        return transaksiDAO.getJumlahRiwayatTransaksi(
+            tanggalAwal,
+            tanggalAkhir,
+            keyword
+        );
+    }
 
     /**
      * Mengambil detail transaksi berdasarkan ID transaksi.
@@ -175,31 +175,67 @@ public int getJumlahRiwayatTransaksi(
         return transaksiDAO.getDetailTransaksi(idTransaksi);
     }
 
+    /**
+     * Membuat laporan penjualan berdasarkan rentang tanggal.
+     */
+    public LaporanPenjualan buatLaporan(
+            LocalDate tanggalAwal,
+            LocalDate tanggalAkhir) throws SQLException {
+
+        if (tanggalAwal == null || tanggalAkhir == null) {
+            throw new IllegalArgumentException(
+                "Rentang tanggal laporan tidak boleh null."
+            );
+        }
+
+        if (tanggalAwal.isAfter(tanggalAkhir)) {
+            throw new IllegalArgumentException(
+                "Tanggal awal tidak boleh melebihi tanggal akhir."
+            );
+        }
+
+        return transaksiDAO.getLaporanPenjualan(
+            tanggalAwal,
+            tanggalAkhir
+        );
+    }
 
     /**
- * Membuat laporan penjualan berdasarkan rentang tanggal.
- */
-public LaporanPenjualan buatLaporan(
-        LocalDate tanggalAwal,
-        LocalDate tanggalAkhir) throws SQLException {
-
-    if (tanggalAwal == null || tanggalAkhir == null) {
-        throw new IllegalArgumentException(
-            "Rentang tanggal laporan tidak boleh null."
-        );
+     * Memetakan kode SQLState PostgreSQL ke pesan berbahasa Indonesia yang ramah pengguna.
+     */
+    public static String pesanSqlError(SQLException e) {
+        if (e == null) {
+            return "Terjadi kesalahan database tidak diketahui.";
+        }
+        String state = e.getSQLState();
+        if (state != null) {
+            if ("23505".equals(state)) {
+                return "ID transaksi terdeteksi duplikat. Silakan ulangi proses checkout.";
+            }
+            if ("23503".equals(state)) {
+                return "Data produk atau kasir yang direferensikan transaksi sudah tidak tersedia.";
+            }
+            if ("23514".equals(state)) {
+                return "Data transaksi melanggar batasan nilai database (periksa kuantitas atau nominal).";
+            }
+            if ("22003".equals(state)) {
+                return "Total nominal transaksi melebihi batas kapasitas database.";
+            }
+            if (state.startsWith("08")) {
+                return "Tidak dapat terhubung ke database. Periksa koneksi jaringan dan konfigurasi PostgreSQL.";
+            }
+            if (state.startsWith("28")) {
+                return "Autentikasi database gagal. Periksa konfigurasi di db.properties atau environment variable.";
+            }
+        }
+        return "Terjadi kesalahan database: " + e.getMessage();
     }
 
-    if (tanggalAwal.isAfter(tanggalAkhir)) {
-        throw new IllegalArgumentException(
-            "Tanggal awal tidak boleh melebihi tanggal akhir."
-        );
+    private String generateIdTransaksi(Pengguna kasir, LocalDateTime waktu) {
+        int acak = ThreadLocalRandom.current().nextInt(1000);
+        return "TRX-" + ID_TIME_FMT.format(waktu) + "-" + kasir.getId() + String.format("%03d", acak);
     }
 
-    return transaksiDAO.getLaporanPenjualan(
-        tanggalAwal,
-        tanggalAkhir
-    );
-}
     // Validasi objek transaksi
     private void validasiTransaksi(Transaksi transaksi) {
 

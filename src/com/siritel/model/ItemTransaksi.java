@@ -1,6 +1,9 @@
 
 package com.siritel.model;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 public class ItemTransaksi {
 
     private final Produk produk;
@@ -22,22 +25,25 @@ public class ItemTransaksi {
                     "Kuantitas harus lebih dari 0.");
         }
 
-        this.produk = produk;
-        this.kuantitas = kuantitas;
+        double rawHarga = produk.getHarga();
+        double rawPajak = produk.hitungPajak();
 
-        // Menyimpan snapshot harga dan pajak produk
-        this.hargaSatuan = produk.getHarga();
-        this.pajakSatuan = produk.hitungPajak();
-
-        if (!Double.isFinite(hargaSatuan) || hargaSatuan < 0) {
+        if (!Double.isFinite(rawHarga) || rawHarga < 0) {
             throw new IllegalArgumentException(
                     "Harga satuan tidak valid.");
         }
 
-        if (!Double.isFinite(pajakSatuan) || pajakSatuan < 0) {
+        if (!Double.isFinite(rawPajak) || rawPajak < 0) {
             throw new IllegalArgumentException(
                     "Pajak satuan tidak valid.");
         }
+
+        this.produk = produk;
+        this.kuantitas = kuantitas;
+
+        // Menyimpan snapshot harga dan pajak produk dengan presisi 2 desimal (NUMERIC(12,2))
+        this.hargaSatuan = roundMoney(rawHarga);
+        this.pajakSatuan = roundMoney(rawPajak);
 
         hitungSubtotal();
     }
@@ -69,20 +75,20 @@ public class ItemTransaksi {
 
         this.produk = produk;
         this.kuantitas = kuantitas;
-        this.hargaSatuan = hargaSatuan;
-        this.pajakSatuan = pajakSatuan;
-        this.subtotal = subtotal;
+        this.hargaSatuan = roundMoney(hargaSatuan);
+        this.pajakSatuan = roundMoney(pajakSatuan);
+        this.subtotal = roundMoney(subtotal);
     }
 
     // Menghitung subtotal barang sebelum pajak
     public double hitungSubtotal() {
-        subtotal = hargaSatuan * kuantitas;
+        subtotal = roundMoney(hargaSatuan * kuantitas);
         return subtotal;
     }
 
     // Menghitung total pajak berdasarkan kuantitas
     public double hitungPajakItem() {
-        return pajakSatuan * kuantitas;
+        return roundMoney(pajakSatuan * kuantitas);
     }
 
     // Getter
@@ -118,5 +124,11 @@ public class ItemTransaksi {
 
         // Perbarui subtotal ketika kuantitas berubah
         hitungSubtotal();
+    }
+
+    private static double roundMoney(double nominal) {
+        return BigDecimal.valueOf(nominal)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 }

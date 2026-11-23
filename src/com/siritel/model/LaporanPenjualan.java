@@ -1,9 +1,11 @@
 
 package com.siritel.model;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,7 +13,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class LaporanPenjualan implements printable {
+public class LaporanPenjualan implements Printable {
+
+    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
 
     private final LocalDate periodeAwal;
     private final LocalDate periodeAkhir;
@@ -41,41 +45,44 @@ public class LaporanPenjualan implements printable {
             );
         }
 
-        if (list.contains(null)) {
-            throw new IllegalArgumentException(
-                "Daftar transaksi tidak boleh berisi null."
-            );
+        List<Transaksi> salinan = new ArrayList<>(list.size());
+        for (Transaksi transaksi : list) {
+            if (transaksi == null) {
+                throw new IllegalArgumentException(
+                    "Daftar transaksi tidak boleh berisi null."
+                );
+            }
+            LocalDate tgl = transaksi.getTanggal().toLocalDate();
+            if (tgl.isBefore(awal) || tgl.isAfter(akhir)) {
+                throw new IllegalArgumentException(
+                    "Transaksi " + transaksi.getIdTransaksi()
+                        + " berada di luar rentang periode laporan."
+                );
+            }
+            salinan.add(transaksi);
         }
 
         this.periodeAwal = awal;
         this.periodeAkhir = akhir;
-
-        // Menyalin daftar transaksi
-        this.daftarTransaksi = new ArrayList<>(list);
+        this.daftarTransaksi = salinan;
     }
 
     // Menghitung total omzet dari seluruh transaksi
     public double hitungTotalOmzet() {
-
-        double totalOmzet = 0;
-
+        BigDecimal total = BigDecimal.ZERO;
         for (Transaksi transaksi : daftarTransaksi) {
-            totalOmzet += transaksi.getGrandTotal();
+            total = total.add(toMoneyDecimal(transaksi.getGrandTotal()));
         }
-
-        return totalOmzet;
+        return total.doubleValue();
     }
 
     // Menghitung total pajak dari seluruh transaksi
     public double hitungTotalPajakTerkumpul() {
-
-        double totalPajak = 0;
-
+        BigDecimal total = BigDecimal.ZERO;
         for (Transaksi transaksi : daftarTransaksi) {
-            totalPajak += transaksi.getTotalPajak();
+            total = total.add(toMoneyDecimal(transaksi.getTotalPajak()));
         }
-
-        return totalPajak;
+        return total.doubleValue();
     }
 
     // Menghitung jumlah transaksi
@@ -129,26 +136,20 @@ public class LaporanPenjualan implements printable {
 
     // Menghitung omzet berdasarkan tanggal
     public double hitungOmzetHarian(List<Transaksi> transaksiHarian) {
-
-        double total = 0;
-
+        BigDecimal total = BigDecimal.ZERO;
         for (Transaksi transaksi : transaksiHarian) {
-            total += transaksi.getGrandTotal();
+            total = total.add(toMoneyDecimal(transaksi.getGrandTotal()));
         }
-
-        return total;
+        return total.doubleValue();
     }
 
     // Menghitung pajak berdasarkan tanggal
     public double hitungPajakHarian(List<Transaksi> transaksiHarian) {
-
-        double total = 0;
-
+        BigDecimal total = BigDecimal.ZERO;
         for (Transaksi transaksi : transaksiHarian) {
-            total += transaksi.getTotalPajak();
+            total = total.add(toMoneyDecimal(transaksi.getTotalPajak()));
         }
-
-        return total;
+        return total.doubleValue();
     }
 
     // Getter
@@ -160,18 +161,9 @@ public class LaporanPenjualan implements printable {
         return periodeAkhir;
     }
 
-    public List<Transaksi> getDaftarTransaksi() {
-        return Collections.unmodifiableList(daftarTransaksi);
-    }
-
-    // Implementasi interface printable
+    // Implementasi interface Printable
     @Override
     public String cetak() {
-
-        NumberFormat rupiah =
-            NumberFormat.getCurrencyInstance(
-                new Locale("id", "ID")
-            );
 
         DateTimeFormatter formatTanggal =
             DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -203,11 +195,11 @@ public class LaporanPenjualan implements printable {
             .append("\n");
 
         laporan.append("Total Omzet      : ")
-            .append(rupiah.format(hitungTotalOmzet()))
+            .append(formatRupiah(hitungTotalOmzet()))
             .append("\n");
 
         laporan.append("Total Pajak      : ")
-            .append(rupiah.format(hitungTotalPajakTerkumpul()))
+            .append(formatRupiah(hitungTotalPajakTerkumpul()))
             .append("\n");
 
         laporan.append(garisTipis);
@@ -241,13 +233,26 @@ public class LaporanPenjualan implements printable {
                 "%-12s | %10d | %18s | %18s%n",
                 entry.getKey().format(formatTanggal),
                 jumlahTransaksi,
-                rupiah.format(omzet),
-                rupiah.format(pajak)
+                formatRupiah(omzet),
+                formatRupiah(pajak)
             ));
         }
 
         laporan.append(garisTebal);
 
         return laporan.toString();
+    }
+
+    private static BigDecimal toMoneyDecimal(double nominal) {
+        return BigDecimal.valueOf(nominal).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static String formatRupiah(double nominal) {
+        BigDecimal bd = toMoneyDecimal(nominal);
+        boolean adaSen = bd.stripTrailingZeros().scale() > 0;
+        NumberFormat nf = NumberFormat.getNumberInstance(ID_LOCALE);
+        nf.setMinimumFractionDigits(adaSen ? 2 : 0);
+        nf.setMaximumFractionDigits(adaSen ? 2 : 0);
+        return "Rp " + nf.format(bd);
     }
 }

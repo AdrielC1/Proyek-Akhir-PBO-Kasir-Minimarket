@@ -17,13 +17,14 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.datatransfer.StringSelection;
 import java.awt.print.PageFormat;
 import java.awt.print.Paper;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
-import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -194,12 +195,28 @@ public final class LaporanPrinter {
         JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         rightActions.setOpaque(false);
 
+        RoundedButton btnSalinTeks = new RoundedButton("Salin Teks", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
+        btnSalinTeks.setPreferredSize(new Dimension(96, 36));
+        btnSalinTeks.setToolTipText("Salin ringkasan teks laporan (Printable.cetak)");
+        btnSalinTeks.addActionListener(e -> {
+            com.siritel.model.Printable dokumen = laporan;
+            String teks = dokumen.cetak();
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(teks), null);
+            if (toast != null) {
+                toast.show(
+                        "Teks Laporan Disalin",
+                        "Ringkasan teks laporan berhasil disalin ke clipboard.",
+                        ToastType.INFO
+                );
+            }
+        });
+
         RoundedButton btnTutup = new RoundedButton("Tutup", ButtonVariant.OUTLINE, UITheme.BUTTON_RADIUS);
-        btnTutup.setPreferredSize(new Dimension(84, 36));
+        btnTutup.setPreferredSize(new Dimension(80, 36));
         btnTutup.addActionListener(e -> dialog.dispose());
 
         RoundedButton btnPrint = new RoundedButton("Cetak / Simpan PDF", ButtonVariant.TEAL, UITheme.BUTTON_RADIUS);
-        btnPrint.setPreferredSize(new Dimension(150, 36));
+        btnPrint.setPreferredSize(new Dimension(148, 36));
         btnPrint.addActionListener(e -> {
             PrinterJob job = PrinterJob.getPrinterJob();
             job.setJobName("Laporan-Penjualan-" + laporan.getPeriodeAwal() + "-sd-" + laporan.getPeriodeAkhir());
@@ -221,6 +238,7 @@ public final class LaporanPrinter {
             }
         });
 
+        rightActions.add(btnSalinTeks);
         rightActions.add(btnTutup);
         rightActions.add(btnPrint);
         footer.add(pageNav, BorderLayout.WEST);
@@ -358,11 +376,11 @@ public final class LaporanPrinter {
                     UITheme.PRIMARY_BLUE);
             drawKpiBox(g2, x + cardW + gap, y, cardW, cardH,
                     "Total Omzet",
-                    formatRupiah(laporan.hitungTotalOmzet()),
+                    UITheme.formatRupiah(laporan.hitungTotalOmzet()),
                     UITheme.SUCCESS);
             drawKpiBox(g2, x + 2 * (cardW + gap), y, cardW, cardH,
                     "Total Pajak",
-                    formatRupiah(laporan.hitungTotalPajakTerkumpul()),
+                    UITheme.formatRupiah(laporan.hitungTotalPajakTerkumpul()),
                     UITheme.BADGE_AMBER_FG);
 
             y += cardH + 18;
@@ -408,7 +426,6 @@ public final class LaporanPrinter {
 
         private int drawTableSection(Graphics2D g2, int x, int y, int w,
                                      int startRow, int endRow, boolean isLastPage, int rowH) {
-            int col1End = x + (int) (w * 0.27);
             int col2End = x + (int) (w * 0.47);
             int col3End = x + (int) (w * 0.74);
             int col4End = x + w;
@@ -446,8 +463,8 @@ public final class LaporanPrinter {
                 int ry = y + 13;
                 g2.drawString(r.tanggal(), x + 10, ry);
                 drawRightAligned(g2, String.valueOf(r.jumlahTransaksi()), col2End - 12, ry);
-                drawRightAligned(g2, formatRupiah(r.omzet()), col3End - 12, ry);
-                drawRightAligned(g2, formatRupiah(r.pajak()), col4End - 10, ry);
+                drawRightAligned(g2, UITheme.formatRupiah(r.omzet()), col3End - 12, ry);
+                drawRightAligned(g2, UITheme.formatRupiah(r.pajak()), col4End - 10, ry);
 
                 y += rowH;
             }
@@ -471,8 +488,8 @@ public final class LaporanPrinter {
                 int ty = y + 15;
                 g2.drawString("TOTAL PERIODE", x + 10, ty);
                 drawRightAligned(g2, String.valueOf(laporan.hitungJumlahTransaksi()), col2End - 12, ty);
-                drawRightAligned(g2, formatRupiah(laporan.hitungTotalOmzet()), col3End - 12, ty);
-                drawRightAligned(g2, formatRupiah(laporan.hitungTotalPajakTerkumpul()), col4End - 10, ty);
+                drawRightAligned(g2, UITheme.formatRupiah(laporan.hitungTotalOmzet()), col3End - 12, ty);
+                drawRightAligned(g2, UITheme.formatRupiah(laporan.hitungTotalPajakTerkumpul()), col4End - 10, ty);
                 y += totalH;
             }
 
@@ -495,12 +512,5 @@ public final class LaporanPrinter {
             FontMetrics fm = g2.getFontMetrics();
             g2.drawString(text, rightX - fm.stringWidth(text), y);
         }
-    }
-
-    private static String formatRupiah(double nominal) {
-        NumberFormat format = NumberFormat.getCurrencyInstance(ID_LOCALE);
-        format.setMaximumFractionDigits(0);
-        format.setMinimumFractionDigits(0);
-        return format.format(nominal).replace('\u00A0', ' ');
     }
 }

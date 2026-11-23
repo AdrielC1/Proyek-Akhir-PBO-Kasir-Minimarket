@@ -8,8 +8,12 @@ import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import javax.swing.JLabel;
 import javax.swing.JSpinner;
@@ -201,6 +205,92 @@ public final class UITheme {
         spinner.setFont(font(Font.PLAIN, 12f));
         spinner.setPreferredSize(new Dimension(0, 30));
         spinner.setBorder(new RoundedBorder(BORDER_INPUT, SMALL_RADIUS, new Insets(1, 4, 1, 4)));
+    }
+
+    public static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
+
+    /**
+     * Memformat nominal Rupiah secara konsisten di seluruh UI:
+     * tanpa desimal untuk bilangan bulat (Rp 15.000) dan 2 desimal jika memiliki sen (Rp 10.505,25).
+     */
+    public static String formatRupiah(double nominal) {
+        BigDecimal bd = BigDecimal.valueOf(Double.isFinite(nominal) ? nominal : 0.0)
+                .setScale(2, RoundingMode.HALF_UP);
+        boolean adaSen = bd.stripTrailingZeros().scale() > 0;
+        NumberFormat nf = NumberFormat.getNumberInstance(ID_LOCALE);
+        nf.setMinimumFractionDigits(adaSen ? 2 : 0);
+        nf.setMaximumFractionDigits(adaSen ? 2 : 0);
+        return "Rp " + nf.format(bd);
+    }
+
+    /**
+     * Mem-parsing input nominal/harga bergaya Indonesia (mis. "15000", "15.000", "1.500.000,50",
+     * "10505,25", "10505.25", atau berawalan "Rp ") menjadi nilai double secara akurat.
+     */
+    public static double parseNominalIndonesia(String raw, String emptyMsg, String invalidMsg) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException(emptyMsg);
+        }
+        String cleaned = raw.replace('\u00A0', ' ').trim();
+        if (cleaned.regionMatches(true, 0, "Rp", 0, 2)) {
+            cleaned = cleaned.substring(2).trim();
+        }
+        cleaned = cleaned.replace(" ", "");
+        if (cleaned.isEmpty()) {
+            throw new IllegalArgumentException(emptyMsg);
+        }
+
+        boolean negative = false;
+        if (cleaned.startsWith("-")) {
+            negative = true;
+            cleaned = cleaned.substring(1);
+        } else if (cleaned.startsWith("+")) {
+            cleaned = cleaned.substring(1);
+        }
+
+        if (cleaned.isEmpty() || !cleaned.matches("[0-9.,]+")) {
+            throw new IllegalArgumentException(invalidMsg);
+        }
+
+        String normalized;
+        boolean hasDot = cleaned.indexOf('.') >= 0;
+        boolean hasComma = cleaned.indexOf(',') >= 0;
+
+        if (hasDot && hasComma) {
+            if (!cleaned.matches("\\d{1,3}(\\.\\d{3})*,\\d+")) {
+                throw new IllegalArgumentException(invalidMsg);
+            }
+            normalized = cleaned.replace(".", "").replace(',', '.');
+        } else if (hasComma) {
+            if (!cleaned.matches("\\d+,\\d+")) {
+                throw new IllegalArgumentException(invalidMsg);
+            }
+            normalized = cleaned.replace(',', '.');
+        } else if (hasDot) {
+            if (cleaned.matches("\\d{1,3}(\\.\\d{3})+")) {
+                normalized = cleaned.replace(".", "");
+            } else if (cleaned.matches("\\d+\\.\\d{1,2}")) {
+                normalized = cleaned;
+            } else {
+                throw new IllegalArgumentException(invalidMsg);
+            }
+        } else {
+            normalized = cleaned;
+        }
+
+        try {
+            BigDecimal bd = new BigDecimal(normalized);
+            if (negative) {
+                bd = bd.negate();
+            }
+            double val = bd.doubleValue();
+            if (!Double.isFinite(val)) {
+                throw new IllegalArgumentException(invalidMsg);
+            }
+            return val;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(invalidMsg);
+        }
     }
 
     public static JTextField createPlaceholderField(String placeholder) {

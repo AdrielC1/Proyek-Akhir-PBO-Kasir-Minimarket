@@ -32,13 +32,13 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -55,6 +55,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -84,9 +85,8 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     private static final Color BADGE_ELEKTRONIK_BG = UITheme.BADGE_PURPLE_BG;
     private static final Color BADGE_ELEKTRONIK_FG = UITheme.BADGE_PURPLE_FG;
 
-    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
     private static final DateTimeFormatter DATE_DISPLAY_FMT =
-            DateTimeFormatter.ofPattern("dd MMM yyyy", ID_LOCALE);
+            DateTimeFormatter.ofPattern("dd MMM yyyy", UITheme.ID_LOCALE);
 
     private final ProdukController produkController = new ProdukController();
     private final ToastManager toastManager = new ToastManager(this);
@@ -95,6 +95,9 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     private Produk produkTerpilih;
     private boolean isRefreshingTable = false;
     private boolean isUpdatingFilters = false;
+    private boolean isPopulatingForm = false;
+    private boolean isFormDirty = false;
+    private int loadRequestId = 0;
 
     // Toolbar & Katalog Kiri
     private final JTextField txtCari = UITheme.createPlaceholderField("Cari kode atau nama produk...");
@@ -129,12 +132,12 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
     // Komponen Spesifik Dinamis
     private final JSpinner spnBeratGram =
-            new JSpinner(new SpinnerNumberModel(Integer.valueOf(100), null, Integer.valueOf(1000000), Integer.valueOf(50)));
+            new JSpinner(new SpinnerNumberModel(100, 1, 1000000, 50));
     private final JSpinner spnVolumeMl =
-            new JSpinner(new SpinnerNumberModel(Integer.valueOf(250), null, Integer.valueOf(1000000), Integer.valueOf(50)));
+            new JSpinner(new SpinnerNumberModel(250, 1, 1000000, 50));
     private final JCheckBox chkDingin = new JCheckBox("Minuman Dingin");
     private final JSpinner spnBulanGaransi =
-            new JSpinner(new SpinnerNumberModel(Integer.valueOf(12), null, Integer.valueOf(240), Integer.valueOf(1)));
+            new JSpinner(new SpinnerNumberModel(12, 0, 240, 1));
 
     private final JLabel lblEstimasiPajak = new JLabel("Estimasi Pajak: -");
     private final RoundedButton btnBatal = new RoundedButton("Batal", ButtonVariant.OUTLINE, 10);
@@ -147,10 +150,10 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     private final ModernDatePicker dateMasukPicker = new ModernDatePicker(LocalDate.now(), false);
     private final ModernDatePicker dateKadaluarsaPicker = new ModernDatePicker(LocalDate.now().plusDays(30), true);
     private final JSpinner spnStokBatch =
-            new JSpinner(new SpinnerNumberModel(Integer.valueOf(10), null, Integer.valueOf(1000000), Integer.valueOf(1)));
+            new JSpinner(new SpinnerNumberModel(10, 1, 1000000, 1));
     private final RoundedButton btnTambahBatch = new RoundedButton("+ Tambah Batch", ButtonVariant.PRIMARY, 10);
     private final RoundedButton btnHapusBatch = new RoundedButton("Hapus Batch", ButtonVariant.DANGER_OUTLINE, 10);
-    private final JLabel lblTotalStokBatch = new JLabel("Total Stok: 0");
+    private final JLabel lblTotalStokBatch = new JLabel("Total Stok Aktif: 0 unit");
     private final DefaultTableModel batchTableModel;
     private final JTable tableBatch;
 
@@ -184,13 +187,11 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         // 3. Susun Panel Kiri (Katalog) & Panel Kanan (tersembunyi secara default agar tabel luas)
         add(buildCatalogCard(), BorderLayout.CENTER);
         sideCard = buildSideEditorCard();
-        sideCard.setVisible(false);
         add(sideCard, BorderLayout.EAST);
 
-        // 4. Event Listeners & State Awal
+        // 4. Event Listeners & State Awal (data dimuat lazy saat tab ditampilkan)
         initActions();
         tutupSidePanel();
-        muatDataTabel(null);
     }
 
     private JPanel buildCatalogCard() {
@@ -212,7 +213,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         hrGbc.anchor = GridBagConstraints.WEST;
 
         JLabel lblCatalogTitle = new JLabel("Katalog Produk");
-        lblCatalogTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
+        lblCatalogTitle.setFont(UITheme.font(Font.BOLD, 13f));
         lblCatalogTitle.setForeground(TEXT_DARK);
         lblCatalogTitle.setMinimumSize(new Dimension(50, 20));
         hrGbc.gridx = 0;
@@ -224,12 +225,12 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         actionPanel.setLayout(new javax.swing.BoxLayout(actionPanel, javax.swing.BoxLayout.X_AXIS));
         actionPanel.setOpaque(false);
 
-        btnTambahProduk.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnTambahProduk.setFont(UITheme.font(Font.BOLD, 12f));
         btnTambahProduk.setPreferredSize(new Dimension(130, 33));
         btnTambahProduk.setMinimumSize(new Dimension(130, 33));
         btnTambahProduk.setMaximumSize(new Dimension(130, 33));
 
-        btnSegarkan.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        btnSegarkan.setFont(UITheme.font(Font.PLAIN, 12f));
         btnSegarkan.setPreferredSize(new Dimension(72, 33));
         btnSegarkan.setMinimumSize(new Dimension(72, 33));
         btnSegarkan.setMaximumSize(new Dimension(72, 33));
@@ -254,7 +255,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         gbc.insets = new Insets(0, 0, 0, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        txtCari.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        txtCari.setFont(UITheme.font(Font.PLAIN, 12f));
         txtCari.setMinimumSize(new Dimension(80, 34));
         txtCari.setPreferredSize(new Dimension(140, 34));
         txtCari.setBorder(new RoundedBorder(INPUT_BORDER, 10, new Insets(5, 11, 5, 11)));
@@ -269,7 +270,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         gbc.weightx = 0.0;
         filterPanel.add(cmbFilterJenis, gbc);
 
-        btnCari.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnCari.setFont(UITheme.font(Font.BOLD, 12f));
         btnCari.setMinimumSize(new Dimension(54, 34));
         btnCari.setPreferredSize(new Dimension(62, 34));
         gbc.gridx = 2;
@@ -304,7 +305,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         footer.setOpaque(false);
         footer.setBorder(BorderFactory.createEmptyBorder(4, 2, 0, 2));
 
-        lblRingkasanTabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblRingkasanTabel.setFont(UITheme.font(Font.PLAIN, 12f));
         lblRingkasanTabel.setForeground(TEXT_MUTED);
         footer.add(lblRingkasanTabel, BorderLayout.WEST);
 
@@ -330,15 +331,15 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
         JPanel titleGroup = new JPanel(new GridLayout(2, 1, 0, 2));
         titleGroup.setOpaque(false);
-        lblFormTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
+        lblFormTitle.setFont(UITheme.font(Font.BOLD, 16f));
         lblFormTitle.setForeground(TEXT_DARK);
-        lblFormSubtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblFormSubtitle.setFont(UITheme.font(Font.PLAIN, 12f));
         lblFormSubtitle.setForeground(TEXT_MUTED);
         titleGroup.add(lblFormTitle);
         titleGroup.add(lblFormSubtitle);
         topHeader.add(titleGroup, BorderLayout.CENTER);
 
-        btnTutupPanel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        btnTutupPanel.setFont(UITheme.font(Font.BOLD, 16f));
         btnTutupPanel.setPreferredSize(new Dimension(28, 28));
         btnTutupPanel.setToolTipText("Tutup panel");
         JPanel closeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
@@ -425,7 +426,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         gbc.gridy = row++;
         gbc.insets = new Insets(0, 0, 8, 0);
         JLabel lblDynamicHint = new JLabel("Atribut menyesuaikan jenis produk");
-        lblDynamicHint.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        lblDynamicHint.setFont(UITheme.font(Font.PLAIN, 11f));
         lblDynamicHint.setForeground(TEXT_MUTED);
         form.add(lblDynamicHint, gbc);
 
@@ -440,9 +441,9 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         gbc.insets = new Insets(0, 0, 10, 0);
         JPanel pajakBox = new JPanel(new BorderLayout());
         pajakBox.setBackground(PRIMARY_BLUE_SOFT);
-        pajakBox.setBorder(new RoundedBorder(new Color(191, 219, 254), 10, new Insets(8, 12, 8, 12)));
-        lblEstimasiPajak.setFont(new Font("SansSerif", Font.BOLD, 12));
-        lblEstimasiPajak.setForeground(new Color(30, 64, 175));
+        pajakBox.setBorder(new RoundedBorder(UITheme.PRIMARY_SOFT_BORDER, 10, new Insets(8, 12, 8, 12)));
+        lblEstimasiPajak.setFont(UITheme.font(Font.BOLD, 12f));
+        lblEstimasiPajak.setForeground(UITheme.PRIMARY_PRESSED);
         pajakBox.add(lblEstimasiPajak, BorderLayout.CENTER);
         form.add(pajakBox, gbc);
 
@@ -452,14 +453,14 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         JPanel btnRow = new JPanel(new BorderLayout(6, 0));
         btnRow.setOpaque(false);
 
-        btnHapusForm.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnHapusForm.setFont(UITheme.font(Font.BOLD, 12f));
         btnHapusForm.setPreferredSize(new Dimension(70, 34));
 
         JPanel rightBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         rightBtns.setOpaque(false);
-        btnBatal.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        btnBatal.setFont(UITheme.font(Font.PLAIN, 12f));
         btnBatal.setPreferredSize(new Dimension(70, 34));
-        btnSimpan.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnSimpan.setFont(UITheme.font(Font.BOLD, 12f));
         btnSimpan.setPreferredSize(new Dimension(86, 34));
         rightBtns.add(btnBatal);
         rightBtns.add(btnSimpan);
@@ -503,7 +504,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         g1.gridy = 2;
         g1.insets = new Insets(0, 0, 0, 0);
         JLabel noteMkn = new JLabel("Tarif pajak produk makanan: 5% dari harga jual.");
-        noteMkn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        noteMkn.setFont(UITheme.font(Font.PLAIN, 11f));
         noteMkn.setForeground(TEXT_MUTED);
         cardMakanan.add(noteMkn, g1);
 
@@ -522,7 +523,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         g2.gridy = 2;
         g2.insets = new Insets(0, 0, 2, 0);
         chkDingin.setOpaque(false);
-        chkDingin.setFont(new Font("SansSerif", Font.BOLD, 12));
+        chkDingin.setFont(UITheme.font(Font.BOLD, 12f));
         chkDingin.setForeground(TEXT_SLATE);
         chkDingin.setFocusPainted(false);
         cardMinuman.add(chkDingin, g2);
@@ -530,7 +531,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         g2.gridy = 3;
         g2.insets = new Insets(0, 22, 0, 0);
         JLabel noteMnm = new JLabel("Layanan chiller (+Rp 500 pajak)");
-        noteMnm.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        noteMnm.setFont(UITheme.font(Font.PLAIN, 11f));
         noteMnm.setForeground(TEXT_MUTED);
         cardMinuman.add(noteMnm, g2);
 
@@ -549,7 +550,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         g3.gridy = 2;
         g3.insets = new Insets(0, 0, 0, 0);
         JLabel noteElk = new JLabel("Pajak: 15% (\u2264 12 bln) atau 17% (> 12 bln).");
-        noteElk.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        noteElk.setFont(UITheme.font(Font.PLAIN, 11f));
         noteElk.setForeground(TEXT_MUTED);
         cardElektronik.add(noteElk, g3);
 
@@ -576,7 +577,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
         gbc.gridy = r++;
         gbc.insets = new Insets(0, 0, 8, 0);
-        lblBatchInfoProduk.setFont(new Font("SansSerif", Font.BOLD, 12));
+        lblBatchInfoProduk.setFont(UITheme.font(Font.BOLD, 12f));
         lblBatchInfoProduk.setForeground(TEXT_DARK);
         addBatchCard.add(lblBatchInfoProduk, gbc);
 
@@ -594,8 +595,10 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         JPanel colStok = new JPanel(new BorderLayout(0, 4));
         colStok.setOpaque(false);
         colStok.add(UITheme.createFieldLabel("Stok Masuk *"), BorderLayout.NORTH);
-        UITheme.styleNumericSpinner(spnStokBatch);
+        spnStokBatch.setEditor(new JSpinner.NumberEditor(spnStokBatch, "#"));
+        spnStokBatch.setFont(UITheme.font(Font.PLAIN, 12f));
         spnStokBatch.setPreferredSize(new Dimension(0, 34));
+        spnStokBatch.setBorder(new RoundedBorder(INPUT_BORDER, UITheme.SMALL_RADIUS, new Insets(1, 4, 1, 4)));
         colStok.add(spnStokBatch, BorderLayout.CENTER);
 
         rowTop.add(colMasuk);
@@ -613,13 +616,13 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
         gbc.gridy = r++;
         gbc.insets = new Insets(0, 0, 10, 0);
-        lblInfoKadaluarsaElektronik.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        lblInfoKadaluarsaElektronik.setFont(UITheme.font(Font.ITALIC, 11f));
         lblInfoKadaluarsaElektronik.setForeground(TEXT_MUTED);
         addBatchCard.add(lblInfoKadaluarsaElektronik, gbc);
 
         gbc.gridy = r;
         gbc.insets = new Insets(0, 0, 0, 0);
-        btnTambahBatch.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnTambahBatch.setFont(UITheme.font(Font.BOLD, 12f));
         btnTambahBatch.setPreferredSize(new Dimension(0, 34));
         addBatchCard.add(btnTambahBatch, gbc);
 
@@ -634,11 +637,11 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         // Footer Batch
         JPanel batchFooter = new JPanel(new BorderLayout());
         batchFooter.setOpaque(false);
-        lblTotalStokBatch.setFont(new Font("SansSerif", Font.BOLD, 12));
+        lblTotalStokBatch.setFont(UITheme.font(Font.BOLD, 12f));
         lblTotalStokBatch.setForeground(TEXT_DARK);
         batchFooter.add(lblTotalStokBatch, BorderLayout.WEST);
 
-        btnHapusBatch.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnHapusBatch.setFont(UITheme.font(Font.BOLD, 12f));
         btnHapusBatch.setPreferredSize(new Dimension(112, 32));
         btnHapusBatch.setEnabled(false);
         batchFooter.add(btnHapusBatch, BorderLayout.EAST);
@@ -650,38 +653,52 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     private void konfigurasiTabelProduk() {
         tableProduk.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tableProduk.setRowHeight(42);
-        tableProduk.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        tableProduk.setFont(UITheme.font(Font.PLAIN, 13f));
         tableProduk.setForeground(TEXT_DARK);
-        tableProduk.setGridColor(new Color(241, 245, 249));
+        tableProduk.setGridColor(UITheme.BG_HOVER);
         tableProduk.setSelectionBackground(PRIMARY_BLUE_SOFT);
         tableProduk.setSelectionForeground(TEXT_DARK);
         tableProduk.setShowVerticalLines(false);
         tableProduk.getTableHeader().setReorderingAllowed(false);
 
-        tableProduk.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 11));
-        tableProduk.getTableHeader().setBackground(new Color(248, 250, 252));
+        tableProduk.getTableHeader().setFont(UITheme.font(Font.BOLD, 11f));
+        tableProduk.getTableHeader().setBackground(UITheme.BG_PAGE);
         tableProduk.getTableHeader().setForeground(TEXT_MUTED);
         tableProduk.getTableHeader().setPreferredSize(new Dimension(0, 38));
         tableProduk.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
 
-        DefaultTableCellRenderer textRenderer = new DefaultTableCellRenderer();
-        textRenderer.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+        DefaultTableCellRenderer textRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+                return this;
+            }
+        };
 
         DefaultTableCellRenderer kodeRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
                                                            boolean hasFocus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                setFont(new Font("SansSerif", Font.BOLD, 11));
+                setFont(UITheme.font(Font.BOLD, 11f));
                 setForeground(isSelected ? PRIMARY_BLUE : TEXT_SLATE);
                 setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 4));
                 return this;
             }
         };
 
-        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(SwingConstants.RIGHT);
-        rightRenderer.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
+        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(SwingConstants.RIGHT);
+                setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
+                return this;
+            }
+        };
 
         DefaultTableCellRenderer jenisRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -689,7 +706,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                                                            boolean hasFocus, int row, int column) {
                 String jenis = value != null ? value.toString() : "";
                 JLabel badge = new JLabel(formatNamaJenis(jenis), SwingConstants.CENTER);
-                badge.setFont(new Font("SansSerif", Font.BOLD, 10));
+                badge.setFont(UITheme.font(Font.BOLD, 10f));
                 badge.setOpaque(true);
                 badge.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
 
@@ -707,7 +724,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                         badge.setForeground(BADGE_ELEKTRONIK_FG);
                     }
                     default -> {
-                        badge.setBackground(new Color(241, 245, 249));
+                        badge.setBackground(UITheme.BG_HOVER);
                         badge.setForeground(TEXT_SLATE);
                     }
                 }
@@ -730,15 +747,15 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                 if (stok <= 0) {
                     setText("0 (Habis)");
                     setForeground(DANGER_RED);
-                    setFont(new Font("SansSerif", Font.BOLD, 12));
+                    setFont(UITheme.font(Font.BOLD, 12f));
                 } else if (stok <= 5) {
                     setText(stok + " (Tipis)");
                     setForeground(BADGE_MAKANAN_FG);
-                    setFont(new Font("SansSerif", Font.BOLD, 12));
+                    setFont(UITheme.font(Font.BOLD, 12f));
                 } else {
                     setText(String.valueOf(stok));
                     setForeground(TEXT_DARK);
-                    setFont(new Font("SansSerif", Font.BOLD, 12));
+                    setFont(UITheme.font(Font.BOLD, 12f));
                 }
                 return this;
             }
@@ -764,26 +781,41 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     private void konfigurasiTabelBatch() {
         tableBatch.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tableBatch.setRowHeight(34);
-        tableBatch.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        tableBatch.setFont(UITheme.font(Font.PLAIN, 12f));
         tableBatch.setForeground(TEXT_DARK);
-        tableBatch.setGridColor(new Color(241, 245, 249));
+        tableBatch.setGridColor(UITheme.BG_HOVER);
         tableBatch.setSelectionBackground(PRIMARY_BLUE_SOFT);
         tableBatch.setSelectionForeground(TEXT_DARK);
         tableBatch.setShowVerticalLines(false);
         tableBatch.getTableHeader().setReorderingAllowed(false);
 
-        tableBatch.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 11));
-        tableBatch.getTableHeader().setBackground(new Color(248, 250, 252));
+        tableBatch.getTableHeader().setFont(UITheme.font(Font.BOLD, 11f));
+        tableBatch.getTableHeader().setBackground(UITheme.BG_PAGE);
         tableBatch.getTableHeader().setForeground(TEXT_MUTED);
         tableBatch.getTableHeader().setPreferredSize(new Dimension(0, 32));
         tableBatch.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
 
-        DefaultTableCellRenderer cellPad = new DefaultTableCellRenderer();
-        cellPad.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+        DefaultTableCellRenderer cellPad = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+                return this;
+            }
+        };
 
-        DefaultTableCellRenderer stokCell = new DefaultTableCellRenderer();
-        stokCell.setHorizontalAlignment(SwingConstants.CENTER);
-        stokCell.setFont(new Font("SansSerif", Font.BOLD, 12));
+        DefaultTableCellRenderer stokCell = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(SwingConstants.CENTER);
+                setFont(UITheme.font(Font.BOLD, 12f));
+                setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 4));
+                return this;
+            }
+        };
 
         DefaultTableCellRenderer statusCell = new DefaultTableCellRenderer() {
             @Override
@@ -792,11 +824,11 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
                 String status = value != null ? value.toString() : "";
-                setFont(new Font("SansSerif", Font.BOLD, 11));
+                setFont(UITheme.font(Font.BOLD, 11f));
                 switch (status) {
                     case "Kedaluwarsa" -> setForeground(DANGER_RED);
                     case "Hampir kedaluwarsa" -> setForeground(BADGE_MAKANAN_FG);
-                    case "Aman" -> setForeground(new Color(22, 163, 74));
+                    case "Aman" -> setForeground(UITheme.SUCCESS);
                     default -> setForeground(TEXT_MUTED);
                 }
                 return this;
@@ -828,33 +860,91 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
             pilihTab("BATCH");
         });
 
-        cmbJenis.addActionListener(e -> {
-            String jenis = (String) cmbJenis.getSelectedItem();
-            if (jenis != null) {
-                dynamicFieldLayout.show(dynamicFieldPanel, jenis);
-            }
-            perbaruiEstimasiPajak();
-        });
-
-        DocumentListener taxUpdateListener = new DocumentListener() {
+        DocumentListener dirtyAndTaxListener = new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
                 perbaruiEstimasiPajak();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
                 perbaruiEstimasiPajak();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
                 perbaruiEstimasiPajak();
             }
         };
-        txtHarga.getDocument().addDocumentListener(taxUpdateListener);
-        chkDingin.addActionListener(e -> perbaruiEstimasiPajak());
-        spnBulanGaransi.addChangeListener(e -> perbaruiEstimasiPajak());
+        DocumentListener dirtyOnlyListener = new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                if (!isPopulatingForm) {
+                    isFormDirty = true;
+                }
+            }
+        };
+
+        txtKode.getDocument().addDocumentListener(dirtyOnlyListener);
+        txtNama.getDocument().addDocumentListener(dirtyOnlyListener);
+        txtHarga.getDocument().addDocumentListener(dirtyAndTaxListener);
+
+        cmbJenis.addActionListener(e -> {
+            String jenis = (String) cmbJenis.getSelectedItem();
+            if (jenis != null) {
+                dynamicFieldLayout.show(dynamicFieldPanel, jenis);
+            }
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+            perbaruiEstimasiPajak();
+        });
+
+        chkDingin.addActionListener(e -> {
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+            perbaruiEstimasiPajak();
+        });
+        spnBeratGram.addChangeListener(e -> {
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+        });
+        spnVolumeMl.addChangeListener(e -> {
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+        });
+        spnBulanGaransi.addChangeListener(e -> {
+            if (!isPopulatingForm) {
+                isFormDirty = true;
+            }
+            perbaruiEstimasiPajak();
+        });
 
         tableProduk.getSelectionModel().addListSelectionListener(e -> {
             if (e.getValueIsAdjusting() || isRefreshingTable) {
@@ -882,7 +972,12 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         });
 
         btnTambahProduk.addActionListener(e -> {
-            tableProduk.clearSelection();
+            isRefreshingTable = true;
+            try {
+                tableProduk.clearSelection();
+            } finally {
+                isRefreshingTable = false;
+            }
             masukModeTambah();
             tampilkanSidePanel();
             txtKode.requestFocusInWindow();
@@ -899,7 +994,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                 isUpdatingFilters = false;
             }
             Integer keepId = (produkTerpilih != null) ? produkTerpilih.getId() : null;
-            muatDataTabel(keepId);
+            jalankanPencarian(keepId, false, null);
         });
 
         btnBatal.addActionListener(e -> tutupSidePanel());
@@ -915,39 +1010,65 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
      */
     @Override
     public void refreshData() {
-        jalankanPencarian();
+        Integer selectedId = (produkTerpilih != null && sideCard.isVisible()) ? produkTerpilih.getId() : null;
+        jalankanPencarian(selectedId, true, null);
     }
 
     private void jalankanPencarian() {
-        String keyword = txtCari.getText().trim();
-        String filterJenis = (String) cmbFilterJenis.getSelectedItem();
+        Integer selectedId = (produkTerpilih != null && sideCard.isVisible()) ? produkTerpilih.getId() : null;
+        jalankanPencarian(selectedId, false, null);
+    }
 
-        try {
-            List<Produk> hasil;
-            if (filterJenis == null || "SEMUA".equals(filterJenis)) {
-                hasil = produkController.cariProduk(keyword);
-            } else {
-                hasil = produkController.cariProduk(keyword, filterJenis);
+    private void jalankanPencarian(Integer selectProductId, boolean preserveDirtyForm, Runnable onAfterLoad) {
+        final int reqId = ++loadRequestId;
+        final String keyword = txtCari.getText().trim();
+        final String filterJenis = (String) cmbFilterJenis.getSelectedItem();
+
+        lblRingkasanTabel.setText("Memuat katalog produk...");
+        btnSegarkan.setEnabled(false);
+
+        SwingWorker<List<Produk>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<Produk> doInBackground() throws Exception {
+                if (filterJenis == null || "SEMUA".equals(filterJenis)) {
+                    return produkController.cariProduk(keyword);
+                }
+                return produkController.cariProduk(keyword, filterJenis);
             }
-            Integer selectedId = (produkTerpilih != null) ? produkTerpilih.getId() : null;
-            tampilkanDaftarProduk(hasil, selectedId);
-        } catch (IllegalArgumentException ex) {
-            ModernModal.error(this, "Kesalahan Validasi", ex.getMessage());
-        } catch (SQLException ex) {
-            ModernModal.error(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
-        }
+
+            @Override
+            protected void done() {
+                if (reqId != loadRequestId) {
+                    return;
+                }
+                btnSegarkan.setEnabled(true);
+                try {
+                    List<Produk> hasil = get();
+                    tampilkanDaftarProduk(hasil, selectProductId, preserveDirtyForm);
+                    if (onAfterLoad != null) {
+                        onAfterLoad.run();
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    lblRingkasanTabel.setText("Gagal memuat katalog produk");
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof IllegalArgumentException argEx) {
+                        ModernModal.error(ManajemenProdukView.this, "Kesalahan Validasi", argEx.getMessage());
+                    } else if (cause instanceof SQLException sqlEx) {
+                        ModernModal.error(ManajemenProdukView.this, "Kesalahan Database",
+                                ProdukController.pesanSqlError(sqlEx));
+                    } else {
+                        ModernModal.error(ManajemenProdukView.this, "Kesalahan Sistem",
+                                "Gagal memuat produk:\n" + (cause != null ? cause.getMessage() : ex.getMessage()));
+                    }
+                }
+            }
+        };
+        worker.execute();
     }
 
-    private void muatDataTabel(Integer selectProductId) {
-        try {
-            List<Produk> list = produkController.daftarProduk();
-            tampilkanDaftarProduk(list, selectProductId);
-        } catch (SQLException ex) {
-            ModernModal.error(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
-        }
-    }
-
-    private void tampilkanDaftarProduk(List<Produk> list, Integer selectProductId) {
+    private void tampilkanDaftarProduk(List<Produk> list, Integer selectProductId, boolean preserveDirtyForm) {
         isRefreshingTable = true;
         try {
             daftarProdukSaatIni = new ArrayList<>(list);
@@ -961,8 +1082,8 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                         p.getKode(),
                         p.getNama(),
                         p.getJenisProduk(),
-                        formatRupiah(p.getHarga()),
-                        formatRupiah(p.hitungPajak()),
+                        UITheme.formatRupiah(p.getHarga()),
+                        UITheme.formatRupiah(p.hitungPajak()),
                         p.getStok(),
                         p.getInfoSpesifik()
                 });
@@ -975,7 +1096,13 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
             if (indexToSelect >= 0) {
                 tableProduk.setRowSelectionInterval(indexToSelect, indexToSelect);
-                masukModeUbah(daftarProdukSaatIni.get(indexToSelect));
+                Produk terpilihBaru = daftarProdukSaatIni.get(indexToSelect);
+                if (preserveDirtyForm && isFormDirty) {
+                    produkTerpilih = terpilihBaru;
+                    muatDataBatchProduk(terpilihBaru);
+                } else {
+                    masukModeUbah(terpilihBaru);
+                }
                 tampilkanSidePanel();
             } else {
                 tableProduk.clearSelection();
@@ -1012,56 +1139,68 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     }
 
     private void masukModeTambah() {
-        produkTerpilih = null;
-        lblFormTitle.setText("Tambah Produk");
-        lblFormSubtitle.setText("Lengkapi data katalog produk baru");
-        btnHapusForm.setVisible(false);
+        isPopulatingForm = true;
+        try {
+            produkTerpilih = null;
+            lblFormTitle.setText("Tambah Produk");
+            lblFormSubtitle.setText("Lengkapi data katalog produk baru");
+            btnHapusForm.setVisible(false);
 
-        txtKode.setText("");
-        txtNama.setText("");
-        txtHarga.setText("");
-        cmbJenis.setSelectedItem("MAKANAN");
-        dynamicFieldLayout.show(dynamicFieldPanel, "MAKANAN");
+            txtKode.setText("");
+            txtNama.setText("");
+            txtHarga.setText("");
+            cmbJenis.setSelectedItem("MAKANAN");
+            dynamicFieldLayout.show(dynamicFieldPanel, "MAKANAN");
 
-        spnBeratGram.setValue(100);
-        spnVolumeMl.setValue(250);
-        chkDingin.setSelected(false);
-        spnBulanGaransi.setValue(12);
+            spnBeratGram.setValue(100);
+            spnVolumeMl.setValue(250);
+            chkDingin.setSelected(false);
+            spnBulanGaransi.setValue(12);
 
-        btnTabBatch.setText("Batch Stok");
-        batchTableModel.setRowCount(0);
-        daftarBatchSaatIni.clear();
-        lblBatchInfoProduk.setText("Pilih produk untuk mengelola batch stok");
-        lblTotalStokBatch.setText("Total Stok: 0");
+            btnTabBatch.setText("Batch Stok");
+            batchTableModel.setRowCount(0);
+            daftarBatchSaatIni.clear();
+            lblBatchInfoProduk.setText("Pilih produk untuk mengelola batch stok");
+            lblTotalStokBatch.setText("Total Stok Aktif: 0 unit");
 
-        pilihTab("DETAIL");
-        perbaruiEstimasiPajak();
+            pilihTab("DETAIL");
+            perbaruiEstimasiPajak();
+            isFormDirty = false;
+        } finally {
+            isPopulatingForm = false;
+        }
     }
 
     private void masukModeUbah(Produk p) {
-        produkTerpilih = p;
-        lblFormTitle.setText("Ubah Produk");
-        lblFormSubtitle.setText(p.getKode() + " \u2022 " + p.getNama());
-        btnHapusForm.setVisible(true);
+        isPopulatingForm = true;
+        try {
+            produkTerpilih = p;
+            lblFormTitle.setText("Ubah Produk");
+            lblFormSubtitle.setText(p.getKode() + " \u2022 " + p.getNama());
+            btnHapusForm.setVisible(true);
 
-        txtKode.setText(p.getKode());
-        txtNama.setText(p.getNama());
-        txtHarga.setText(formatInputHarga(p.getHarga()));
+            txtKode.setText(p.getKode());
+            txtNama.setText(p.getNama());
+            txtHarga.setText(formatInputHarga(p.getHarga()));
 
-        cmbJenis.setSelectedItem(p.getJenisProduk());
-        dynamicFieldLayout.show(dynamicFieldPanel, p.getJenisProduk());
+            cmbJenis.setSelectedItem(p.getJenisProduk());
+            dynamicFieldLayout.show(dynamicFieldPanel, p.getJenisProduk());
 
-        if (p instanceof Makanan m) {
-            spnBeratGram.setValue(m.getBeratGram());
-        } else if (p instanceof Minuman mn) {
-            spnVolumeMl.setValue(mn.getVolumeMl());
-            chkDingin.setSelected(mn.isDingin());
-        } else if (p instanceof Elektronik el) {
-            spnBulanGaransi.setValue(el.getBulanGaransi());
+            if (p instanceof Makanan m) {
+                spnBeratGram.setValue(m.getBeratGram());
+            } else if (p instanceof Minuman mn) {
+                spnVolumeMl.setValue(mn.getVolumeMl());
+                chkDingin.setSelected(mn.isDingin());
+            } else if (p instanceof Elektronik el) {
+                spnBulanGaransi.setValue(el.getBulanGaransi());
+            }
+
+            perbaruiEstimasiPajak();
+            muatDataBatchProduk(p);
+            isFormDirty = false;
+        } finally {
+            isPopulatingForm = false;
         }
-
-        perbaruiEstimasiPajak();
-        muatDataBatchProduk(p);
     }
 
     private void muatDataBatchProduk(Produk p) {
@@ -1091,10 +1230,28 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         dateKadaluarsaPicker.setEnabled(!isElektronik);
         lblInfoKadaluarsaElektronik.setVisible(isElektronik);
 
+        int stokAktif = p.getStok();
+        int stokKadaluarsa = p.getStokKadaluarsa();
         btnTabBatch.setText("Batch Stok (" + daftarBatchSaatIni.size() + ")");
         lblBatchInfoProduk.setText(p.getKode() + " \u2014 " + p.getNama());
-        lblTotalStokBatch.setText("Total Stok: " + p.getStok() + " unit");
+        lblTotalStokBatch.setText(stokKadaluarsa > 0
+                ? "Stok Aktif: " + stokAktif + " unit (" + stokKadaluarsa + " kedaluwarsa)"
+                : "Total Stok Aktif: " + stokAktif + " unit");
         btnHapusBatch.setEnabled(false);
+    }
+
+    private boolean cocokDenganFilterAktif(Produk p) {
+        String filterJenis = (String) cmbFilterJenis.getSelectedItem();
+        if (filterJenis != null && !"SEMUA".equals(filterJenis)
+                && !filterJenis.equalsIgnoreCase(p.getJenisProduk())) {
+            return false;
+        }
+        String keyword = txtCari.getText().trim().toLowerCase(Locale.ROOT);
+        if (keyword.isEmpty()) {
+            return true;
+        }
+        return p.getNama().toLowerCase(Locale.ROOT).contains(keyword)
+                || p.getKode().toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     private void simpanProduk() {
@@ -1104,10 +1261,20 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
             if (produkTerpilih == null) {
                 produkController.tambahProduk(produkBaru);
-                muatDataTabel(produkBaru.getId());
-                if (produkTerpilih != null) {
-                    pilihTab("BATCH");
+                if (!cocokDenganFilterAktif(produkBaru)) {
+                    isUpdatingFilters = true;
+                    try {
+                        txtCari.setText("");
+                        cmbFilterJenis.setSelectedIndex(0);
+                    } finally {
+                        isUpdatingFilters = false;
+                    }
                 }
+                jalankanPencarian(produkBaru.getId(), false, () -> {
+                    if (produkTerpilih != null) {
+                        pilihTab("BATCH");
+                    }
+                });
                 toastManager.show(
                         "Produk Ditambahkan",
                         "Silakan tambahkan batch stok awal pada tab Batch Stok.",
@@ -1115,7 +1282,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
                 );
             } else {
                 produkController.ubahProduk(produkBaru);
-                muatDataTabel(produkBaru.getId());
+                jalankanPencarian(produkBaru.getId(), false, null);
                 toastManager.show(
                         "Produk Diperbarui",
                         "Data produk berhasil disimpan.",
@@ -1153,12 +1320,14 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
         try {
             String namaDihapus = produkTerpilih.getNama();
-            produkController.hapusProduk(produkTerpilih.getId());
+            boolean archived = produkController.hapusProduk(produkTerpilih.getId());
             tutupSidePanel();
-            muatDataTabel(null);
+            jalankanPencarian(null, false, null);
             toastManager.show(
                     "Produk Dihapus",
-                    "Produk '" + namaDihapus + "' berhasil dihapus.",
+                    archived
+                            ? "Produk '" + namaDihapus + "' dihapus dari katalog aktif (riwayat transaksi tetap terjaga)."
+                            : "Produk '" + namaDihapus + "' berhasil dihapus.",
                     ToastType.SUCCESS
             );
         } catch (IllegalArgumentException ex) {
@@ -1189,8 +1358,8 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
             spnStokBatch.setValue(10);
             dateMasukPicker.setDate(LocalDate.now());
             dateKadaluarsaPicker.setDate(LocalDate.now().plusDays(30));
-            muatDataTabel(produkTerpilih.getId());
-            pilihTab("BATCH");
+            int targetId = produkTerpilih.getId();
+            jalankanPencarian(targetId, false, () -> pilihTab("BATCH"));
             toastManager.show(
                     "Batch Ditambahkan",
                     "Stok masuk sebanyak " + stokBatch + " unit berhasil dicatat.",
@@ -1227,9 +1396,11 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
         try {
             produkController.hapusBatch(target.getId());
-            muatDataTabel(produkTerpilih.getId());
-            pilihTab("BATCH");
+            int targetId = produkTerpilih.getId();
+            jalankanPencarian(targetId, false, () -> pilihTab("BATCH"));
             toastManager.show("Batch Dihapus", "Batch stok berhasil dihapus.", ToastType.SUCCESS);
+        } catch (IllegalArgumentException ex) {
+            ModernModal.error(this, "Aksi Ditolak", ex.getMessage());
         } catch (SQLException ex) {
             ModernModal.error(this, "Kesalahan Database", ProdukController.pesanSqlError(ex));
         }
@@ -1271,10 +1442,11 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
             } else if ("MINUMAN".equals(jenis)) {
                 sampel = new Minuman(0, "TMP", "Sampel", harga, 1, chkDingin.isSelected());
             } else {
-                int garansi = Math.max(0, ((Number) spnBulanGaransi.getValue()).intValue());
+                Object val = spnBulanGaransi.getValue();
+                int garansi = (val instanceof Number n) ? Math.max(0, n.intValue()) : 0;
                 sampel = new Elektronik(0, "TMP", "Sampel", harga, garansi);
             }
-            lblEstimasiPajak.setText("Estimasi Pajak: " + formatRupiah(sampel.hitungPajak()) + " / unit");
+            lblEstimasiPajak.setText("Estimasi Pajak: " + UITheme.formatRupiah(sampel.hitungPajak()) + " / unit");
         } catch (IllegalArgumentException ex) {
             lblEstimasiPajak.setText("Estimasi Pajak: -");
         }
@@ -1289,7 +1461,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
 
     private void setTabVisual(JButton btn, boolean active) {
         btn.setForeground(active ? PRIMARY_BLUE : TEXT_MUTED);
-        btn.setFont(new Font("SansSerif", active ? Font.BOLD : Font.PLAIN, 13));
+        btn.setFont(UITheme.font(active ? Font.BOLD : Font.PLAIN, 13f));
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, active ? 2 : 0, 0, PRIMARY_BLUE),
                 BorderFactory.createEmptyBorder(6, 2, 8, 2)
@@ -1297,15 +1469,11 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
     }
 
     private static double parseHarga(String raw) {
-        if (raw == null || raw.isBlank()) {
-            throw new IllegalArgumentException("Harga produk tidak boleh kosong.");
-        }
-        String cleaned = raw.trim().replace(",", ".");
-        try {
-            return Double.parseDouble(cleaned);
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Harga produk harus berupa angka yang valid.");
-        }
+        return UITheme.parseNominalIndonesia(
+                raw,
+                "Harga produk tidak boleh kosong.",
+                "Harga produk harus berupa angka yang valid (contoh: 15000, 15.000, atau 15.000,50)."
+        );
     }
 
     private static int bacaIntSpinner(JSpinner spinner, String errorMsg) {
@@ -1342,13 +1510,6 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         combo.setRenderer(new JenisProdukRenderer(includeSemua));
     }
 
-    private static String formatRupiah(double nilai) {
-        NumberFormat nf = NumberFormat.getNumberInstance(Locale.forLanguageTag("id-ID"));
-        nf.setMinimumFractionDigits(0);
-        nf.setMaximumFractionDigits(2);
-        return "Rp " + nf.format(nilai);
-    }
-
     private static String formatInputHarga(double harga) {
         if (harga == Math.rint(harga)) {
             return String.valueOf((long) harga);
@@ -1376,7 +1537,7 @@ public class ManajemenProdukView extends JPanel implements RefreshableView {
         public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                       boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            setFont(new Font("SansSerif", (index >= 0 && isSelected) ? Font.BOLD : Font.PLAIN, 12));
+            setFont(UITheme.font((index >= 0 && isSelected) ? Font.BOLD : Font.PLAIN, 12f));
             if (index == -1) {
                 setOpaque(false);
                 setForeground(TEXT_DARK);

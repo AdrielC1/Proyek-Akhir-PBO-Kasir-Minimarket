@@ -20,7 +20,7 @@ File ini berisi konteks arsitektur, aturan bisnis, standar kode, dan batasan pro
 ## 2. Aturan Arsitektur & Pemisahan Layer (WAJIB)
 
 1. **Dilarang Menulis SQL di View maupun Controller:** Seluruh query JDBC (`Connection`, `PreparedStatement`, `ResultSet`) hanya boleh berada di dalam package `com.siritel.dao`.
-2. **Dilarang Menaruh Logika Bisnis di View:** Class di package `view` hanya bertugas merender komponen Swing, menangkap input pengguna, memanggil method pada `controller`, dan menampilkan hasil atau dialog pesan (`JOptionPane`).
+2. **Dilarang Menaruh Logika Bisnis di View:** Class di package `view` hanya bertugas merender komponen Swing, menangkap input pengguna, memanggil method pada `controller`, dan menampilkan hasil atau dialog pesan (`ModernModal` / `ToastManager`).
 3. **Pengelolaan Koneksi Database:** Selalu gunakan `DatabaseConnection.getConnection()` dengan blok `try-with-resources` pada `PreparedStatement` dan `ResultSet` agar tidak terjadi kebocoran koneksi.
 4. **Password Security:** Jangan pernah menyimpan atau membandingkan password plaintext di Java. Gunakan fungsi PostgreSQL `crypt(?, gen_salt('bf'))` saat `INSERT/UPDATE` dan `password = crypt(?, password)` saat `SELECT` login di `PenggunaDAO`.
 
@@ -45,18 +45,19 @@ Kode yang dihasilkan **wajib** mempertahankan penerapan OOP berikut agar lulus r
    * **Overloading:** `ProdukController` wajib memiliki dua versi `cariProduk(String nama)` dan `cariProduk(String nama, String jenis)`.
 4. **Exception Handling:**
    * Gunakan custom exception `StokTidakCukupException` saat kuantitas pembelian melebihi total stok tersedia.
-   * Tangkap `SQLException`, `IllegalArgumentException`, dan `StokTidakCukupException` di layer View/Controller untuk ditampilkan lewat `JOptionPane.showMessageDialog(..., JOptionPane.ERROR_MESSAGE)`.
+   * Tangkap `SQLException`, `IllegalArgumentException`, dan `StokTidakCukupException` di layer View/Controller untuk ditampilkan lewat `ModernModal.error(...)`.
 
 ---
 
 ## 4. Aturan Logika Bisnis Inventaris & Transaksi
 
-1. **Sistem Stok Multi-Batch & FEFO:**
-   * Tabel `produk` tidak memiliki kolom `stok`. Total stok sebuah `Produk` dihitung dinamis dari penjumlahan `stokBatch` pada `List<BatchProduk>`.
-   * Saat `TransaksiDAO.simpanTransaksi(Transaksi t)` dipanggil, proses penyimpanan header `transaksi`, detail `item_transaksi`, dan pemotongan `batch_produk.stok_batch` wajib berjalan dalam **satu transaksi database atomik** (`conn.setAutoCommit(false)` dengan `commit()` / `rollback()`).
-   * Pemotongan stok wajib mengikuti urutan **FEFO (*First Expired, First Out*)**: mengurutkan batch berdasarkan `tgl_kadaluarsa ASC NULLS LAST, id ASC`.
+1. **Sistem Stok Multi-Batch, FEFO, & Soft Delete:**
+   * Tabel `produk` tidak memiliki kolom `stok`. Total stok aktif sebuah `Produk` dihitung dinamis dari penjumlahan `stokBatch` pada `List<BatchProduk>` yang **belum kedaluwarsa** (`!batch.isKadaluarsa()`).
+   * Saat `TransaksiDAO.simpanTransaksi(Transaksi t)` dipanggil, proses validasi produk aktif, penyimpanan header `transaksi`, detail `item_transaksi`, dan pemotongan `batch_produk.stok_batch` (hanya batch belum kedaluwarsa) wajib berjalan dalam **satu transaksi database atomik** (`conn.setAutoCommit(false)` dengan `commit()` / `rollback()`).
+   * Pemotongan stok wajib mengikuti urutan **FEFO (*First Expired, First Out*)**: mengurutkan batch aktif berdasarkan `tgl_kadaluarsa ASC NULLS LAST, id ASC`.
+   * Penghapusan produk dan pengguna menggunakan strategi **hybrid soft delete** (`is_active = FALSE` jika sudah memiliki riwayat transaksi, atau *hard delete* jika belum pernah bertransaksi) agar histori struk dan laporan keuangan tetap utuh.
 2. **Format ID Transaksi:**
-   * Gunakan format unik berbasis waktu, misalnya `"TRX-" + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now())`.
+   * Gunakan format unik berbasis waktu saat checkout, misalnya `"TRX-" + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now()) + "-" + kasirId + acak3Digit`.
 
 ---
 
@@ -91,4 +92,4 @@ Saat mengembangkan fitur, jaga batasan tanggung jawab tiap modul agar tidak terj
 
 * **Modul 1 (Fondasi, Auth & User):** `DatabaseConnection`, `Main`, `Pengguna`, `PenggunaDAO`, `AuthController`, `LoginView`, `MainFrame`, `ManajemenPenggunaView`.
 * **Modul 2 (Katalog Produk, Polimorfisme & Batch):** `Produk`, `Makanan`, `Minuman`, `Elektronik`, `BatchProduk`, `ProdukDAO`, `ProdukController`, `ManajemenProdukView`.
-* **Modul 3 (Kasir, Riwayat & Laporan):** `printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`.
+* **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`.
