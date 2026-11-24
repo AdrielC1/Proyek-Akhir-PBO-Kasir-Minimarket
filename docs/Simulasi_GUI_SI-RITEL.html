@@ -1,0 +1,4147 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Peta Interaktif Komponen GUI Java Swing - SI-RITEL</title>
+  <style>
+    /* ==========================================================================
+       1. TOKEN WARNA (Terverifikasi WCAG AA >= 4.5:1 teks, >= 3.0:1 batas UI)
+       Sumber palet asli: com.siritel.view.ui.UITheme
+       ========================================================================== */
+    :root,
+    [data-theme="light"] {
+      --bg-app: #F1F5F9;
+      --bg-page: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --bg-subtle: #EFF6FF;
+      --bg-hover: #E2E8F0;
+      --bg-login-top: #F0F5FC;
+      --bg-login-bottom: #F8FAFD;
+
+      --text-main: #0F172A;
+      --text-label: #334155;
+      --text-muted: #475569;
+
+      --border-soft: #CBD5E1;
+      --border-control: #64748B;
+      --focus-ring: #1D4ED8;
+
+      --primary-bg: #1D4ED8;
+      --primary-hover: #1E40AF;
+      --primary-fg: #FFFFFF;
+
+      --soft-blue-bg: #EFF6FF;
+      --soft-blue-border: #2563EB;
+      --soft-blue-fg: #1E40AF;
+
+      --teal-bg: #0F766E;
+      --teal-hover: #115E59;
+      --teal-fg: #FFFFFF;
+
+      --danger-bg: #DC2626;
+      --danger-hover: #B91C1C;
+      --danger-fg: #FFFFFF;
+      --danger-soft-bg: #FEF2F2;
+      --danger-soft-border: #DC2626;
+      --danger-soft-fg: #B91C1C;
+
+      --success-soft-bg: #DCFCE7;
+      --success-soft-border: #166534;
+      --success-soft-fg: #166534;
+
+      --badge-amber-bg: #FEF3C7;
+      --badge-amber-fg: #92400E;
+      --badge-blue-bg: #DBEAFE;
+      --badge-blue-fg: #1E40AF;
+      --badge-purple-bg: #F3E8FF;
+      --badge-purple-fg: #6B21A8;
+      --badge-teal-bg: #CCFBF1;
+      --badge-teal-fg: #115E59;
+
+      --disabled-bg: #E2E8F0;
+      --disabled-fg: #475569;
+
+      --inspect-outline: #1D4ED8;
+      --inspect-bg: rgba(29, 78, 216, 0.08);
+      --wireframe-line: #0F766E;
+      --backdrop: rgba(15, 23, 42, 0.55);
+      --window-shadow: 0 10px 28px rgba(15, 23, 42, 0.10);
+    }
+
+    [data-theme="dark"] {
+      --bg-app: #020617;
+      --bg-page: #0F172A;
+      --bg-card: #1E293B;
+      --bg-subtle: #1E3A8A;
+      --bg-hover: #334155;
+      --bg-login-top: #0F172A;
+      --bg-login-bottom: #1E293B;
+
+      --text-main: #F1F5F9;
+      --text-label: #E2E8F0;
+      --text-muted: #CBD5E1;
+
+      --border-soft: #475569;
+      --border-control: #94A3B8;
+      --focus-ring: #60A5FA;
+
+      --primary-bg: #60A5FA;
+      --primary-hover: #93C5FD;
+      --primary-fg: #0F172A;
+
+      --soft-blue-bg: #1E3A8A;
+      --soft-blue-border: #60A5FA;
+      --soft-blue-fg: #BFDBFE;
+
+      --teal-bg: #2DD4BF;
+      --teal-hover: #5EEAD4;
+      --teal-fg: #0F172A;
+
+      --danger-bg: #F87171;
+      --danger-hover: #FCA5A5;
+      --danger-fg: #0F172A;
+      --danger-soft-bg: #7F1D1D;
+      --danger-soft-border: #FCA5A5;
+      --danger-soft-fg: #FECACA;
+
+      --success-soft-bg: #14532D;
+      --success-soft-border: #86EFAC;
+      --success-soft-fg: #BBF7D0;
+
+      --badge-amber-bg: #78350F;
+      --badge-amber-fg: #FDE68A;
+      --badge-blue-bg: #1E3A8A;
+      --badge-blue-fg: #BFDBFE;
+      --badge-purple-bg: #581C87;
+      --badge-purple-fg: #E9D5FF;
+      --badge-teal-bg: #134E4A;
+      --badge-teal-fg: #99F6E4;
+
+      --disabled-bg: #334155;
+      --disabled-fg: #CBD5E1;
+
+      --inspect-outline: #60A5FA;
+      --inspect-bg: rgba(96, 165, 250, 0.14);
+      --wireframe-line: #2DD4BF;
+      --backdrop: rgba(2, 6, 23, 0.72);
+      --window-shadow: 0 12px 32px rgba(2, 6, 23, 0.55);
+    }
+
+    /* ==========================================================================
+       2. RESET, TIPOGRAFI, & AFODANSI INTERAKSI DASAR
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    code, pre, .mono {
+      font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
+    }
+
+    button:not(:disabled),
+    select:not(:disabled),
+    summary,
+    label[for],
+    input[type="checkbox"]:not(:disabled),
+    input[type="radio"]:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    [data-comp-id] {
+      cursor: pointer;
+    }
+
+    button:disabled,
+    select:disabled,
+    input:disabled,
+    [aria-disabled="true"] {
+      cursor: not-allowed;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      button, input, select, [data-comp-id] {
+        transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+      }
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 8px;
+      z-index: 1000;
+      padding: 10px 16px;
+      background: var(--primary-bg);
+      color: var(--primary-fg);
+      font-weight: 700;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+    .skip-link:focus {
+      left: 12px;
+    }
+
+    /* ==========================================================================
+       3. SHELL ATAS (HEADER & KONTROL PRESENTASI)
+       ========================================================================== */
+    .top-shell {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 14px clamp(14px, 2.5vw, 28px);
+    }
+
+    .top-bar {
+      max-width: 1520px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-heading h1 {
+      margin: 0;
+      font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .brand-heading p {
+      margin: 2px 0 0;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .control-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-soft);
+      padding: 4px 8px;
+      border-radius: 10px;
+    }
+
+    .ctrl-group label {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-label);
+      margin-right: 2px;
+    }
+
+    .page-nav {
+      max-width: 1520px;
+      margin: 12px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ==========================================================================
+       4. TOMBOL & KOMPONEN INPUT STANDAR (Tap Target >= 44x44px)
+       ========================================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-control);
+      background: var(--bg-card);
+      color: var(--text-main);
+      text-decoration: none;
+      line-height: 1.2;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--bg-hover);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      background: var(--disabled-bg);
+      color: var(--disabled-fg);
+      border-color: var(--border-control);
+      border-style: dashed;
+    }
+
+    .btn-primary {
+      background: var(--primary-bg);
+      color: var(--primary-fg);
+      border-color: var(--primary-bg);
+      font-weight: 700;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .btn-soft {
+      background: var(--soft-blue-bg);
+      color: var(--soft-blue-fg);
+      border-color: var(--soft-blue-border);
+      font-weight: 700;
+    }
+    .btn-soft:hover:not(:disabled) {
+      background: var(--bg-hover);
+    }
+
+    .btn-teal {
+      background: var(--teal-bg);
+      color: var(--teal-fg);
+      border-color: var(--teal-bg);
+      font-weight: 700;
+    }
+    .btn-teal:hover:not(:disabled) {
+      background: var(--teal-hover);
+      border-color: var(--teal-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger-fg);
+      border-color: var(--danger-bg);
+      font-weight: 700;
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: var(--danger-hover);
+      border-color: var(--danger-hover);
+    }
+
+    .btn-danger-outline {
+      background: var(--bg-card);
+      color: var(--danger-soft-fg);
+      border-color: var(--danger-soft-border);
+      font-weight: 700;
+    }
+    .btn-danger-outline:hover:not(:disabled) {
+      background: var(--danger-soft-bg);
+    }
+
+    .btn-nav-tab[aria-current="page"] {
+      background: var(--primary-bg);
+      color: var(--primary-fg);
+      border-color: var(--primary-bg);
+      font-weight: 700;
+    }
+
+    .input-field,
+    .select-field {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      color: var(--text-main);
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-control);
+      border-radius: 8px;
+    }
+
+    .input-field::placeholder {
+      color: var(--text-muted);
+      opacity: 1;
+    }
+
+    .select-compact {
+      width: auto;
+      min-height: 44px;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-main);
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-control);
+      border-radius: 8px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-label);
+      margin-bottom: 4px;
+    }
+
+    /* ==========================================================================
+       5. WORKSPACE UTAMA (SIMULASI SWING KIRI + INSPEKTOR KANAN)
+       ========================================================================== */
+    .workspace {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: clamp(12px, 2vw, 22px) clamp(12px, 2.5vw, 28px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.75fr) minmax(360px, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .jframe-shell {
+      background: var(--bg-page);
+      border: 2px solid var(--border-control);
+      border-radius: 16px;
+      box-shadow: var(--window-shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .jframe-titlebar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-label);
+    }
+
+    .jframe-controls {
+      display: inline-flex;
+      gap: 6px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Highlight Inspeksi Komponen */
+    [data-comp-id] {
+      position: relative;
+    }
+
+    [data-comp-id].is-inspected {
+      box-shadow: 0 0 0 3px var(--inspect-outline) !important;
+      z-index: 2;
+    }
+
+    /* Mode Garis Batas Container (Layout Manager) */
+    .show-wireframe [data-is-container="true"] {
+      outline: 1.5px dashed var(--wireframe-line);
+      outline-offset: -2px;
+    }
+
+    .wireframe-tag {
+      display: none;
+      font-size: 0.6875rem;
+      font-family: Consolas, monospace;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--badge-teal-bg);
+      color: var(--badge-teal-fg);
+      margin-bottom: 4px;
+      width: fit-content;
+    }
+
+    .show-wireframe .wireframe-tag {
+      display: inline-block;
+    }
+
+    /* ==========================================================================
+       6. TATA LETAK INTERNAL SWING (MainFrame + 6 View)
+       ========================================================================== */
+    .mainframe-body {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      min-height: 590px;
+      background: var(--bg-page);
+    }
+
+    .swing-sidebar {
+      background: var(--bg-card);
+      border-right: 1px solid var(--border-soft);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .swing-brand {
+      padding: 16px 14px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-tile {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--soft-blue-bg);
+      border: 1px solid var(--soft-blue-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--soft-blue-fg);
+      flex-shrink: 0;
+    }
+
+    .swing-nav-list {
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .swing-nav-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-label);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .swing-nav-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .swing-nav-btn.active {
+      background: var(--soft-blue-bg);
+      color: var(--soft-blue-fg);
+      border-color: var(--soft-blue-border);
+      font-weight: 700;
+    }
+
+    .active-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .swing-main-area {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .swing-headerbar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 12px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .swing-content-pad {
+      padding: 14px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .rounded-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .split-view {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(290px, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .split-view.full-center {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .login-canvas {
+      min-height: 560px;
+      padding: 24px 16px;
+      background: linear-gradient(180deg, var(--bg-login-top) 0%, var(--bg-login-bottom) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 390px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 16px;
+      padding: 28px 26px;
+      box-shadow: var(--window-shadow);
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      margin-top: 10px;
+    }
+
+    .product-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      line-height: 1.3;
+    }
+    .badge-makanan { background: var(--badge-amber-bg); color: var(--badge-amber-fg); }
+    .badge-minuman { background: var(--badge-blue-bg); color: var(--badge-blue-fg); }
+    .badge-elektronik { background: var(--badge-purple-bg); color: var(--badge-purple-fg); }
+    .badge-kasir { background: var(--badge-teal-bg); color: var(--badge-teal-fg); }
+    .badge-success { background: var(--success-soft-bg); color: var(--success-soft-fg); border: 1px solid var(--success-soft-border); }
+    .badge-danger { background: var(--danger-soft-bg); color: var(--danger-soft-fg); border: 1px solid var(--danger-soft-border); }
+
+    .keycap {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: Consolas, monospace;
+      background: var(--bg-page);
+      border: 1px solid var(--border-control);
+      border-radius: 5px;
+      color: var(--text-label);
+    }
+
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      background: var(--bg-card);
+    }
+
+    .swing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .swing-table th {
+      background: var(--bg-page);
+      color: var(--text-label);
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    .swing-table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    .swing-table tbody tr:hover {
+      background: var(--bg-hover);
+    }
+
+    .swing-table tbody tr.selected-row {
+      background: var(--soft-blue-bg);
+    }
+
+    .text-right { text-align: right !important; }
+    .text-center { text-align: center !important; }
+
+    /* KPI Grid & Filter Responsif */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .kasir-chip-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .produk-filter-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .riwayat-date-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+
+    .laporan-filter-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .state-box {
+      padding: 26px 16px;
+      border-radius: 12px;
+      border: 1.5px dashed var(--border-control);
+      background: var(--bg-page);
+      text-align: center;
+      margin: 10px 0;
+    }
+    .state-box.error-box {
+      background: var(--danger-soft-bg);
+      border-color: var(--danger-soft-border);
+      border-style: solid;
+      color: var(--danger-soft-fg);
+    }
+
+    .inline-alert {
+      background: var(--danger-soft-bg);
+      border: 1px solid var(--danger-soft-border);
+      color: var(--danger-soft-fg);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    .toast-floating {
+      position: absolute;
+      top: 52px;
+      right: 16px;
+      z-index: 30;
+      max-width: 310px;
+      background: var(--bg-card);
+      border: 2px solid var(--success-soft-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: var(--window-shadow);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    /* ==========================================================================
+       7. PANEL INSPEKTOR KOMPONEN & POHON STRUKTUR (KANAN)
+       ========================================================================== */
+    .inspector-panel {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-control);
+      border-radius: 16px;
+      padding: 18px;
+      position: sticky;
+      top: 14px;
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+    }
+
+    .inspector-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+
+    .inspector-header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .inspector-header p {
+      margin: 4px 0 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .inspector-section-title {
+      margin: 0 0 8px;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-label);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hierarchy-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tree-btn {
+      width: 100%;
+      min-height: 44px;
+      text-align: left;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      background: var(--bg-page);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .tree-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .tree-btn.current-node {
+      background: var(--soft-blue-bg);
+      border: 1.5px solid var(--soft-blue-border);
+      color: var(--soft-blue-fg);
+      font-weight: 700;
+    }
+
+    .children-wrap {
+      margin-bottom: 14px;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-soft);
+    }
+
+    .children-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .child-chip-btn {
+      min-height: 44px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-control);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-family: Consolas, monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .child-chip-btn:hover {
+      background: var(--soft-blue-bg);
+      border-color: var(--soft-blue-border);
+      color: var(--soft-blue-fg);
+    }
+
+    .detail-dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .detail-dl dt {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .detail-dl dd {
+      margin: 2px 0 0;
+      font-size: 0.84rem;
+      color: var(--text-main);
+      word-break: break-word;
+    }
+
+    /* Ringkasan Bawah */
+    .summary-footer {
+      max-width: 1520px;
+      margin: 4px auto 28px;
+      padding: 0 clamp(12px, 2.5vw, 28px);
+    }
+
+    .layers-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .layer-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .layer-box h3 {
+      margin: 0 0 6px;
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .layer-box p {
+      margin: 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       8. DIALOG MODAL (JDialog)
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: var(--backdrop);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop[hidden] {
+      display: none !important;
+    }
+
+    .modal-dialog {
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: var(--bg-card);
+      border: 2px solid var(--border-control);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--window-shadow);
+    }
+
+    .receipt-pre {
+      background: var(--bg-page);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      overflow-x: auto;
+      color: var(--text-main);
+      margin: 12px 0;
+    }
+
+    /* ==========================================================================
+       9. RESPONSIVE REFLOW (3 State: Desktop >=1120px, Tablet 700-1119px, Mobile <700px)
+       ========================================================================== */
+    @media (max-width: 1119px) {
+      .workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .inspector-panel {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+      }
+
+      .inspector-body-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+
+      .layers-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 820px) {
+      .mainframe-body {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .swing-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border-soft);
+      }
+
+      .swing-nav-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .split-view {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .kpi-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 699px) {
+      .page-nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .swing-nav-list,
+      .inspector-body-grid,
+      .layers-grid,
+      .produk-filter-grid,
+      .riwayat-date-grid,
+      .laporan-filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .kasir-chip-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .login-card {
+        padding: 20px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="#workspace-utama" class="skip-link">Langsung ke simulasi GUI</a>
+
+  <!-- HEADER & PENGATURAN DEMO PRESENTASI -->
+  <header class="top-shell">
+    <div class="top-bar">
+      <div class="brand-heading">
+        <h1>Peta Interaktif Komponen GUI - SI-RITEL</h1>
+        <p>Klik container, tabel, input, atau tombol mana pun di kiri untuk menelusuri struktur lengkapnya dari JFrame sampai ke komponen terkecil.</p>
+      </div>
+
+      <div class="control-strip">
+        <div class="ctrl-group">
+          <label for="role-select">Role Sesi:</label>
+          <select id="role-select" class="select-compact">
+            <option value="Admin">Admin (5 Halaman)</option>
+            <option value="Kasir">Kasir (2 Halaman)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label for="state-select">Kondisi UI:</label>
+          <select id="state-select" class="select-compact">
+            <option value="normal">Data Normal</option>
+            <option value="loading">Memuat (SwingWorker)</option>
+            <option value="empty">Data Kosong</option>
+            <option value="error">Error / Validasi</option>
+          </select>
+        </div>
+
+        <button type="button" id="btn-wireframe" class="btn" aria-pressed="false">
+          Batas Layout: Mati
+        </button>
+
+        <button type="button" id="btn-theme" class="btn" aria-pressed="false">
+          Tema: Terang
+        </button>
+      </div>
+    </div>
+
+    <nav class="page-nav" aria-label="Pilih halaman GUI SI-RITEL">
+      <button type="button" class="btn btn-nav-tab" data-goto-page="login" aria-current="page">1. LoginView</button>
+      <button type="button" class="btn btn-nav-tab" data-goto-page="kasir">2. KasirView</button>
+      <button type="button" class="btn btn-nav-tab" data-goto-page="produk">3. ManajemenProdukView</button>
+      <button type="button" class="btn btn-nav-tab" data-goto-page="pengguna">4. ManajemenPenggunaView</button>
+      <button type="button" class="btn btn-nav-tab" data-goto-page="riwayat">5. RiwayatTransaksiView</button>
+      <button type="button" class="btn btn-nav-tab" data-goto-page="laporan">6. LaporanPenjualanView</button>
+    </nav>
+  </header>
+
+  <!-- WORKSPACE UTAMA -->
+  <main id="workspace-utama" class="workspace">
+    <section id="swing-stage" aria-label="Simulasi Jendela Aplikasi Java Swing SI-RITEL">
+      <!-- Dirender dinamis oleh JS -->
+    </section>
+
+    <aside class="inspector-panel" aria-label="Penjelasan komponen dan hierarki Swing">
+      <div class="inspector-header">
+        <h2>Inspektor Komponen &amp; Hierarki</h2>
+        <p>Klik node pada daftar struktur untuk naik ke container induk, atau klik chip di bawahnya untuk turun ke tombol/input anak.</p>
+      </div>
+
+      <div class="inspector-body-grid">
+        <div>
+          <h3 class="inspector-section-title">
+            <span>1. Urutan Struktur (Luar ke Dalam)</span>
+            <span id="depth-badge" class="badge badge-minuman">Kedalaman: 1</span>
+          </h3>
+          <ol id="hierarchy-tree" class="hierarchy-list"></ol>
+
+          <div id="children-section" class="children-wrap" hidden>
+            <h3 class="inspector-section-title" style="margin-bottom: 6px;">Komponen di Dalamnya (Klik untuk Turun)</h3>
+            <div id="children-chips" class="children-chips"></div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="inspector-section-title">2. Detail Kelas &amp; Peran Komponen</h3>
+          <dl class="detail-dl">
+            <div>
+              <dt>Nama Variabel / Elemen</dt>
+              <dd id="det-name" class="mono">-</dd>
+            </div>
+            <div>
+              <dt>Kelas Swing / Kustom</dt>
+              <dd id="det-class" class="mono">-</dd>
+            </div>
+            <div>
+              <dt>Layout / Posisi Induk</dt>
+              <dd id="det-layout" class="mono">-</dd>
+            </div>
+            <div>
+              <dt>Token Gaya UITheme</dt>
+              <dd id="det-theme" class="mono">-</dd>
+            </div>
+            <div>
+              <dt>Fungsi &amp; Kaitan MVC / PBO</dt>
+              <dd id="det-desc">-</dd>
+            </div>
+          </dl>
+
+          <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+            <button type="button" class="btn btn-soft" id="btn-demo-modal">Uji ModernModal</button>
+            <button type="button" class="btn" id="btn-demo-toast">Uji ToastManager</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="summary-footer">
+    <div class="rounded-card" style="margin-bottom: 12px;">
+      <h2 style="margin: 0 0 10px; font-size: 1rem;">Ringkasan 4 Lapisan Komponen GUI SI-RITEL (Urutan Materi Slide PPT)</h2>
+      <div class="layers-grid">
+        <div class="layer-box">
+          <h3>Lapis 1: Top-Level Window</h3>
+          <p><code class="mono">JFrame</code> (<code class="mono">LoginView</code>, <code class="mono">MainFrame</code>) sebagai jendela utama, serta <code class="mono">JDialog</code> untuk modal konfirmasi, pratinjau struk, dan laporan A4.</p>
+        </div>
+        <div class="layer-box">
+          <h3>Lapis 2: Container &amp; Layout</h3>
+          <p><code class="mono">RoundedCardPanel</code>, <code class="mono">JScrollPane</code>, dan <code class="mono">JLayeredPane</code> yang diatur tanpa <code class="mono">null</code> layout memakai <code class="mono">BorderLayout</code>, <code class="mono">CardLayout</code>, <code class="mono">GridBagLayout</code>, <code class="mono">GridLayout</code>, dan <code class="mono">BoxLayout</code>.</p>
+        </div>
+        <div class="layer-box">
+          <h3>Lapis 3: Komponen Input &amp; Tombol</h3>
+          <p>Variasi lengkap: <code class="mono">JTextField</code>, <code class="mono">JPasswordField</code>, <code class="mono">JComboBox</code> (<code class="mono">RoundedComboBoxUI</code>), <code class="mono">JRadioButton</code>, <code class="mono">JCheckBox</code>, <code class="mono">JSpinner</code>, <code class="mono">ModernDatePicker</code>, <code class="mono">JTable</code>, dan <code class="mono">RoundedButton</code>.</p>
+        </div>
+        <div class="layer-box">
+          <h3>Lapis 4: Feedback &amp; Kontrak UI</h3>
+          <p>Tema terpusat <code class="mono">UITheme</code>, peringatan <code class="mono">InlineAlertPanel</code>, <code class="mono">ToastManager</code>, <code class="mono">ModernModal</code>, pencetak <code class="mono">Printable</code> (<code class="mono">ReceiptSupport</code>, <code class="mono">LaporanPrinter</code>), dan interface <code class="mono">RefreshableView</code>.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- MODAL JDIALOG OVERLAY -->
+  <div id="modal-backdrop" class="modal-backdrop" hidden>
+    <div id="modal-dialog" class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title"></div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* ========================================================================
+         1. DATA SEED NYATA (Sesuai docs/Database_Schema.md)
+         ======================================================================== */
+      const SEED_PRODUCTS = [
+        {
+          id: 1, kode: "MKN-001", nama: "Roti Tawar Kupas", harga: 15000, jenis: "MAKANAN",
+          beratGram: 400, volumeMl: null, isDingin: false, bulanGaransi: null,
+          batches: [
+            { id: 1, masuk: "01 Nov 2026", exp: "15 Jan 2027", stok: 10, status: "Aman" },
+            { id: 2, masuk: "15 Nov 2026", exp: "20 Feb 2027", stok: 15, status: "Aman" }
+          ]
+        },
+        {
+          id: 2, kode: "MKN-002", nama: "Biskuit Cokelat Kaleng", harga: 32000, jenis: "MAKANAN",
+          beratGram: 350, volumeMl: null, isDingin: false, bulanGaransi: null,
+          batches: [{ id: 3, masuk: "10 Nov 2026", exp: "30 Jun 2027", stok: 20, status: "Aman" }]
+        },
+        {
+          id: 3, kode: "MNM-001", nama: "Air Mineral Botol", harga: 4000, jenis: "MINUMAN",
+          beratGram: null, volumeMl: 600, isDingin: true, bulanGaransi: null,
+          batches: [{ id: 4, masuk: "12 Nov 2026", exp: "10 Agu 2027", stok: 30, status: "Aman" }]
+        },
+        {
+          id: 4, kode: "MNM-002", nama: "Teh Melati Kotak", harga: 6500, jenis: "MINUMAN",
+          beratGram: null, volumeMl: 250, isDingin: false, bulanGaransi: null,
+          batches: [{ id: 5, masuk: "14 Nov 2026", exp: "05 Apr 2027", stok: 25, status: "Aman" }]
+        },
+        {
+          id: 5, kode: "ELK-001", nama: "Baterai Alkaline AA (Isi 2)", harga: 18000, jenis: "ELEKTRONIK",
+          beratGram: null, volumeMl: null, isDingin: false, bulanGaransi: 6,
+          batches: [{ id: 6, masuk: "05 Nov 2026", exp: "-", stok: 18, status: "Aktif" }]
+        },
+        {
+          id: 6, kode: "ELK-002", nama: "Kabel Data USB-C Fast Charge", harga: 45000, jenis: "ELEKTRONIK",
+          beratGram: null, volumeMl: null, isDingin: false, bulanGaransi: 12,
+          batches: [{ id: 7, masuk: "08 Nov 2026", exp: "-", stok: 12, status: "Aktif" }]
+        }
+      ];
+
+      const SEED_USERS = [
+        { id: 1, username: "admin", namaLengkap: "Budi Santoso", role: "Admin" },
+        { id: 2, username: "kasir1", namaLengkap: "Siti Aminah", role: "Kasir" }
+      ];
+
+      const SEED_HISTORY = [
+        {
+          id: "TRX-20261124101500-2104", tanggal: "24 Nov 2026, 10:15", tglHarian: "24 Nov 2026",
+          kasir: "Siti Aminah", bayar: 50000,
+          items: [
+            { nama: "Roti Tawar Kupas", qty: 2, harga: 15000, pajakSatuan: 750 },
+            { nama: "Air Mineral Botol", qty: 2, harga: 4000, pajakSatuan: 940 }
+          ]
+        },
+        {
+          id: "TRX-20261123143012-1088", tanggal: "23 Nov 2026, 14:30", tglHarian: "23 Nov 2026",
+          kasir: "Budi Santoso", bayar: 60000,
+          items: [
+            { nama: "Kabel Data USB-C Fast Charge", qty: 1, harga: 45000, pajakSatuan: 6750 }
+          ]
+        }
+      ];
+
+      function hitungPajakProduk(p) {
+        if (p.jenis === "MAKANAN") return Math.round(p.harga * 0.05);
+        if (p.jenis === "MINUMAN") return Math.round(p.harga * 0.11 + (p.isDingin ? 500 : 0));
+        return Math.round(p.harga * (p.bulanGaransi > 12 ? 0.17 : 0.15));
+      }
+
+      function getInfoSpesifik(p) {
+        if (p.jenis === "MAKANAN") return p.beratGram + " gram";
+        if (p.jenis === "MINUMAN") return p.volumeMl + " ml" + (p.isDingin ? " (Dingin)" : "");
+        return "Garansi " + p.bulanGaransi + " bln";
+      }
+
+      function getStokProduk(p) {
+        return p.batches.reduce(function (acc, b) { return acc + b.stok; }, 0);
+      }
+
+      function formatRupiah(nominal) {
+        return "Rp " + Math.round(nominal).toLocaleString("id-ID");
+      }
+
+      /* ========================================================================
+         2. STATE APLIKASI INTERAKTIF
+         ======================================================================== */
+      const state = {
+        page: "login",
+        role: "Admin",
+        uiState: "normal",
+        wireframe: false,
+        theme: "light",
+        inspectedId: "login-frame",
+        toast: null,
+
+        loginUser: "admin",
+        loginPass: "admin123",
+        loginShowPass: false,
+        loginError: "",
+
+        kasirSearch: "",
+        kasirKategori: "SEMUA",
+        cart: [
+          { produkId: 1, qty: 1 },
+          { produkId: 3, qty: 2 }
+        ],
+        uangBayar: "30000",
+
+        produkSearch: "",
+        produkFilterJenis: "SEMUA",
+        selectedProdukId: 3,
+        produkSideOpen: true,
+        produkSideTab: "DETAIL",
+        formKode: "MNM-001",
+        formNama: "Air Mineral Botol",
+        formJenis: "MINUMAN",
+        formHarga: 4000,
+        formBerat: 400,
+        formVolume: 600,
+        formDingin: true,
+        formGaransi: 12,
+        formBatchStok: 10,
+
+        selectedUserId: 1,
+        userSideOpen: true,
+        userRoleRadio: "Admin",
+        userShowPass: false,
+
+        riwayatSearch: "",
+        selectedTrxIndex: 0
+      };
+
+      /* ========================================================================
+         3. REGISTRI LENGKAP KOMPONEN SWING (Hingga Level Tombol & Input Daun)
+         ======================================================================== */
+      const COMP_DB = {
+        /* ==================== LOGIN VIEW ==================== */
+        "login-frame": {
+          parent: null,
+          name: "LoginView (Window)",
+          cls: "com.siritel.view.LoginView extends JFrame",
+          layout: "Top-Level Window (480x600, min 440x560)",
+          theme: "UITheme.BG_GRADIENT_TOP -> BG_GRADIENT_BOTTOM",
+          desc: "Jendela autentikasi awal yang dibuat Main.java di Event Dispatch Thread (SwingUtilities.invokeLater)."
+        },
+        "login-root": {
+          parent: "login-frame",
+          name: "rootPanel",
+          cls: "javax.swing.JPanel (custom paintComponent)",
+          layout: "GridBagLayout (GridBagConstraints.CENTER)",
+          theme: "GradientPaint(#F0F5FC -> #F8FAFD)",
+          desc: "Panel dasar bergradien vertikal yang menjaga kartu login selalu terpusat saat jendela di-maximize."
+        },
+        "login-card": {
+          parent: "login-root",
+          name: "cardPanel",
+          cls: "javax.swing.JPanel (animasi shake Java2D)",
+          layout: "GridBagLayout (10 baris vertikal, lebar 400px)",
+          theme: "UITheme.CARD_BG, CARD_RADIUS (16px), CARD_PADDING (32px)",
+          desc: "Kartu putih sudut membulat dengan efek goyang horizontal 250ms saat kredensial gagal."
+        },
+        "login-badge": {
+          parent: "login-card",
+          name: "createBrandBadge()",
+          cls: "javax.swing.JPanel (Java2D Vector Icon)",
+          layout: "GridBagLayout baris 0 (48x48 px)",
+          theme: "UITheme.BRAND_ICON_BG, PRIMARY_BLUE (#2563EB)",
+          desc: "Ikon tas belanja SI-RITEL yang digambar langsung lewat Java2D (fillRoundRect & drawArc)."
+        },
+        "login-title": {
+          parent: "login-card",
+          name: "lblTitle & lblSubtitle",
+          cls: "javax.swing.JLabel (SwingConstants.CENTER)",
+          layout: "GridBagLayout baris 1 & 2",
+          theme: "UITheme.titleFont() (24pt Bold), subtitleFont() (13pt)",
+          desc: "Judul aplikasi SI-RITEL dan subjudul Sistem Informasi Kasir Ritel."
+        },
+        "login-user": {
+          parent: "login-card",
+          name: "txtUsername",
+          cls: "com.siritel.view.ui.RoundedTextField extends JTextField",
+          layout: "GridBagLayout baris 4 (tinggi 40px)",
+          theme: "UITheme.FIELD_RADIUS (10px), BORDER_FOCUS, BORDER_ERROR",
+          desc: "Input teks username dengan border fokus biru dan state merah saat validasi gagal."
+        },
+        "login-pass": {
+          parent: "login-card",
+          name: "txtPassword",
+          cls: "com.siritel.view.ui.RoundedPasswordField extends JPanel",
+          layout: "GridBagLayout baris 6 (BorderLayout internal)",
+          theme: "UITheme.FIELD_HEIGHT (40px), FIELD_RADIUS (10px)",
+          desc: "Pembungkus JPasswordField di CENTER dan tombol ikon mata di EAST."
+        },
+        "login-pass-eye": {
+          parent: "login-pass",
+          name: "btnToggleEye (Show/Hide)",
+          cls: "javax.swing.JButton di dalam RoundedPasswordField",
+          layout: "BorderLayout.EAST pada RoundedPasswordField",
+          theme: "UITheme.TEXT_MUTED, Cursor.HAND_CURSOR",
+          desc: "Mengubah echoChar JPasswordField antara karakter bulat (tersembunyi) dan teks biasa (terlihat)."
+        },
+        "login-alert": {
+          parent: "login-card",
+          name: "alertPanel",
+          cls: "com.siritel.view.ui.InlineAlertPanel extends JPanel",
+          layout: "GridBagLayout baris 7 (BorderLayout)",
+          theme: "UITheme.ALERT_BG (#FEF2F2), ALERT_TEXT (#DC2626)",
+          desc: "Banner peringatan inline dengan JTextArea line-wrap agar pesan galat panjang terbaca utuh."
+        },
+        "login-btn": {
+          parent: "login-card",
+          name: "btnLogin (Tombol Masuk)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "GridBagLayout baris 8 (DefaultButton RootPane)",
+          theme: "ButtonVariant.PRIMARY, UITheme.BUTTON_HEIGHT (40px)",
+          desc: "Memicu autentikasi asinkron via SwingWorker ke AuthController.login() -> PenggunaDAO.login() (Bcrypt)."
+        },
+        "login-hint": {
+          parent: "login-card",
+          name: "createKeycapHintPanel()",
+          cls: "javax.swing.JPanel + JLabel",
+          layout: "GridBagLayout baris 9 (FlowLayout.CENTER)",
+          theme: "UITheme.KEYCAP_BG, KEYCAP_BORDER, KEYCAP_TEXT",
+          desc: "Petunjuk shortcut keyboard Enter yang terhubung ke getRootPane().setDefaultButton(btnLogin)."
+        },
+
+        /* ==================== MAINFRAME SHELL ==================== */
+        "main-frame": {
+          parent: null,
+          name: "MainFrame (Window)",
+          cls: "com.siritel.view.MainFrame extends JFrame",
+          layout: "BorderLayout (1300x720, min 1160x700)",
+          theme: "UITheme.BG_PAGE, CARD_BG",
+          desc: "Jendela utama setelah login yang menyatukan sidebar kiri, header profil atas, dan panel konten CardLayout."
+        },
+        "main-sidebar": {
+          parent: "main-frame",
+          name: "sidebar",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout.WEST pada MainFrame (lebar 250px)",
+          theme: "UITheme.CARD_BG, BORDER_DEFAULT",
+          desc: "Panel navigasi kiri yang memuat brand header di NORTH dan daftar tombol menu di CENTER."
+        },
+        "main-brand": {
+          parent: "main-sidebar",
+          name: "buildBrandHeader()",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "BorderLayout.NORTH pada sidebar",
+          theme: "UITheme.BRAND_ICON_BG, PRIMARY_BLUE",
+          desc: "Identitas logo tas Java2D dan teks SI-RITEL Kasir Ritel Modern di pojok kiri atas."
+        },
+        "main-navlist": {
+          parent: "main-sidebar",
+          name: "navList (Menu RBAC)",
+          cls: "javax.swing.JPanel",
+          layout: "GridLayout(0, 1, 0, 6)",
+          theme: "UITheme.CARD_BG, padding 16x12px",
+          desc: "Daftar navigasi berbasis hak akses: Admin 5 halaman, Kasir hanya 2 halaman (Kasir & Riwayat)."
+        },
+        "main-nav-btn": {
+          parent: "main-navlist",
+          name: "createSidebarButton(NavItem)",
+          cls: "javax.swing.JButton (custom indikator aktif)",
+          layout: "Sel GridLayout(0, 1) pada navList",
+          theme: "PRIMARY_SOFT_BG & PRIMARY_BLUE saat aktif",
+          desc: "Tombol menu sidebar yang memanggil MainFrame.navigateTo(key) dan RefreshableView.refreshData()."
+        },
+        "main-area": {
+          parent: "main-frame",
+          name: "mainArea",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout.CENTER pada MainFrame",
+          theme: "UITheme.BG_PAGE",
+          desc: "Area kanan MainFrame yang menampung headerBar di NORTH dan contentCards di CENTER."
+        },
+        "main-header": {
+          parent: "main-area",
+          name: "headerBar",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout.NORTH pada mainArea",
+          theme: "UITheme.CARD_BG, BORDER_DEFAULT",
+          desc: "Bar header atas yang menampilkan judul halaman di kiri serta profil pengguna & tombol Keluar di kanan."
+        },
+        "main-page-title": {
+          parent: "main-header",
+          name: "pageHeaderLabel",
+          cls: "javax.swing.JLabel",
+          layout: "FlowLayout.LEFT di BorderLayout.WEST headerBar",
+          theme: "UITheme.font(BOLD, 18f), TEXT_MAIN",
+          desc: "Label judul halaman aktif yang diperbarui otomatis setiap kali MainFrame.navigateTo() dijalankan."
+        },
+        "main-user-profile": {
+          parent: "main-header",
+          name: "userProfileLabel",
+          cls: "javax.swing.JLabel",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST headerBar",
+          theme: "UITheme.font(BOLD, 13f), TEXT_MAIN",
+          desc: "Menampilkan nama lengkap dan role akun yang sedang login (diperbarui via callback perbaruiProfilAktif)."
+        },
+        "main-btn-logout": {
+          parent: "main-header",
+          name: "btnKeluar",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST headerBar",
+          theme: "ButtonVariant.OUTLINE, SMALL_RADIUS (8px)",
+          desc: "Memanggil AuthController.logout(), menutup MainFrame (dispose()), dan membuka kembali LoginView."
+        },
+        "main-cards": {
+          parent: "main-area",
+          name: "contentCards",
+          cls: "javax.swing.JPanel (CardLayout)",
+          layout: "BorderLayout.CENTER pada mainArea",
+          theme: "UITheme.BG_PAGE",
+          desc: "Container CardLayout yang menumpuk 5 panel RefreshableView dan menukar layar tanpa membuat jendela baru."
+        },
+
+        /* ==================== KASIR VIEW ==================== */
+        "kasir-view": {
+          parent: "main-cards",
+          name: "KasirView",
+          cls: "com.siritel.view.KasirView extends JPanel implements RefreshableView",
+          layout: "BorderLayout(14, 0) di dalam CardLayout",
+          theme: "UITheme.BG_PAGE, padding 16px",
+          desc: "Halaman Point of Sale (Modul 3) dengan shortcut keyboard F2 (Cari), F9 (Bayar), dan Esc (Batal)."
+        },
+        "kasir-catalog-card": {
+          parent: "kasir-view",
+          name: "bangunPanelKatalog()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.CENTER pada KasirView",
+          theme: "UITheme.PANEL_RADIUS (14px), CARD_BG",
+          desc: "Kartu kiri yang menampung toolbar pencarian/filter di NORTH dan grid katalog produk di CENTER."
+        },
+        "kasir-toolbar": {
+          parent: "kasir-catalog-card",
+          name: "toolbar (Katalog Kasir)",
+          cls: "javax.swing.JPanel",
+          layout: "GridBagLayout (3 baris) di BorderLayout.NORTH",
+          theme: "Transparan di atas RoundedCardPanel",
+          desc: "Menyusun baris judul + tombol Segarkan, kotak pencarian F2, dan 4 tombol filter kategori."
+        },
+        "kasir-btn-refresh": {
+          parent: "kasir-toolbar",
+          name: "btnSegarkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada headerRow baris 0",
+          theme: "ButtonVariant.OUTLINE, BUTTON_RADIUS (10px)",
+          desc: "Memuat ulang daftar produk terbaru dari PostgreSQL via SwingWorker dan menyinkronkan harga/stok keranjang."
+        },
+        "kasir-search": {
+          parent: "kasir-toolbar",
+          name: "txtCari + shortcutCari (F2)",
+          cls: "JTextField (UITheme.createPlaceholderField) + JLabel",
+          layout: "GridBagLayout baris 1 (BorderLayout internal)",
+          theme: "RoundedBorder(BORDER_INPUT, BUTTON_RADIUS)",
+          desc: "Kolom pencarian real-time via DocumentListener untuk menyaring produk berdasarkan kode atau nama."
+        },
+        "kasir-chips": {
+          parent: "kasir-toolbar",
+          name: "panelKategori",
+          cls: "javax.swing.JPanel",
+          layout: "GridLayout(1, 4, 8, 0) pada GridBagLayout baris 2",
+          theme: "Transparan, 4 kolom selebar kotak pencarian",
+          desc: "Wadah 4 tombol penyaring kategori produk (Semua, Makanan, Minuman, Elektronik)."
+        },
+        "kasir-chip-btn": {
+          parent: "kasir-chips",
+          name: "btnSemua / btnMakanan / btnMinuman / btnElektronik",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "Sel GridLayout(1, 4) pada panelKategori",
+          theme: "ButtonVariant.PRIMARY (aktif) / OUTLINE",
+          desc: "Mengubah filter kategori aktif memakai polimorfisme produk.getJenisProduk()."
+        },
+        "kasir-grid": {
+          parent: "kasir-catalog-card",
+          name: "scrollProduk -> panelKartuProduk",
+          cls: "javax.swing.JScrollPane -> javax.swing.JPanel",
+          layout: "GridBagLayout responsif (3 kolom / 2 kolom)",
+          theme: "UITheme.BG_PAGE, RoundedBorder(12px)",
+          desc: "Panel scroll vertikal berisi kartu produk yang otomatis menyesuaikan jumlah kolom lewat ComponentListener."
+        },
+        "kasir-prod-card": {
+          parent: "kasir-grid",
+          name: "buatKartuProduk(Produk)",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout(0, 8) di tiap sel GridBagLayout",
+          theme: "UITheme.CARD_BG, radius 12px",
+          desc: "Kartu per produk yang menampilkan badge kategori, stok aktif non-kedaluwarsa, info spesifik, harga, dan tombol tambah."
+        },
+        "kasir-prod-badge": {
+          parent: "kasir-prod-card",
+          name: "buatBadgeJenis() + labelStok",
+          cls: "javax.swing.JPanel(BorderLayout) + 2x JLabel",
+          layout: "BorderLayout.NORTH pada kartu produk",
+          theme: "BADGE_AMBER / BADGE_BLUE / BADGE_PURPLE",
+          desc: "Menampilkan kategori produk dan sisa stok aktif dari Produk.getStok() (merah jika habis, kuning jika <= 5)."
+        },
+        "kasir-prod-btn-add": {
+          parent: "kasir-prod-card",
+          name: "btnTambah (+ Tambah)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada panelBawah kartu produk",
+          theme: "ButtonVariant.SOFT_PRIMARY, SMALL_RADIUS (8px)",
+          desc: "Memanggil TransaksiController.tambahItem(transaksiAktif, produk, 1) dan menangkap StokTidakCukupException."
+        },
+        "kasir-cart-card": {
+          parent: "kasir-view",
+          name: "bangunPanelKeranjang()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.EAST pada KasirView (lebar 368px)",
+          theme: "UITheme.PANEL_RADIUS (14px), CARD_BG",
+          desc: "Panel kanan kasir yang menyatukan header keranjang (NORTH), daftar item (CENTER), dan pembayaran (SOUTH)."
+        },
+        "kasir-cart-header": {
+          parent: "kasir-cart-card",
+          name: "panelHeader (Keranjang)",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout.NORTH pada kartu keranjang",
+          theme: "Transparan di atas CARD_BG",
+          desc: "Baris judul Keranjang, badge penghitung item, dan tombol Bersihkan."
+        },
+        "kasir-cart-badge": {
+          parent: "kasir-cart-header",
+          name: "lblJumlahItem",
+          cls: "javax.swing.JLabel",
+          layout: "FlowLayout.LEFT di BorderLayout.WEST panelHeader",
+          theme: "PRIMARY_SOFT_BG, PRIMARY_BLUE, SMALL_RADIUS",
+          desc: "Menampilkan jumlah baris item aktif di dalam transaksiAktif.getListKeranjang()."
+        },
+        "kasir-btn-clear": {
+          parent: "kasir-cart-header",
+          name: "btnBersihkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada panelHeader",
+          theme: "ButtonVariant.DANGER_OUTLINE, SMALL_RADIUS",
+          desc: "Menampilkan dialog konfirmasi ModernModal.confirm() sebelum memanggil transaksiController.bersihkanKeranjang()."
+        },
+        "kasir-cart-list": {
+          parent: "kasir-cart-card",
+          name: "scrollKeranjang -> panelDaftarKeranjang",
+          cls: "javax.swing.JScrollPane -> javax.swing.JPanel",
+          layout: "BoxLayout(Y_AXIS) di BorderLayout.CENTER",
+          theme: "UITheme.CARD_BG, BORDER_DEFAULT",
+          desc: "Daftar vertikal ItemTransaksi di keranjang belanja aktif."
+        },
+        "kasir-cart-row": {
+          parent: "kasir-cart-list",
+          name: "buatBarisKeranjang(ItemTransaksi)",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout(8, 6) di dalam BoxLayout.Y_AXIS",
+          theme: "UITheme.CARD_BG, MatteBorder bawah 1px",
+          desc: "Satu baris item berisi nama produk, harga snapshot, tombol kuantitas (-/+), dan subtotal."
+        },
+        "kasir-cart-qty-minus": {
+          parent: "kasir-cart-row",
+          name: "btnKurang (-)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST baris item",
+          theme: "ButtonVariant.OUTLINE, radius 6px",
+          desc: "Mengurangi kuantitas via TransaksiController.ubahKuantitas() atau menghapus item bila mencapai 0."
+        },
+        "kasir-cart-qty-plus": {
+          parent: "kasir-cart-row",
+          name: "btnTambah (+)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST baris item",
+          theme: "ButtonVariant.OUTLINE, radius 6px",
+          desc: "Menambah kuantitas item +1 dengan validasi batas stok aktif (StokTidakCukupException)."
+        },
+        "kasir-pay-panel": {
+          parent: "kasir-cart-card",
+          name: "bangunPanelPembayaran()",
+          cls: "javax.swing.JPanel",
+          layout: "BoxLayout(Y_AXIS) di BorderLayout.SOUTH",
+          theme: "Transparan di bawah scrollKeranjang",
+          desc: "Wadah ringkasan total belanja, input uang dibayar, kotak kembalian, dan tombol aksi bayar/batal."
+        },
+        "kasir-summary-totals": {
+          parent: "kasir-pay-panel",
+          name: "lblSubtotal, lblPajak, lblGrandTotal",
+          cls: "3x JPanel(BorderLayout) + JLabel",
+          layout: "Susunan vertikal dalam BoxLayout.Y_AXIS",
+          theme: "UITheme.formatRupiah(), Grand Total 20pt Bold",
+          desc: "Menampilkan hasil Transaksi.getSubtotalBarang(), getTotalPajak() (polimorfik), dan getGrandTotal()."
+        },
+        "kasir-pay-grid": {
+          parent: "kasir-pay-panel",
+          name: "gridPay (Bayar & Kembalian)",
+          cls: "javax.swing.JPanel",
+          layout: "GridLayout(1, 2, 10, 0)",
+          theme: "2 kolom sejajar",
+          desc: "Membagi area pembayaran menjadi kolom Uang Dibayar di kiri dan kolom Kembalian di kanan."
+        },
+        "kasir-input-bayar": {
+          parent: "kasir-pay-grid",
+          name: "txtBayar",
+          cls: "javax.swing.JTextField (createPlaceholderField)",
+          layout: "BorderLayout.CENTER di kolom kiri gridPay",
+          theme: "UITheme.parseNominalIndonesia(), BORDER_INPUT",
+          desc: "Menerima nominal pembayaran dari kasir dan menghitung pratinjau kembalian real-time via DocumentListener."
+        },
+        "kasir-box-kembalian": {
+          parent: "kasir-pay-grid",
+          name: "boxKembalian + lblKembalian",
+          cls: "javax.swing.JPanel(BorderLayout) + JLabel",
+          layout: "BorderLayout.CENTER di kolom kanan gridPay",
+          theme: "SUCCESS_SOFT_BG & SUCCESS saat bayar >= total",
+          desc: "Menampilkan nominal kembalian presisi BigDecimal; berubah hijau saat uang pembayaran mencukupi."
+        },
+        "kasir-action-cols": {
+          parent: "kasir-pay-panel",
+          name: "actionCols (Baris Tombol Akhir)",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout(8, 0)",
+          theme: "Tinggi 40px",
+          desc: "Menjajarkan tombol Batal (WEST) dan tombol utama BAYAR (CENTER)."
+        },
+        "kasir-btn-batal": {
+          parent: "kasir-action-cols",
+          name: "btnBatal (Batal Esc)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.WEST pada actionCols",
+          theme: "ButtonVariant.OUTLINE, BUTTON_RADIUS (10px)",
+          desc: "Membatalkan sesi transaksi berjalan setelah konfirmasi ModernModal.confirm() dan memulai transaksi baru."
+        },
+        "kasir-btn-bayar": {
+          parent: "kasir-action-cols",
+          name: "btnBayar (BAYAR F9)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.CENTER pada actionCols",
+          theme: "ButtonVariant.TEAL, BUTTON_RADIUS (10px)",
+          desc: "Memanggil prosesPembayaran() & checkout() via SwingWorker (FEFO atomik), lalu membuka struk ReceiptSupport."
+        },
+
+        /* ==================== MANAJEMEN PRODUK VIEW ==================== */
+        "produk-view": {
+          parent: "main-cards",
+          name: "ManajemenProdukView",
+          cls: "com.siritel.view.ManajemenProdukView extends JPanel implements RefreshableView",
+          layout: "BorderLayout(14, 0) di dalam CardLayout",
+          theme: "UITheme.BG_PAGE",
+          desc: "Halaman katalog produk 3 kategori dan pencatatan multi-batch kedaluwarsa FEFO (Modul 2)."
+        },
+        "produk-table-card": {
+          parent: "produk-view",
+          name: "buildCatalogCard()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.CENTER pada ManajemenProdukView",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Kartu kiri berisi toolbar pencarian/overloading dan tabel katalog produk yang melebar penuh saat editor ditutup."
+        },
+        "produk-header-actions": {
+          parent: "produk-table-card",
+          name: "headerRow (Toolbar Judul & Aksi)",
+          cls: "javax.swing.JPanel(GridBagLayout) + BoxLayout",
+          layout: "GridBagLayout baris 0 di BorderLayout.NORTH",
+          theme: "Transparan di atas RoundedCardPanel",
+          desc: "Menempatkan judul Katalog Produk di kiri serta tombol + Tambah Produk dan Segarkan di kanan."
+        },
+        "produk-btn-tambah": {
+          parent: "produk-header-actions",
+          name: "btnTambahProduk (+ Tambah Produk)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BoxLayout.X_AXIS di kanan headerRow",
+          theme: "ButtonVariant.PRIMARY, radius 10px",
+          desc: "Membersihkan seleksi tabel, mereset form ke mode Tambah Produk, dan membuka sideCard."
+        },
+        "produk-btn-refresh": {
+          parent: "produk-header-actions",
+          name: "btnSegarkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BoxLayout.X_AXIS di kanan headerRow",
+          theme: "ButtonVariant.OUTLINE, radius 10px",
+          desc: "Mereset filter pencarian lalu memuat ulang seluruh produk & batch dari database."
+        },
+        "produk-filter-bar": {
+          parent: "produk-table-card",
+          name: "filterPanel",
+          cls: "javax.swing.JPanel",
+          layout: "GridBagLayout baris 1 di BorderLayout.NORTH",
+          theme: "3 kolom: txtCari + cmbFilterJenis + btnCari",
+          desc: "Baris filter yang memicu method overloading ProdukController.cariProduk(nama) vs cariProduk(nama, jenis)."
+        },
+        "produk-input-cari": {
+          parent: "produk-filter-bar",
+          name: "txtCari",
+          cls: "javax.swing.JTextField (createPlaceholderField)",
+          layout: "GridBagLayout kolom 0 (weightx = 1.0)",
+          theme: "RoundedBorder(INPUT_BORDER, 10px)",
+          desc: "Input kata kunci pencarian kode atau nama produk; tombol Enter langsung memicu jalankanPencarian()."
+        },
+        "produk-cmb-filter": {
+          parent: "produk-filter-bar",
+          name: "cmbFilterJenis",
+          cls: "javax.swing.JComboBox<String> + RoundedComboBoxUI",
+          layout: "GridBagLayout kolom 1",
+          theme: "RoundedComboBoxUI.apply(combo, 10), JenisProdukRenderer",
+          desc: "Dropdown filter kategori (SEMUA, MAKANAN, MINUMAN, ELEKTRONIK) untuk menentukan versi overload cariProduk()."
+        },
+        "produk-btn-cari": {
+          parent: "produk-filter-bar",
+          name: "btnCari",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "GridBagLayout kolom 2",
+          theme: "ButtonVariant.OUTLINE, radius 10px",
+          desc: "Menjalankan pencarian asinkron ke ProdukController.cariProduk() via SwingWorker."
+        },
+        "produk-jtable": {
+          parent: "produk-table-card",
+          name: "scrollPane -> tableProduk",
+          cls: "javax.swing.JScrollPane -> JTable + DefaultTableModel",
+          layout: "BorderLayout.CENTER pada buildCatalogCard()",
+          theme: "Custom CellRenderer (badge jenis & status stok)",
+          desc: "Menampilkan kolom Pajak dari pemanggilan polimorfik p.hitungPajak(), p.getStok(), dan p.getInfoSpesifik()."
+        },
+        "produk-side-card": {
+          parent: "produk-view",
+          name: "sideCard (Panel Editor & Batch)",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.EAST (lebar 320px, dinamis tampil/sembunyi)",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Panel samping dengan header tab (NORTH) dan konten CardLayout 2 tab: DETAIL dan BATCH (CENTER)."
+        },
+        "produk-side-header": {
+          parent: "produk-side-card",
+          name: "headerWrapper (Judul & Tab Bar)",
+          cls: "javax.swing.JPanel",
+          layout: "BorderLayout.NORTH pada sideCard",
+          theme: "MatteBorder bawah 1px BORDER_DEFAULT",
+          desc: "Menampilkan mode aktif (Tambah/Ubah Produk), tombol tutup panel, dan tombol tab Detail / Batch Stok."
+        },
+        "produk-btn-close-side": {
+          parent: "produk-side-header",
+          name: "btnTutupPanel",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada topHeader",
+          theme: "ButtonVariant.GHOST, radius 8px",
+          desc: "Menyembunyikan sideCard sehingga tabel katalog produk kembali melebar penuh."
+        },
+        "produk-tab-bar": {
+          parent: "produk-side-header",
+          name: "tabBar (Detail | Batch Stok)",
+          cls: "javax.swing.JPanel",
+          layout: "FlowLayout.LEFT di BorderLayout.SOUTH headerWrapper",
+          theme: "Underline PRIMARY_BLUE pada tab aktif",
+          desc: "Menukar tampilan rightTabContent (CardLayout) antara form Detail produk dan tabel Batch Stok."
+        },
+        "produk-tab-detail-btn": {
+          parent: "produk-tab-bar",
+          name: "btnTabDetail",
+          cls: "javax.swing.JButton (tab underline)",
+          layout: "FlowLayout.LEFT pada tabBar",
+          theme: "PRIMARY_BLUE Bold saat aktif",
+          desc: "Menampilkan kartu DETAIL pada rightTabLayout (CardLayout)."
+        },
+        "produk-tab-batch-btn": {
+          parent: "produk-tab-bar",
+          name: "btnTabBatch",
+          cls: "javax.swing.JButton (tab underline)",
+          layout: "FlowLayout.LEFT pada tabBar",
+          theme: "PRIMARY_BLUE Bold saat aktif, menampilkan jumlah batch",
+          desc: "Menampilkan kartu BATCH untuk mencatat stok masuk & tanggal kedaluwarsa FEFO."
+        },
+        "produk-detail-tab": {
+          parent: "produk-side-card",
+          name: "buildDetailTabPanel() (Tab DETAIL)",
+          cls: "JScrollPane -> JPanel(GridBagLayout)",
+          layout: "CardLayout \"DETAIL\" di BorderLayout.CENTER sideCard",
+          theme: "UITheme.CARD_BG, padding 12x16px",
+          desc: "Form edit/tambah produk berisi atribut induk (Produk), panel dinamis subclass, estimasi pajak, dan tombol aksi."
+        },
+        "produk-input-kode": {
+          parent: "produk-detail-tab",
+          name: "txtKode",
+          cls: "javax.swing.JTextField (UITheme.styleInputField)",
+          layout: "GridBagLayout baris 1 pada Detail Tab",
+          theme: "RoundedBorder(BORDER_INPUT, SMALL_RADIUS)",
+          desc: "Input kode unik produk (maks 30 karakter, dipetakan ke Produk.setKode() dengan validasi non-blank)."
+        },
+        "produk-input-nama": {
+          parent: "produk-detail-tab",
+          name: "txtNama",
+          cls: "javax.swing.JTextField (UITheme.styleInputField)",
+          layout: "GridBagLayout baris 3 pada Detail Tab",
+          theme: "RoundedBorder(BORDER_INPUT, SMALL_RADIUS)",
+          desc: "Input nama produk (maks 150 karakter, dipetakan ke Produk.setNama())."
+        },
+        "produk-input-harga": {
+          parent: "produk-detail-tab",
+          name: "txtHarga",
+          cls: "javax.swing.JTextField (UITheme.styleInputField)",
+          layout: "GridBagLayout baris 5 pada Detail Tab",
+          theme: "UITheme.parseNominalIndonesia()",
+          desc: "Input harga jual dasar (validasi >= 0 & <= MAX_HARGA di Produk.setHarga()). Setiap ketikan memperbarui Estimasi Pajak."
+        },
+        "produk-cmb-jenis": {
+          parent: "produk-detail-tab",
+          name: "cmbJenis",
+          cls: "javax.swing.JComboBox<String> + RoundedComboBoxUI",
+          layout: "GridBagLayout baris 7 pada Detail Tab",
+          theme: "RoundedComboBoxUI.apply(cmbJenis, 8)",
+          desc: "Memilih subclass Produk (MAKANAN, MINUMAN, ELEKTRONIK) dan langsung menukar kartu di dynamicFieldPanel."
+        },
+        "produk-dyn-panel": {
+          parent: "produk-detail-tab",
+          name: "dynamicFieldPanel",
+          cls: "javax.swing.JPanel (CardLayout)",
+          layout: "GridBagLayout baris 9 pada Detail Tab",
+          theme: "Latar #F8FAFC, RoundedBorder(10px)",
+          desc: "Container CardLayout yang hanya menampilkan atribut spesifik subclass yang sedang dipilih pada cmbJenis."
+        },
+        "produk-spn-berat": {
+          parent: "produk-dyn-panel",
+          name: "spnBeratGram (Makanan)",
+          cls: "javax.swing.JSpinner (SpinnerNumberModel)",
+          layout: "Card \"MAKANAN\" -> GridBagLayout baris 1",
+          theme: "UITheme.styleNumericSpinner(spnBeratGram)",
+          desc: "Input angka berat bersih (gram > 0) untuk konstruktor subclass Makanan."
+        },
+        "produk-spn-volume": {
+          parent: "produk-dyn-panel",
+          name: "spnVolumeMl (Minuman)",
+          cls: "javax.swing.JSpinner (SpinnerNumberModel)",
+          layout: "Card \"MINUMAN\" -> GridBagLayout baris 1",
+          theme: "UITheme.styleNumericSpinner(spnVolumeMl)",
+          desc: "Input angka volume kemasan (ml > 0) untuk konstruktor subclass Minuman."
+        },
+        "produk-chk-dingin": {
+          parent: "produk-dyn-panel",
+          name: "chkDingin (Minuman Dingin)",
+          cls: "javax.swing.JCheckBox",
+          layout: "Card \"MINUMAN\" -> GridBagLayout baris 2",
+          theme: "UITheme.font(BOLD, 12f), TEXT_SLATE",
+          desc: "Opsi boolean isDingin pada Minuman; saat dicentang pajak polimorfik langsung bertambah Rp 500."
+        },
+        "produk-spn-garansi": {
+          parent: "produk-dyn-panel",
+          name: "spnBulanGaransi (Elektronik)",
+          cls: "javax.swing.JSpinner (SpinnerNumberModel)",
+          layout: "Card \"ELEKTRONIK\" -> GridBagLayout baris 1",
+          theme: "UITheme.styleNumericSpinner(spnBulanGaransi)",
+          desc: "Input lama garansi (bulan >= 0) untuk Elektronik; jika > 12 bulan tarif pajak otomatis naik dari 15% ke 17%."
+        },
+        "produk-pajak-box": {
+          parent: "produk-detail-tab",
+          name: "pajakBox + lblEstimasiPajak",
+          cls: "javax.swing.JPanel(BorderLayout) + JLabel",
+          layout: "GridBagLayout baris 10 pada Detail Tab",
+          theme: "PRIMARY_SOFT_BG, PRIMARY_SOFT_BORDER, PRIMARY_PRESSED",
+          desc: "Menampilkan pratinjau nominal pajak hasil pemanggilan polimorfik sampel.hitungPajak() secara langsung."
+        },
+        "produk-form-actions": {
+          parent: "produk-detail-tab",
+          name: "btnRow (Aksi Form Produk)",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "GridBagLayout baris 11 pada Detail Tab",
+          theme: "WEST: Hapus, EAST: Batal & Simpan",
+          desc: "Baris tombol eksekusi CRUD produk di bagian bawah form Detail."
+        },
+        "produk-btn-hapus": {
+          parent: "produk-form-actions",
+          name: "btnHapusForm (Hapus)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.WEST pada btnRow",
+          theme: "ButtonVariant.DANGER, radius 10px",
+          desc: "Membuka konfirmasi ModernModal.confirm() lalu memanggil ProdukController.hapusProduk() (hybrid soft-delete)."
+        },
+        "produk-btn-batal": {
+          parent: "produk-form-actions",
+          name: "btnBatal (Batal)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST btnRow",
+          theme: "ButtonVariant.OUTLINE, radius 10px",
+          desc: "Menutup panel samping dan membatalkan perubahan yang belum disimpan."
+        },
+        "produk-btn-simpan": {
+          parent: "produk-form-actions",
+          name: "btnSimpan (Simpan)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST btnRow",
+          theme: "ButtonVariant.PRIMARY, radius 10px",
+          desc: "Membangun objek Makanan/Minuman/Elektronik dari form lalu memanggil tambahProduk() atau ubahProduk()."
+        },
+        "produk-batch-tab": {
+          parent: "produk-side-card",
+          name: "buildBatchTabPanel() (Tab BATCH)",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "CardLayout \"BATCH\" di BorderLayout.CENTER sideCard",
+          theme: "BorderLayout(0, 12), padding 14x16px",
+          desc: "Tab manajemen multi-batch stok masuk dan tanggal kedaluwarsa per produk."
+        },
+        "produk-batch-form": {
+          parent: "produk-batch-tab",
+          name: "addBatchCard (Form Tambah Batch)",
+          cls: "javax.swing.JPanel (GridBagLayout)",
+          layout: "BorderLayout.NORTH pada Tab BATCH",
+          theme: "Latar #F8FAFC, RoundedBorder(10px)",
+          desc: "Form pencatatan pengiriman stok batch baru dengan tanggal masuk, jumlah unit, dan tanggal kedaluwarsa."
+        },
+        "produk-dp-masuk": {
+          parent: "produk-batch-form",
+          name: "dateMasukPicker",
+          cls: "com.siritel.view.ui.ModernDatePicker extends JPanel",
+          layout: "GridLayout(1, 2) kolom kiri pada addBatchCard",
+          theme: "Popup kalender interaktif LocalDate",
+          desc: "Komponen pemilih tanggal masuk stok batch (default hari ini)."
+        },
+        "produk-spn-stok": {
+          parent: "produk-batch-form",
+          name: "spnStokBatch",
+          cls: "javax.swing.JSpinner (SpinnerNumberModel)",
+          layout: "GridLayout(1, 2) kolom kanan pada addBatchCard",
+          theme: "RoundedBorder(INPUT_BORDER, SMALL_RADIUS)",
+          desc: "Input jumlah unit stok masuk batch (validasi > 0 di ProdukController.tambahStokBatch())."
+        },
+        "produk-dp-exp": {
+          parent: "produk-batch-form",
+          name: "dateKadaluarsaPicker",
+          cls: "com.siritel.view.ui.ModernDatePicker extends JPanel",
+          layout: "GridBagLayout baris 3 pada addBatchCard",
+          theme: "Otomatis disabled untuk kategori ELEKTRONIK",
+          desc: "Pemilih tanggal kedaluwarsa untuk urutan FEFO; wajib untuk Makanan/Minuman dan NULL untuk Elektronik."
+        },
+        "produk-btn-add-batch": {
+          parent: "produk-batch-form",
+          name: "btnTambahBatch (+ Tambah Batch)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "GridBagLayout baris terakhir pada addBatchCard",
+          theme: "ButtonVariant.PRIMARY, radius 10px",
+          desc: "Membuat objek BatchProduk dan menyimpannya ke tabel batch_produk melalui ProdukController.tambahStokBatch()."
+        },
+        "produk-table-batch": {
+          parent: "produk-batch-tab",
+          name: "batchScroll -> tableBatch",
+          cls: "javax.swing.JScrollPane -> JTable",
+          layout: "BorderLayout.CENTER pada Tab BATCH",
+          theme: "Status warna: Aman (hijau), Hampir (kuning), Kedaluwarsa (merah)",
+          desc: "Menampilkan daftar batch terurut FEFO (tgl_kadaluarsa ASC NULLS LAST) dari Produk.getDaftarBatch()."
+        },
+        "produk-btn-del-batch": {
+          parent: "produk-batch-tab",
+          name: "btnHapusBatch (Hapus Batch)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada batchFooter (SOUTH)",
+          theme: "ButtonVariant.DANGER_OUTLINE, radius 10px",
+          desc: "Menghapus baris batch terpilih setelah dialog konfirmasi ModernModal.confirm()."
+        },
+
+        /* ==================== MANAJEMEN PENGGUNA VIEW ==================== */
+        "pengguna-view": {
+          parent: "main-cards",
+          name: "ManajemenPenggunaView",
+          cls: "com.siritel.view.ManajemenPenggunaView extends JPanel implements RefreshableView",
+          layout: "BorderLayout(14, 0) di dalam CardLayout",
+          theme: "UITheme.BG_PAGE",
+          desc: "Halaman kelola akun pegawai Admin & Kasir dengan hashing Bcrypt (Modul 1)."
+        },
+        "pengguna-table-card": {
+          parent: "pengguna-view",
+          name: "buildTableCard()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.CENTER pada ManajemenPenggunaView",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Kartu kiri yang memuat toolbar atas dan tabel daftar akun pengguna aktif."
+        },
+        "pengguna-toolbar": {
+          parent: "pengguna-table-card",
+          name: "buildTopToolbar()",
+          cls: "javax.swing.JPanel (GridBagLayout + BoxLayout)",
+          layout: "BorderLayout.NORTH pada buildTableCard()",
+          theme: "Judul kiri, aksi kanan",
+          desc: "Menampung judul Daftar Akun Pengguna beserta tombol + Tambah Pengguna dan Segarkan."
+        },
+        "pengguna-btn-tambah": {
+          parent: "pengguna-toolbar",
+          name: "btnTambah (+ Tambah Pengguna)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BoxLayout.X_AXIS di kanan toolbar",
+          theme: "ButtonVariant.PRIMARY, radius 10px",
+          desc: "Membuka sideCard dalam mode Tambah Pengguna dan mereset form input akun baru."
+        },
+        "pengguna-btn-refresh": {
+          parent: "pengguna-toolbar",
+          name: "btnSegarkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BoxLayout.X_AXIS di kanan toolbar",
+          theme: "ButtonVariant.OUTLINE, radius 10px",
+          desc: "Memuat ulang daftar akun aktif via SwingWorker dari AuthController.daftarPengguna()."
+        },
+        "pengguna-jtable": {
+          parent: "pengguna-table-card",
+          name: "scrollPane -> tablePengguna",
+          cls: "javax.swing.JScrollPane -> JTable + Custom CellRenderer",
+          layout: "BorderLayout.CENTER pada buildTableCard()",
+          theme: "BADGE_BLUE (Admin) & BADGE_TEAL (Kasir)",
+          desc: "Menampilkan kolom ID, Username, Nama Lengkap, dan badge Role; klik baris membuka mode Ubah Pengguna."
+        },
+        "pengguna-side-card": {
+          parent: "pengguna-view",
+          name: "sideCard (Form Akun)",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.EAST (lebar 320px, dinamis tampil/sembunyi)",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Panel samping kanan untuk membuat akun baru atau memperbarui akun terpilih."
+        },
+        "pengguna-btn-close-side": {
+          parent: "pengguna-side-card",
+          name: "btnTutupPanel",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada headerWrapper sideCard",
+          theme: "ButtonVariant.GHOST, radius 8px",
+          desc: "Menutup panel form samping agar tabel akun melebar penuh."
+        },
+        "pengguna-form": {
+          parent: "pengguna-side-card",
+          name: "JScrollPane -> form (GridBagLayout)",
+          cls: "javax.swing.JScrollPane -> JPanel(GridBagLayout)",
+          layout: "BorderLayout.CENTER pada sideCard",
+          theme: "UITheme.CARD_BG, padding 14x16px",
+          desc: "Wadah vertikal field Username, Nama Lengkap, pilihan Role JRadioButton, Password, dan tombol aksi."
+        },
+        "pengguna-input-user": {
+          parent: "pengguna-form",
+          name: "txtUsername",
+          cls: "javax.swing.JTextField (UITheme.styleInputField)",
+          layout: "GridBagLayout baris 1 pada form",
+          theme: "RoundedBorder(BORDER_INPUT, SMALL_RADIUS)",
+          desc: "Input username unik (maks 50 karakter, validasi di Pengguna.setUsername())."
+        },
+        "pengguna-input-nama": {
+          parent: "pengguna-form",
+          name: "txtNamaLengkap",
+          cls: "javax.swing.JTextField (UITheme.styleInputField)",
+          layout: "GridBagLayout baris 3 pada form",
+          theme: "RoundedBorder(BORDER_INPUT, SMALL_RADIUS)",
+          desc: "Input nama lengkap pegawai (maks 100 karakter) yang juga dicetak pada nota penjualan."
+        },
+        "pengguna-role-group": {
+          parent: "pengguna-form",
+          name: "rolePanel + ButtonGroup bgRole",
+          cls: "javax.swing.JPanel(FlowLayout) + javax.swing.ButtonGroup",
+          layout: "GridBagLayout baris 5 pada form",
+          theme: "Memastikan pilihan Admin/Kasir bersifat eksklusif",
+          desc: "Mengelompokkan rbAdmin dan rbKasir agar hanya satu role yang dapat dipilih."
+        },
+        "pengguna-rb-admin": {
+          parent: "pengguna-role-group",
+          name: "rbAdmin (JRadioButton)",
+          cls: "javax.swing.JRadioButton",
+          layout: "FlowLayout.LEFT di dalam rolePanel",
+          theme: "UITheme.font(PLAIN, 13f), TEXT_MAIN",
+          desc: "Opsi role Admin (memiliki akses penuh ke seluruh 5 halaman utama SI-RITEL)."
+        },
+        "pengguna-rb-kasir": {
+          parent: "pengguna-role-group",
+          name: "rbKasir (JRadioButton)",
+          cls: "javax.swing.JRadioButton",
+          layout: "FlowLayout.LEFT di dalam rolePanel",
+          theme: "UITheme.font(PLAIN, 13f), TEXT_MAIN",
+          desc: "Opsi role Kasir (akses dibatasi ke halaman Kasir dan Riwayat Transaksi)."
+        },
+        "pengguna-pass-panel": {
+          parent: "pengguna-form",
+          name: "passPanel (Password + Eye Toggle)",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "GridBagLayout baris 7 pada form",
+          theme: "RoundedBorder(BORDER_INPUT, SMALL_RADIUS)",
+          desc: "Membungkus JPasswordField di CENTER dan tombol ikon mata di EAST."
+        },
+        "pengguna-input-pass": {
+          parent: "pengguna-pass-panel",
+          name: "txtPassword",
+          cls: "javax.swing.JPasswordField",
+          layout: "BorderLayout.CENTER pada passPanel",
+          theme: "Minimal 6 karakter, di-hash Bcrypt pgcrypto di PenggunaDAO",
+          desc: "Input kata sandi akun (opsional saat mode Ubah jika tidak ingin mengganti password)."
+        },
+        "pengguna-btn-eye": {
+          parent: "pengguna-pass-panel",
+          name: "btnEye (createEyeToggleButton)",
+          cls: "javax.swing.JButton (ikon mata Java2D)",
+          layout: "BorderLayout.EAST pada passPanel",
+          theme: "UITheme.TEXT_MUTED, Cursor.HAND_CURSOR",
+          desc: "Menampilkan atau menyembunyikan isi JPasswordField dengan mengatur echoChar."
+        },
+        "pengguna-form-actions": {
+          parent: "pengguna-form",
+          name: "btnRow (Aksi Form Pengguna)",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "GridBagLayout baris 9 pada form",
+          theme: "WEST: Hapus, EAST: Batal & Simpan",
+          desc: "Menjajarkan tombol Hapus, Batal, dan Simpan akun pengguna."
+        },
+        "pengguna-btn-hapus": {
+          parent: "pengguna-form-actions",
+          name: "btnHapusForm (Hapus)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.WEST pada btnRow",
+          theme: "ButtonVariant.DANGER, radius 10px",
+          desc: "Menampilkan ModernModal.confirm() lalu memanggil AuthController.hapusPengguna() (melindungi akun aktif & admin terakhir)."
+        },
+        "pengguna-btn-batal": {
+          parent: "pengguna-form-actions",
+          name: "btnBatal (Batal)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST btnRow",
+          theme: "ButtonVariant.OUTLINE, radius 10px",
+          desc: "Menutup panel form samping tanpa menyimpan perubahan."
+        },
+        "pengguna-btn-simpan": {
+          parent: "pengguna-form-actions",
+          name: "btnSimpan (Simpan)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST btnRow",
+          theme: "ButtonVariant.PRIMARY, radius 10px",
+          desc: "Memvalidasi entitas Pengguna dan menyimpan lewat AuthController.tambahPengguna() atau ubahPengguna()."
+        },
+
+        /* ==================== RIWAYAT TRANSAKSI VIEW ==================== */
+        "riwayat-view": {
+          parent: "main-cards",
+          name: "RiwayatTransaksiView",
+          cls: "com.siritel.view.RiwayatTransaksiView extends JPanel implements RefreshableView",
+          layout: "BorderLayout(14, 0) di dalam CardLayout",
+          theme: "UITheme.BG_PAGE",
+          desc: "Halaman histori penjualan dengan filter periode, pencarian debounce 300ms, pagination, dan cetak ulang struk."
+        },
+        "riwayat-list-card": {
+          parent: "riwayat-view",
+          name: "bangunPanelDaftar()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.CENTER pada RiwayatTransaksiView",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Kartu kiri yang memuat filter periode & pencarian (NORTH), tabel riwayat (CENTER), dan pagination (SOUTH)."
+        },
+        "riwayat-btn-refresh": {
+          parent: "riwayat-list-card",
+          name: "btnSegarkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada headerRow",
+          theme: "ButtonVariant.OUTLINE, BUTTON_RADIUS (10px)",
+          desc: "Memuat ulang daftar transaksi pada periode & halaman aktif via SwingWorker."
+        },
+        "riwayat-filter": {
+          parent: "riwayat-list-card",
+          name: "barisTanggal + barisCari",
+          cls: "javax.swing.JPanel (GridBagLayout)",
+          layout: "BorderLayout.NORTH pada kartu daftar",
+          theme: "2 ModernDatePicker + Tampilkan + Reset + txtCari",
+          desc: "Kontrol filter rentang tanggal inklusif dan kata kunci pencarian server-side."
+        },
+        "riwayat-dp-awal": {
+          parent: "riwayat-filter",
+          name: "dpTanggalAwal",
+          cls: "com.siritel.view.ui.ModernDatePicker extends JPanel",
+          layout: "GridBagLayout kolom 1 barisTanggal",
+          theme: "Default tanggal 1 bulan berjalan",
+          desc: "Pemilih tanggal batas awal pencarian riwayat transaksi."
+        },
+        "riwayat-dp-akhir": {
+          parent: "riwayat-filter",
+          name: "dpTanggalAkhir",
+          cls: "com.siritel.view.ui.ModernDatePicker extends JPanel",
+          layout: "GridBagLayout kolom 3 barisTanggal",
+          theme: "Default LocalDate.now()",
+          desc: "Pemilih tanggal batas akhir pencarian riwayat transaksi."
+        },
+        "riwayat-btn-tampil": {
+          parent: "riwayat-filter",
+          name: "btnTampilkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "GridBagLayout kolom 4 barisTanggal",
+          theme: "ButtonVariant.PRIMARY, BUTTON_RADIUS (10px)",
+          desc: "Memvalidasi awal <= akhir lalu menjalankan query riwayat berdasarkan rentang tanggal terpilih."
+        },
+        "riwayat-btn-reset": {
+          parent: "riwayat-filter",
+          name: "btnReset",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "GridBagLayout kolom 5 barisTanggal",
+          theme: "ButtonVariant.OUTLINE, BUTTON_RADIUS (10px)",
+          desc: "Mengembalikan filter ke bulan berjalan, mengosongkan kata kunci, dan kembali ke halaman 1."
+        },
+        "riwayat-input-cari": {
+          parent: "riwayat-filter",
+          name: "txtCari (Debounce 300ms)",
+          cls: "javax.swing.JTextField (createPlaceholderField)",
+          layout: "BorderLayout.CENTER pada barisCari",
+          theme: "Swing Timer 300ms + DocumentListener",
+          desc: "Mencari ID transaksi atau nama kasir lintas seluruh halaman di PostgreSQL tanpa menembak query di tiap huruf."
+        },
+        "riwayat-table": {
+          parent: "riwayat-list-card",
+          name: "scrollTabel -> tabelTransaksi",
+          cls: "javax.swing.JScrollPane -> JTable (TransaksiRingkas)",
+          layout: "BorderLayout.CENTER pada kartu daftar",
+          theme: "SINGLE_SELECTION, 10 baris/halaman",
+          desc: "Menampilkan objek ringan TransaksiRingkas; memilih baris otomatis memuat detail transaksi lengkap di kanan."
+        },
+        "riwayat-pagination": {
+          parent: "riwayat-list-card",
+          name: "panelPagination",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "BorderLayout.SOUTH pada kartu daftar",
+          theme: "Info halaman di WEST, tombol navigasi di EAST",
+          desc: "Mengatur perpindahan halaman SQL LIMIT 10 OFFSET (halaman - 1) * 10."
+        },
+        "riwayat-btn-prev": {
+          parent: "riwayat-pagination",
+          name: "btnSebelumnya",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST panelPagination",
+          theme: "ButtonVariant.OUTLINE, SMALL_RADIUS",
+          desc: "Berpindah ke halaman sebelumnya (otomatis nonaktif saat berada di halaman 1)."
+        },
+        "riwayat-btn-next": {
+          parent: "riwayat-pagination",
+          name: "btnSelanjutnya",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST panelPagination",
+          theme: "ButtonVariant.OUTLINE, SMALL_RADIUS",
+          desc: "Berpindah ke halaman berikutnya (otomatis nonaktif pada halaman terakhir)."
+        },
+        "riwayat-detail": {
+          parent: "riwayat-view",
+          name: "bangunPanelDetail()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.EAST pada RiwayatTransaksiView (lebar 382px)",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Panel kanan yang menampilkan rincian lengkap satu objek Transaksi historis beserta tombol cetak ulang."
+        },
+        "riwayat-status-badge": {
+          parent: "riwayat-detail",
+          name: "lblStatus (Badge LUNAS)",
+          cls: "javax.swing.JLabel",
+          layout: "BorderLayout.EAST pada panelHeader detail",
+          theme: "SUCCESS_SOFT_BG, SUCCESS, SUCCESS_BORDER",
+          desc: "Menandakan status transaksi tersimpan (LUNAS) atau indikator memuat saat SwingWorker berjalan."
+        },
+        "riwayat-identitas-box": {
+          parent: "riwayat-detail",
+          name: "panelIdentitas",
+          cls: "javax.swing.JPanel (GridLayout(3, 2))",
+          layout: "BorderLayout.NORTH pada panelKontenAtas",
+          theme: "UITheme.BG_PAGE, RoundedBorder(10px)",
+          desc: "Menampilkan ID Transaksi, Tanggal & Jam, serta Nama Kasir yang melayani."
+        },
+        "riwayat-detail-table": {
+          parent: "riwayat-detail",
+          name: "scrollDetail -> tabelDetail",
+          cls: "javax.swing.JScrollPane -> JTable",
+          layout: "BorderLayout.CENTER pada panelKontenAtas",
+          theme: "ItemTransaksi historis (snapshot harga)",
+          desc: "Merinci seluruh ItemTransaksi (Produk, Qty, Harga Satuan historis, Subtotal) milik nota terpilih."
+        },
+        "riwayat-ringkasan-nilai": {
+          parent: "riwayat-detail",
+          name: "panelRingkasan (Subtotal s/d Kembalian)",
+          cls: "javax.swing.JPanel (BoxLayout.Y_AXIS)",
+          layout: "BorderLayout.CENTER pada panelBawah detail",
+          theme: "UITheme.formatRupiah()",
+          desc: "Menampilkan rincian Subtotal, Total Pajak, Grand Total, Bayar, dan Kembalian dari header Transaksi."
+        },
+        "riwayat-btn-cetak": {
+          parent: "riwayat-detail",
+          name: "btnCetak (Cetak Struk)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.SOUTH pada panelBawah detail",
+          theme: "ButtonVariant.PRIMARY, BUTTON_RADIUS (10px)",
+          desc: "Memanggil ReceiptSupport.printStruk() menggunakan hasil Transaksi.cetak() (interface Printable)."
+        },
+
+        /* ==================== LAPORAN PENJUALAN VIEW ==================== */
+        "laporan-view": {
+          parent: "main-cards",
+          name: "LaporanPenjualanView",
+          cls: "com.siritel.view.LaporanPenjualanView extends JPanel implements RefreshableView",
+          layout: "BorderLayout(0, 14) di dalam CardLayout",
+          theme: "UITheme.BG_PAGE",
+          desc: "Halaman rekapitulasi penjualan harian, akumulasi omzet & pajak, serta pratinjau/cetak dokumen A4."
+        },
+        "laporan-filter": {
+          parent: "laporan-view",
+          name: "bangunPanelAtas()",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.NORTH pada LaporanPenjualanView",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Kartu filter periode laporan dengan judul, tombol Segarkan, 2 pemilih tanggal, dan tombol Tampilkan Laporan."
+        },
+        "laporan-btn-refresh": {
+          parent: "laporan-filter",
+          name: "btnSegarkan",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "BorderLayout.EAST pada headerRow",
+          theme: "ButtonVariant.OUTLINE, BUTTON_RADIUS (10px)",
+          desc: "Memuat ulang objek LaporanPenjualan terbaru untuk rentang tanggal yang sedang dipilih."
+        },
+        "laporan-dp-awal": {
+          parent: "laporan-filter",
+          name: "dpTanggalAwal",
+          cls: "com.siritel.view.ui.ModernDatePicker extends JPanel",
+          layout: "GridBagLayout kolom 1 panelFilter",
+          theme: "Default tanggal 1 bulan berjalan",
+          desc: "Menentukan parameter periodeAwal pada TransaksiController.buatLaporan(awal, akhir)."
+        },
+        "laporan-dp-akhir": {
+          parent: "laporan-filter",
+          name: "dpTanggalAkhir",
+          cls: "com.siritel.view.ui.ModernDatePicker extends JPanel",
+          layout: "GridBagLayout kolom 3 panelFilter",
+          theme: "Default LocalDate.now()",
+          desc: "Menentukan parameter periodeAkhir pada TransaksiController.buatLaporan(awal, akhir)."
+        },
+        "laporan-btn-tampil": {
+          parent: "laporan-filter",
+          name: "btnTampilkan (Tampilkan Laporan)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "GridBagLayout kolom 4 panelFilter",
+          theme: "ButtonVariant.PRIMARY, BUTTON_RADIUS (10px)",
+          desc: "Menjalankan muatLaporan() secara asinkron via SwingWorker dan mengisi 3 kartu KPI serta tabel harian."
+        },
+        "laporan-kpi": {
+          parent: "laporan-view",
+          name: "panelRingkasan (3 Kartu KPI)",
+          cls: "javax.swing.JPanel",
+          layout: "GridLayout(1, 3, 14, 0) di BorderLayout.NORTH konten",
+          theme: "3 kolom seimbang",
+          desc: "Wadah tiga kartu ringkasan angka utama hasil agregasi kelas LaporanPenjualan."
+        },
+        "laporan-kpi-trx": {
+          parent: "laporan-kpi",
+          name: "Kartu KPI: Jumlah Transaksi",
+          cls: "com.siritel.view.ui.RoundedCardPanel + JLabel",
+          layout: "Sel 1 GridLayout(1, 3)",
+          theme: "Aksen UITheme.PRIMARY_BLUE (22pt Bold)",
+          desc: "Menampilkan hasil laporanAktif.hitungJumlahTransaksi() pada periode terpilih."
+        },
+        "laporan-kpi-omzet": {
+          parent: "laporan-kpi",
+          name: "Kartu KPI: Total Omzet",
+          cls: "com.siritel.view.ui.RoundedCardPanel + JLabel",
+          layout: "Sel 2 GridLayout(1, 3)",
+          theme: "Aksen UITheme.SUCCESS (22pt Bold)",
+          desc: "Menampilkan hasil akumulasi laporanAktif.hitungTotalOmzet() dalam format Rupiah."
+        },
+        "laporan-kpi-pajak": {
+          parent: "laporan-kpi",
+          name: "Kartu KPI: Total Pajak",
+          cls: "com.siritel.view.ui.RoundedCardPanel + JLabel",
+          layout: "Sel 3 GridLayout(1, 3)",
+          theme: "Aksen UITheme.BADGE_AMBER_FG (22pt Bold)",
+          desc: "Menampilkan hasil akumulasi laporanAktif.hitungTotalPajakTerkumpul() dalam format Rupiah."
+        },
+        "laporan-table-card": {
+          parent: "laporan-view",
+          name: "panelTabel (Rincian Harian)",
+          cls: "com.siritel.view.ui.RoundedCardPanel extends JPanel",
+          layout: "BorderLayout.CENTER pada konten LaporanPenjualanView",
+          theme: "UITheme.CARD_BG, PANEL_RADIUS (14px)",
+          desc: "Kartu wadah tabel rincian omzet dan pajak harian per tanggal."
+        },
+        "laporan-jtable": {
+          parent: "laporan-table-card",
+          name: "scrollPane -> tabelLaporan",
+          cls: "javax.swing.JScrollPane -> JTable",
+          layout: "BorderLayout.CENTER pada panelTabel",
+          theme: "Custom Renderer (tebal jika transaksi > 0)",
+          desc: "Merender setiap entri TreeMap dari LaporanPenjualan.getDaftarHarian() termasuk hari dengan 0 transaksi."
+        },
+        "laporan-footer": {
+          parent: "laporan-view",
+          name: "bangunPanelBawah()",
+          cls: "javax.swing.JPanel (BorderLayout)",
+          layout: "BorderLayout.SOUTH pada LaporanPenjualanView",
+          theme: "Status periode di WEST, tombol cetak di EAST",
+          desc: "Baris bawah berisi teks ringkasan periode aktif dan tombol Cetak / Pratinjau PDF."
+        },
+        "laporan-btn-cetak": {
+          parent: "laporan-footer",
+          name: "btnCetak (Cetak / Pratinjau PDF)",
+          cls: "com.siritel.view.ui.RoundedButton extends JButton",
+          layout: "FlowLayout.RIGHT di BorderLayout.EAST panelBawah",
+          theme: "ButtonVariant.TEAL, BUTTON_RADIUS (10px)",
+          desc: "Membuka JDialog LaporanPrinter (pratinjau halaman A4, tombol Salin Teks Printable.cetak(), & cetak/PDF)."
+        }
+      };
+
+      function getHierarchyChain(compId) {
+        const chain = [];
+        let curr = compId;
+        while (curr && COMP_DB[curr]) {
+          chain.unshift({ id: curr, data: COMP_DB[curr] });
+          curr = COMP_DB[curr].parent;
+        }
+        return chain;
+      }
+
+      /* Ambil anak langsung dari compId yang saat ini terpasang di DOM layar aktif */
+      function getVisibleChildren(compId) {
+        const presentIds = new Set();
+        document.querySelectorAll("#swing-stage [data-comp-id]").forEach(function (el) {
+          presentIds.add(el.getAttribute("data-comp-id"));
+        });
+        const children = [];
+        Object.keys(COMP_DB).forEach(function (key) {
+          if (COMP_DB[key].parent === compId && presentIds.has(key)) {
+            children.push({ id: key, data: COMP_DB[key] });
+          }
+        });
+        return children;
+      }
+
+      /* ========================================================================
+         4. RENDER INSPEKTOR KANAN (NAIK KE INDUK & TURUN KE ANAK)
+         ======================================================================== */
+      function updateInspector(compId) {
+        if (!COMP_DB[compId]) return;
+        state.inspectedId = compId;
+
+        document.querySelectorAll("[data-comp-id]").forEach(function (el) {
+          el.classList.toggle("is-inspected", el.getAttribute("data-comp-id") === compId);
+        });
+
+        const chain = getHierarchyChain(compId);
+        document.getElementById("depth-badge").textContent = "Level " + chain.length;
+
+        const treeEl = document.getElementById("hierarchy-tree");
+        treeEl.innerHTML = "";
+
+        chain.forEach(function (node, idx) {
+          const li = document.createElement("li");
+          li.style.paddingLeft = Math.min(idx * 8, 56) + "px";
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "tree-btn" + (node.id === compId ? " current-node" : "");
+          btn.innerHTML =
+            "<span>" + (idx + 1) + ". " + escapeHtml(node.data.name) + "</span>" +
+            "<span class='mono' style='font-size:0.72rem; opacity:0.9;'>" + escapeHtml(node.data.layout) + "</span>";
+          btn.addEventListener("click", function () {
+            updateInspector(node.id);
+          });
+
+          li.appendChild(btn);
+          treeEl.appendChild(li);
+        });
+
+        /* Tampilkan anak langsung (tombol/input di dalam container ini) agar bisa diklik turun */
+        const children = getVisibleChildren(compId);
+        const childSec = document.getElementById("children-section");
+        const childWrap = document.getElementById("children-chips");
+        childWrap.innerHTML = "";
+        if (children.length > 0) {
+          childSec.hidden = false;
+          children.forEach(function (ch) {
+            const cbtn = document.createElement("button");
+            cbtn.type = "button";
+            cbtn.className = "child-chip-btn";
+            cbtn.textContent = ch.data.name;
+            cbtn.addEventListener("click", function () {
+              updateInspector(ch.id);
+            });
+            childWrap.appendChild(cbtn);
+          });
+        } else {
+          childSec.hidden = true;
+        }
+
+        const info = COMP_DB[compId];
+        document.getElementById("det-name").textContent = info.name;
+        document.getElementById("det-class").textContent = info.cls;
+        document.getElementById("det-layout").textContent = info.layout;
+        document.getElementById("det-theme").textContent = info.theme;
+        document.getElementById("det-desc").textContent = info.desc;
+      }
+
+      /* ========================================================================
+         5. RENDER HALAMAN SWING DI KIRI
+         ======================================================================== */
+      function renderStage() {
+        if (state.role === "Kasir" && (state.page === "produk" || state.page === "pengguna" || state.page === "laporan")) {
+          state.page = "kasir";
+        }
+
+        document.querySelectorAll("[data-goto-page]").forEach(function (btn) {
+          const target = btn.getAttribute("data-goto-page");
+          const restricted = state.role === "Kasir" && (target === "produk" || target === "pengguna" || target === "laporan");
+          btn.disabled = restricted;
+          btn.title = restricted ? "Khusus Role Admin" : "";
+          if (target === state.page) {
+            btn.setAttribute("aria-current", "page");
+          } else {
+            btn.removeAttribute("aria-current");
+          }
+        });
+
+        const stage = document.getElementById("swing-stage");
+        stage.classList.toggle("show-wireframe", state.wireframe);
+
+        if (state.page === "login") {
+          stage.innerHTML = renderLoginWindow();
+          if (!COMP_DB[state.inspectedId] || !state.inspectedId.startsWith("login-")) {
+            state.inspectedId = "login-frame";
+          }
+        } else {
+          stage.innerHTML = renderMainFrameWindow();
+          if (!COMP_DB[state.inspectedId] || state.inspectedId.startsWith("login-")) {
+            state.inspectedId = state.page + "-view";
+          }
+        }
+
+        /* Jika komponen yang dipilih sebelumnya sedang tidak ada di DOM (mis. tab berpindah), fallback ke view aktif */
+        if (!stage.querySelector("[data-comp-id='" + state.inspectedId + "']")) {
+          state.inspectedId = state.page === "login" ? "login-frame" : state.page + "-view";
+        }
+
+        bindStageEvents();
+        updateInspector(state.inspectedId);
+      }
+
+      function renderToastHtml() {
+        if (!state.toast) return "";
+        return (
+          "<div class='toast-floating' role='status' aria-live='polite'>" +
+            "<div>" +
+              "<div style='font-weight:700; font-size:0.82rem;'>" + escapeHtml(state.toast.title) + "</div>" +
+              "<div style='font-size:0.78rem; color:var(--text-muted);'>" + escapeHtml(state.toast.msg) + "</div>" +
+            "</div>" +
+            "<button type='button' class='btn' id='btn-close-toast' aria-label='Tutup notifikasi' style='padding:4px 10px;'>Tutup</button>" +
+          "</div>"
+        );
+      }
+
+      /* --- 5A. LOGIN VIEW --- */
+      function renderLoginWindow() {
+        const showErr = state.uiState === "error" || Boolean(state.loginError);
+        const errMsg = state.loginError || "Username atau password salah.";
+        const isLoading = state.uiState === "loading";
+
+        return (
+          "<div class='jframe-shell' data-comp-id='login-frame' data-is-container='true'>" +
+            renderToastHtml() +
+            "<div class='jframe-titlebar'>" +
+              "<span>JFrame: SI-RITEL - Login (LoginView.java)</span>" +
+              "<span class='jframe-controls'>[ _ ] [ □ ] [ X ]</span>" +
+            "</div>" +
+            "<div class='login-canvas' data-comp-id='login-root' data-is-container='true'>" +
+              "<form id='sim-login-form' class='login-card' data-comp-id='login-card' data-is-container='true' novalidate>" +
+                "<span class='wireframe-tag'>JPanel cardPanel (GridBagLayout)</span>" +
+                "<div style='display:flex; justify-content:center;'>" +
+                  "<div class='brand-tile' style='width:48px; height:48px; border-radius:12px;' data-comp-id='login-badge'>" +
+                    bagSvg(22) +
+                  "</div>" +
+                "</div>" +
+                "<div data-comp-id='login-title' style='text-align:center; margin:14px 0 22px;'>" +
+                  "<h2 style='margin:0 0 4px; font-size:1.45rem;'>SI-RITEL</h2>" +
+                  "<p style='margin:0; font-size:0.85rem; color:var(--text-muted);'>Sistem Informasi Kasir Ritel</p>" +
+                "</div>" +
+
+                "<div style='margin-bottom:14px;'>" +
+                  "<label class='field-label' for='inp-login-user'>Username</label>" +
+                  "<input id='inp-login-user' data-comp-id='login-user' class='input-field' type='text' value='" + escapeAttr(state.uiState === "empty" ? "" : state.loginUser) + "' placeholder='Masukkan username' />" +
+                "</div>" +
+
+                "<div style='margin-bottom:6px;' data-comp-id='login-pass' data-is-container='true'>" +
+                  "<label class='field-label' for='inp-login-pass'>Password</label>" +
+                  "<div style='display:flex; gap:6px;'>" +
+                    "<input id='inp-login-pass' class='input-field' type='" + (state.loginShowPass ? "text" : "password") + "' value='" + escapeAttr(state.uiState === "empty" ? "" : state.loginPass) + "' placeholder='Masukkan password' />" +
+                    "<button type='button' class='btn' id='btn-toggle-login-pass' data-comp-id='login-pass-eye' aria-label='Tampilkan atau sembunyikan password'>" +
+                      (state.loginShowPass ? "Sembunyi" : "Lihat") +
+                    "</button>" +
+                  "</div>" +
+                "</div>" +
+
+                (showErr
+                  ? "<div class='inline-alert' data-comp-id='login-alert' role='alert'>! " + escapeHtml(errMsg) + "</div>"
+                  : "") +
+
+                "<div style='margin-top:16px;'>" +
+                  "<button type='submit' class='btn btn-primary' data-comp-id='login-btn' style='width:100%;' " + (isLoading ? "disabled" : "") + ">" +
+                    (isLoading ? "Memproses... (SwingWorker)" : "Masuk") +
+                  "</button>" +
+                "</div>" +
+
+                "<div style='margin-top:18px; text-align:center; font-size:0.8rem; color:var(--text-muted);' data-comp-id='login-hint'>" +
+                  "Tekan <span class='keycap'>Enter</span> untuk masuk" +
+                "</div>" +
+              "</form>" +
+            "</div>" +
+          "</div>"
+        );
+      }
+
+      /* --- 5B. MAINFRAME SHELL --- */
+      function renderMainFrameWindow() {
+        const titles = {
+          kasir: "Kasir",
+          produk: "Manajemen Produk & Batch",
+          pengguna: "Manajemen Pengguna",
+          riwayat: "Riwayat Transaksi",
+          laporan: "Laporan Penjualan"
+        };
+        const activeUser = state.role === "Admin" ? "Budi Santoso (Admin)" : "Siti Aminah (Kasir)";
+
+        const navItems = [
+          { key: "kasir", label: "Kasir", show: true },
+          { key: "produk", label: "Manajemen Produk & Batch", show: state.role === "Admin" },
+          { key: "pengguna", label: "Manajemen Pengguna", show: state.role === "Admin" },
+          { key: "riwayat", label: "Riwayat Transaksi", show: true },
+          { key: "laporan", label: "Laporan Penjualan", show: state.role === "Admin" }
+        ];
+
+        const navButtonsHtml = navItems
+          .filter(function (n) { return n.show; })
+          .map(function (n) {
+            const isAct = n.key === state.page;
+            return (
+              "<button type='button' class='swing-nav-btn" + (isAct ? " active" : "") + "' data-swing-nav='" + n.key + "' data-comp-id='main-nav-btn'>" +
+                "<span>" + escapeHtml(n.label) + "</span>" +
+                (isAct ? "<span class='active-indicator' aria-hidden='true'></span>" : "") +
+              "</button>"
+            );
+          })
+          .join("");
+
+        let pageContent = "";
+        if (state.page === "kasir") pageContent = renderKasirContent();
+        else if (state.page === "produk") pageContent = renderProdukContent();
+        else if (state.page === "pengguna") pageContent = renderPenggunaContent();
+        else if (state.page === "riwayat") pageContent = renderRiwayatContent();
+        else if (state.page === "laporan") pageContent = renderLaporanContent();
+
+        return (
+          "<div class='jframe-shell' data-comp-id='main-frame' data-is-container='true'>" +
+            renderToastHtml() +
+            "<div class='jframe-titlebar'>" +
+              "<span>JFrame: SI-RITEL - Sistem Informasi Kasir &amp; Inventaris Ritel (MainFrame.java)</span>" +
+              "<span class='jframe-controls'>[ _ ] [ □ ] [ X ]</span>" +
+            "</div>" +
+
+            "<div class='mainframe-body'>" +
+              "<div class='swing-sidebar' data-comp-id='main-sidebar' data-is-container='true'>" +
+                "<div class='swing-brand' data-comp-id='main-brand'>" +
+                  "<div class='brand-tile'>" + bagSvg(18) + "</div>" +
+                  "<div>" +
+                    "<div style='font-weight:700; font-size:0.95rem;'>SI-RITEL</div>" +
+                    "<div style='font-size:0.75rem; color:var(--text-muted);'>Kasir Ritel Modern</div>" +
+                  "</div>" +
+                "</div>" +
+                "<div class='swing-nav-list' data-comp-id='main-navlist' data-is-container='true'>" +
+                  "<span class='wireframe-tag'>GridLayout(0, 1, 0, 6)</span>" +
+                  navButtonsHtml +
+                "</div>" +
+              "</div>" +
+
+              "<div class='swing-main-area' data-comp-id='main-area' data-is-container='true'>" +
+                "<div class='swing-headerbar' data-comp-id='main-header' data-is-container='true'>" +
+                  "<h2 style='margin:0; font-size:1.1rem; padding:2px 4px; border-radius:6px;' data-comp-id='main-page-title'>" + escapeHtml(titles[state.page]) + "</h2>" +
+                  "<div style='display:flex; align-items:center; gap:10px;'>" +
+                    "<span style='font-size:0.85rem; font-weight:700; padding:4px 6px; border-radius:6px;' data-comp-id='main-user-profile'>" + escapeHtml(activeUser) + "</span>" +
+                    "<button type='button' class='btn' id='btn-swing-logout' data-comp-id='main-btn-logout'>Keluar</button>" +
+                  "</div>" +
+                "</div>" +
+
+                "<div class='swing-content-pad' data-comp-id='main-cards' data-is-container='true'>" +
+                  "<span class='wireframe-tag'>contentCards (CardLayout + RefreshableView)</span>" +
+                  pageContent +
+                "</div>" +
+              "</div>" +
+            "</div>" +
+          "</div>"
+        );
+      }
+
+      /* --- 5C. KASIR VIEW --- */
+      function renderKasirContent() {
+        const kw = state.kasirSearch.trim().toLowerCase();
+        const filtered = state.uiState === "empty"
+          ? []
+          : SEED_PRODUCTS.filter(function (p) {
+              const catOk = state.kasirKategori === "SEMUA" || p.jenis === state.kasirKategori;
+              const kwOk = !kw || p.nama.toLowerCase().includes(kw) || p.kode.toLowerCase().includes(kw);
+              return catOk && kwOk;
+            });
+
+        let catalogBody = "";
+        if (state.uiState === "loading") {
+          catalogBody = "<div class='state-box'>Memuat katalog produk dari PostgreSQL melalui SwingWorker...</div>";
+        } else if (state.uiState === "error") {
+          catalogBody = "<div class='state-box error-box'>Gagal memuat produk: Tidak dapat terhubung ke database PostgreSQL. Periksa konfigurasi db.properties lalu tekan Segarkan.</div>";
+        } else if (filtered.length === 0) {
+          catalogBody = "<div class='state-box'>Produk tidak ditemukan pada kategori/kata kunci ini. Reset pencarian untuk melihat seluruh katalog.</div>";
+        } else {
+          catalogBody =
+            "<div class='product-grid' data-comp-id='kasir-grid' data-is-container='true'>" +
+              filtered.map(function (p) {
+                const stok = getStokProduk(p);
+                const badgeCls = p.jenis === "MAKANAN" ? "badge-makanan" : (p.jenis === "MINUMAN" ? "badge-minuman" : "badge-elektronik");
+                const jenisLabel = p.jenis.charAt(0) + p.jenis.slice(1).toLowerCase();
+                return (
+                  "<div class='product-card' data-comp-id='kasir-prod-card' data-is-container='true'>" +
+                    "<div>" +
+                      "<div style='display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:6px;' data-comp-id='kasir-prod-badge'>" +
+                        "<span class='badge " + badgeCls + "'>" + jenisLabel + "</span>" +
+                        "<span style='font-size:0.75rem; font-weight:700; color:var(--text-muted);'>Stok: " + stok + "</span>" +
+                      "</div>" +
+                      "<div style='font-weight:700; font-size:0.88rem;'>" + escapeHtml(p.nama) + "</div>" +
+                      "<div style='font-size:0.76rem; color:var(--text-muted); margin-top:2px;'>" + escapeHtml(getInfoSpesifik(p)) + "</div>" +
+                    "</div>" +
+                    "<div style='border-top:1px solid var(--border-soft); padding-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;'>" +
+                      "<span style='font-weight:700; font-size:0.85rem;'>" + formatRupiah(p.harga) + "</span>" +
+                      "<button type='button' class='btn btn-soft' data-add-cart='" + p.id + "' data-comp-id='kasir-prod-btn-add' style='padding:6px 10px;'>+ Tambah</button>" +
+                    "</div>" +
+                  "</div>"
+                );
+              }).join("") +
+            "</div>";
+        }
+
+        const activeCart = state.uiState === "empty" ? [] : state.cart;
+        let subtotal = 0;
+        let totalPajak = 0;
+
+        const cartRowsHtml = activeCart.map(function (c) {
+          const p = SEED_PRODUCTS.find(function (x) { return x.id === c.produkId; });
+          const sub = p.harga * c.qty;
+          const pjk = hitungPajakProduk(p) * c.qty;
+          subtotal += sub;
+          totalPajak += pjk;
+          return (
+            "<div data-comp-id='kasir-cart-row' data-is-container='true' style='padding:8px 4px; border-bottom:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; gap:8px;'>" +
+              "<div style='min-width:0;'>" +
+                "<div style='font-weight:700; font-size:0.82rem;'>" + escapeHtml(p.nama) + "</div>" +
+                "<div style='font-size:0.75rem; color:var(--text-muted);'>@ " + formatRupiah(p.harga) + "</div>" +
+              "</div>" +
+              "<div style='display:flex; align-items:center; gap:6px; flex-shrink:0;'>" +
+                "<button type='button' class='btn' data-cart-delta='" + p.id + ":-1' data-comp-id='kasir-cart-qty-minus' aria-label='Kurangi kuantitas " + escapeAttr(p.nama) + "' style='padding:4px 10px;'>-</button>" +
+                "<span style='font-weight:700; min-width:20px; text-align:center;'>" + c.qty + "</span>" +
+                "<button type='button' class='btn' data-cart-delta='" + p.id + ":1' data-comp-id='kasir-cart-qty-plus' aria-label='Tambah kuantitas " + escapeAttr(p.nama) + "' style='padding:4px 10px;'>+</button>" +
+              "</div>" +
+            "</div>"
+          );
+        }).join("");
+
+        const grandTotal = subtotal + totalPajak;
+        const bayarNum = parseInt(String(state.uangBayar).replace(/[^0-9]/g, ""), 10) || 0;
+        const cukup = activeCart.length > 0 && bayarNum >= grandTotal;
+        const kembalian = cukup ? bayarNum - grandTotal : 0;
+
+        return (
+          "<div class='split-view' data-comp-id='kasir-view' data-is-container='true'>" +
+            "<div class='rounded-card' data-comp-id='kasir-catalog-card' data-is-container='true'>" +
+              "<span class='wireframe-tag'>RoundedCardPanel Katalog (BorderLayout.CENTER)</span>" +
+              "<div data-comp-id='kasir-toolbar' data-is-container='true'>" +
+                "<div style='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;'>" +
+                  "<div><strong>Katalog Kasir</strong> <span style='font-size:0.8rem; color:var(--text-muted);'>(" + filtered.length + " produk)</span></div>" +
+                  "<button type='button' class='btn' data-comp-id='kasir-btn-refresh' data-refresh-sim='Katalog kasir disegarkan dari database.'>Segarkan</button>" +
+                "</div>" +
+
+                "<div style='margin-bottom:10px;'>" +
+                  "<label class='field-label' for='inp-kasir-cari'>Cari Produk <span class='keycap'>F2</span></label>" +
+                  "<input id='inp-kasir-cari' data-comp-id='kasir-search' class='input-field' type='text' value='" + escapeAttr(state.kasirSearch) + "' placeholder='Ketik kode atau nama produk...' />" +
+                "</div>" +
+
+                "<div class='kasir-chip-grid' data-comp-id='kasir-chips' data-is-container='true'>" +
+                  ["SEMUA", "MAKANAN", "MINUMAN", "ELEKTRONIK"].map(function (kat) {
+                    const lbl = kat === "SEMUA" ? "Semua" : kat.charAt(0) + kat.slice(1).toLowerCase();
+                    return "<button type='button' class='btn " + (state.kasirKategori === kat ? "btn-primary" : "") + "' data-kasir-kat='" + kat + "' data-comp-id='kasir-chip-btn'>" + lbl + "</button>";
+                  }).join("") +
+                "</div>" +
+              "</div>" +
+
+              catalogBody +
+            "</div>" +
+
+            "<div class='rounded-card' data-comp-id='kasir-cart-card' data-is-container='true'>" +
+              "<span class='wireframe-tag'>RoundedCardPanel Keranjang (BorderLayout.EAST)</span>" +
+              "<div data-comp-id='kasir-cart-header' data-is-container='true' style='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;'>" +
+                "<div><strong>Keranjang</strong> <span class='badge badge-minuman' data-comp-id='kasir-cart-badge'>" + activeCart.length + " item</span></div>" +
+                "<button type='button' class='btn btn-danger-outline' id='btn-clear-cart' data-comp-id='kasir-btn-clear'>Bersihkan</button>" +
+              "</div>" +
+
+              "<div data-comp-id='kasir-cart-list' data-is-container='true' style='min-height:130px; margin-bottom:12px;'>" +
+                (activeCart.length === 0
+                  ? "<div class='state-box'>Keranjang masih kosong. Klik tombol + Tambah pada kartu produk untuk memulai transaksi.</div>"
+                  : cartRowsHtml) +
+              "</div>" +
+
+              "<div data-comp-id='kasir-pay-panel' data-is-container='true'>" +
+                "<div data-comp-id='kasir-summary-totals' style='padding:4px; border-radius:8px; margin-bottom:10px;'>" +
+                  "<div style='display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;'><span>Subtotal Barang</span><strong>" + formatRupiah(subtotal) + "</strong></div>" +
+                  "<div style='display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:8px;'><span>Total Pajak (Polimorfik)</span><strong>" + formatRupiah(totalPajak) + "</strong></div>" +
+                  "<div style='display:flex; justify-content:space-between; font-size:1rem; border-top:1px solid var(--border-soft); padding-top:8px;'><strong>GRAND TOTAL</strong><strong>" + formatRupiah(grandTotal) + "</strong></div>" +
+                "</div>" +
+
+                "<div data-comp-id='kasir-pay-grid' data-is-container='true' style='display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;'>" +
+                  "<div>" +
+                    "<label class='field-label' for='inp-kasir-bayar'>Uang Dibayar</label>" +
+                    "<input id='inp-kasir-bayar' data-comp-id='kasir-input-bayar' class='input-field' type='text' value='" + escapeAttr(state.uangBayar) + "' />" +
+                  "</div>" +
+                  "<div>" +
+                    "<span class='field-label'>Kembalian</span>" +
+                    "<div data-comp-id='kasir-box-kembalian' style='min-height:44px; padding:10px; border-radius:8px; font-weight:700; border:1.5px solid " + (cukup ? "var(--success-soft-border)" : "var(--border-control)") + "; background:" + (cukup ? "var(--success-soft-bg)" : "var(--bg-page)") + "; color:" + (cukup ? "var(--success-soft-fg)" : "var(--text-muted)") + ";'>" +
+                      formatRupiah(kembalian) +
+                    "</div>" +
+                  "</div>" +
+                "</div>" +
+
+                "<div data-comp-id='kasir-action-cols' data-is-container='true' style='display:grid; grid-template-columns:auto 1fr; gap:8px;'>" +
+                  "<button type='button' class='btn' id='btn-cancel-trx' data-comp-id='kasir-btn-batal'>Batal (Esc)</button>" +
+                  "<button type='button' class='btn btn-teal' id='btn-pay-trx' data-comp-id='kasir-btn-bayar' " + (!cukup ? "disabled" : "") + ">BAYAR (F9)</button>" +
+                "</div>" +
+              "</div>" +
+            "</div>" +
+          "</div>"
+        );
+      }
+
+      /* --- 5D. MANAJEMEN PRODUK VIEW --- */
+      function renderProdukContent() {
+        const kw = state.produkSearch.trim().toLowerCase();
+        const rows = state.uiState === "empty"
+          ? []
+          : SEED_PRODUCTS.filter(function (p) {
+              const jOk = state.produkFilterJenis === "SEMUA" || p.jenis === state.produkFilterJenis;
+              const kOk = !kw || p.nama.toLowerCase().includes(kw) || p.kode.toLowerCase().includes(kw);
+              return jOk && kOk;
+            });
+
+        const selectedProd = SEED_PRODUCTS.find(function (p) { return p.id === state.selectedProdukId; }) || SEED_PRODUCTS[0];
+        const sampleProd = {
+          harga: Number(state.formHarga) || 0,
+          jenis: state.formJenis,
+          beratGram: state.formBerat,
+          volumeMl: state.formVolume,
+          isDingin: state.formDingin,
+          bulanGaransi: state.formGaransi
+        };
+        const estPajak = hitungPajakProduk(sampleProd);
+
+        let dynamicSpecHtml = "";
+        if (state.formJenis === "MAKANAN") {
+          dynamicSpecHtml =
+            "<label class='field-label' for='spn-berat'>Berat Bersih (gram) - JSpinner</label>" +
+            "<input id='spn-berat' data-comp-id='produk-spn-berat' class='input-field' type='number' min='1' value='" + state.formBerat + "' />" +
+            "<p style='margin:6px 0 0; font-size:0.76rem; color:var(--text-muted);'>Tarif pajak Makanan: 5% dari harga jual.</p>";
+        } else if (state.formJenis === "MINUMAN") {
+          dynamicSpecHtml =
+            "<label class='field-label' for='spn-volume'>Volume Kemasan (ml) - JSpinner</label>" +
+            "<input id='spn-volume' data-comp-id='produk-spn-volume' class='input-field' type='number' min='1' value='" + state.formVolume + "' />" +
+            "<label for='chk-dingin' data-comp-id='produk-chk-dingin' style='display:flex; align-items:center; gap:8px; min-height:44px; margin-top:6px; padding:4px 6px; border-radius:8px; font-size:0.84rem; font-weight:700;'>" +
+              "<input id='chk-dingin' type='checkbox' " + (state.formDingin ? "checked" : "") + " style='width:18px; height:18px;' />" +
+              "Minuman Dingin (JCheckBox: +Rp 500 chiller)" +
+            "</label>";
+        } else {
+          dynamicSpecHtml =
+            "<label class='field-label' for='spn-garansi'>Lama Garansi (bulan) - JSpinner</label>" +
+            "<input id='spn-garansi' data-comp-id='produk-spn-garansi' class='input-field' type='number' min='0' value='" + state.formGaransi + "' />" +
+            "<p style='margin:6px 0 0; font-size:0.76rem; color:var(--text-muted);'>Pajak Elektronik: 15% (&lt;= 12 bln) atau 17% (&gt; 12 bln).</p>";
+        }
+
+        let tableArea = "";
+        if (state.uiState === "loading") {
+          tableArea = "<div class='state-box'>Memuat katalog &amp; batch produk dari database...</div>";
+        } else if (state.uiState === "error") {
+          tableArea = "<div class='state-box error-box'>Kesalahan Database: Kode produk sudah digunakan oleh produk aktif lain (SQLState 23505).</div>";
+        } else if (rows.length === 0) {
+          tableArea = "<div class='state-box'>Belum ada produk yang cocok dengan filter. Klik + Tambah Produk atau ubah filter jenis.</div>";
+        } else {
+          tableArea =
+            "<div class='table-scroll' data-comp-id='produk-jtable'>" +
+              "<table class='swing-table'>" +
+                "<thead><tr><th>Kode</th><th>Nama Produk</th><th>Jenis</th><th class='text-right'>Harga</th><th class='text-right'>Pajak</th><th class='text-center'>Stok</th><th>Info Spesifik</th></tr></thead>" +
+                "<tbody>" +
+                  rows.map(function (p) {
+                    const bCls = p.jenis === "MAKANAN" ? "badge-makanan" : (p.jenis === "MINUMAN" ? "badge-minuman" : "badge-elektronik");
+                    const isSel = p.id === selectedProd.id && state.produkSideOpen;
+                    return (
+                      "<tr class='" + (isSel ? "selected-row" : "") + "' data-select-prod='" + p.id + "'>" +
+                        "<td class='mono'><strong>" + escapeHtml(p.kode) + "</strong></td>" +
+                        "<td>" + escapeHtml(p.nama) + "</td>" +
+                        "<td><span class='badge " + bCls + "'>" + p.jenis + "</span></td>" +
+                        "<td class='text-right'>" + formatRupiah(p.harga) + "</td>" +
+                        "<td class='text-right'>" + formatRupiah(hitungPajakProduk(p)) + "</td>" +
+                        "<td class='text-center'><strong>" + getStokProduk(p) + "</strong></td>" +
+                        "<td>" + escapeHtml(getInfoSpesifik(p)) + "</td>" +
+                      "</tr>"
+                    );
+                  }).join("") +
+                "</tbody>" +
+              "</table>" +
+            "</div>" +
+            "<div style='margin-top:8px; font-size:0.8rem; color:var(--text-muted);'>Menampilkan " + rows.length + " produk (Klik baris tabel untuk mengisi form editor samping)</div>";
+        }
+
+        const sidePanelHtml = !state.produkSideOpen ? "" : (
+          "<div class='rounded-card' data-comp-id='produk-side-card' data-is-container='true'>" +
+            "<span class='wireframe-tag'>sideCard (BorderLayout.EAST)</span>" +
+            "<div data-comp-id='produk-side-header' data-is-container='true' style='margin-bottom:10px;'>" +
+              "<div style='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;'>" +
+                "<div>" +
+                  "<div style='font-weight:700;'>Ubah Produk</div>" +
+                  "<div style='font-size:0.78rem; color:var(--text-muted);'>" + escapeHtml(selectedProd.kode + " • " + selectedProd.nama) + "</div>" +
+                "</div>" +
+                "<button type='button' class='btn' id='btn-close-prod-side' data-comp-id='produk-btn-close-side' aria-label='Tutup panel produk'>Tutup</button>" +
+              "</div>" +
+              "<div data-comp-id='produk-tab-bar' data-is-container='true' style='display:grid; grid-template-columns:1fr 1fr; gap:6px;'>" +
+                "<button type='button' class='btn " + (state.produkSideTab === "DETAIL" ? "btn-primary" : "") + "' data-prod-tab='DETAIL' data-comp-id='produk-tab-detail-btn'>Detail</button>" +
+                "<button type='button' class='btn " + (state.produkSideTab === "BATCH" ? "btn-primary" : "") + "' data-prod-tab='BATCH' data-comp-id='produk-tab-batch-btn'>Batch Stok (" + selectedProd.batches.length + ")</button>" +
+              "</div>" +
+            "</div>" +
+
+            (state.produkSideTab === "DETAIL"
+              ? (
+                "<div data-comp-id='produk-detail-tab' data-is-container='true'>" +
+                  "<span class='wireframe-tag'>buildDetailTabPanel() (GridBagLayout)</span>" +
+                  "<div style='margin-bottom:8px;'>" +
+                    "<label class='field-label' for='inp-prod-kode'>Kode Produk *</label>" +
+                    "<input id='inp-prod-kode' data-comp-id='produk-input-kode' class='input-field' type='text' value='" + escapeAttr(state.formKode) + "' />" +
+                  "</div>" +
+                  "<div style='margin-bottom:8px;'>" +
+                    "<label class='field-label' for='inp-prod-nama'>Nama Produk *</label>" +
+                    "<input id='inp-prod-nama' data-comp-id='produk-input-nama' class='input-field' type='text' value='" + escapeAttr(state.formNama) + "' />" +
+                  "</div>" +
+                  "<div style='margin-bottom:8px;'>" +
+                    "<label class='field-label' for='inp-prod-harga'>Harga Jual (Rp) *</label>" +
+                    "<input id='inp-prod-harga' data-comp-id='produk-input-harga' class='input-field' type='number' min='0' value='" + state.formHarga + "' />" +
+                  "</div>" +
+                  "<div style='margin-bottom:10px;'>" +
+                    "<label class='field-label' for='sel-prod-jenis'>Jenis Produk (JComboBox) *</label>" +
+                    "<select id='sel-prod-jenis' data-comp-id='produk-cmb-jenis' class='select-field'>" +
+                      "<option value='MAKANAN' " + (state.formJenis === "MAKANAN" ? "selected" : "") + ">Makanan</option>" +
+                      "<option value='MINUMAN' " + (state.formJenis === "MINUMAN" ? "selected" : "") + ">Minuman</option>" +
+                      "<option value='ELEKTRONIK' " + (state.formJenis === "ELEKTRONIK" ? "selected" : "") + ">Elektronik</option>" +
+                    "</select>" +
+                  "</div>" +
+                  "<div data-comp-id='produk-dyn-panel' data-is-container='true' style='padding:10px; border-radius:10px; background:var(--bg-page); border:1px solid var(--border-soft); margin-bottom:10px;'>" +
+                    "<span class='wireframe-tag'>dynamicFieldPanel (CardLayout)</span>" +
+                    dynamicSpecHtml +
+                  "</div>" +
+                  "<div data-comp-id='produk-pajak-box' style='padding:10px; border-radius:10px; background:var(--soft-blue-bg); border:1px solid var(--soft-blue-border); color:var(--soft-blue-fg); font-weight:700; font-size:0.82rem; margin-bottom:12px;'>" +
+                    "Estimasi Pajak: " + formatRupiah(estPajak) + " / unit" +
+                  "</div>" +
+                  "<div data-comp-id='produk-form-actions' data-is-container='true' style='display:flex; justify-content:space-between; gap:6px; flex-wrap:wrap;'>" +
+                    "<button type='button' class='btn btn-danger' id='btn-del-prod' data-comp-id='produk-btn-hapus'>Hapus</button>" +
+                    "<div style='display:flex; gap:6px;'>" +
+                      "<button type='button' class='btn' id='btn-cancel-prod' data-comp-id='produk-btn-batal'>Batal</button>" +
+                      "<button type='button' class='btn btn-primary' data-comp-id='produk-btn-simpan' data-refresh-sim='Perubahan produk berhasil disimpan.'>Simpan</button>" +
+                    "</div>" +
+                  "</div>" +
+                "</div>"
+              )
+              : (
+                "<div data-comp-id='produk-batch-tab' data-is-container='true'>" +
+                  "<span class='wireframe-tag'>buildBatchTabPanel() (BorderLayout)</span>" +
+                  "<div data-comp-id='produk-batch-form' data-is-container='true' style='padding:10px; border-radius:10px; background:var(--bg-page); border:1px solid var(--border-soft); margin-bottom:10px;'>" +
+                    "<div style='display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;'>" +
+                      "<div><label class='field-label' for='inp-batch-masuk'>Tgl Masuk *</label><input id='inp-batch-masuk' data-comp-id='produk-dp-masuk' class='input-field' type='date' value='2026-11-24' /></div>" +
+                      "<div><label class='field-label' for='inp-batch-stok'>Stok Masuk *</label><input id='inp-batch-stok' data-comp-id='produk-spn-stok' class='input-field' type='number' min='1' value='" + state.formBatchStok + "' /></div>" +
+                    "</div>" +
+                    "<label class='field-label' for='inp-batch-exp'>Tanggal Kedaluwarsa (ModernDatePicker)</label>" +
+                    "<input id='inp-batch-exp' data-comp-id='produk-dp-exp' class='input-field' type='date' value='2027-03-15' " + (selectedProd.jenis === "ELEKTRONIK" ? "disabled" : "") + " />" +
+                    (selectedProd.jenis === "ELEKTRONIK"
+                      ? "<p style='margin:4px 0 0; font-size:0.75rem; color:var(--text-muted);'>Elektronik tidak memiliki tanggal kedaluwarsa (NULL).</p>"
+                      : "") +
+                    "<button type='button' class='btn btn-primary' data-comp-id='produk-btn-add-batch' style='width:100%; margin-top:8px;' data-refresh-sim='Batch stok masuk berhasil dicatat (FEFO).'>+ Tambah Batch</button>" +
+                  "</div>" +
+                  "<div class='table-scroll' data-comp-id='produk-table-batch'>" +
+                    "<table class='swing-table'>" +
+                      "<thead><tr><th>Tgl Masuk</th><th>Kedaluwarsa</th><th class='text-center'>Stok</th><th>Status</th></tr></thead>" +
+                      "<tbody>" +
+                        selectedProd.batches.map(function (b) {
+                          return "<tr><td>" + b.masuk + "</td><td>" + b.exp + "</td><td class='text-center'><strong>" + b.stok + "</strong></td><td><span class='badge badge-success'>" + b.status + "</span></td></tr>";
+                        }).join("") +
+                      "</tbody>" +
+                    "</table>" +
+                  "</div>" +
+                  "<div style='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px;'>" +
+                    "<strong style='font-size:0.8rem;'>Total Stok Aktif: " + getStokProduk(selectedProd) + " unit</strong>" +
+                    "<button type='button' class='btn btn-danger-outline' id='btn-del-batch' data-comp-id='produk-btn-del-batch'>Hapus Batch</button>" +
+                  "</div>" +
+                "</div>"
+              )
+            ) +
+          "</div>"
+        );
+
+        return (
+          "<div class='split-view" + (!state.produkSideOpen ? " full-center" : "") + "' data-comp-id='produk-view' data-is-container='true'>" +
+            "<div class='rounded-card' data-comp-id='produk-table-card' data-is-container='true'>" +
+              "<div data-comp-id='produk-header-actions' data-is-container='true' style='display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;'>" +
+                "<strong>Katalog Produk</strong>" +
+                "<div style='display:flex; gap:6px;'>" +
+                  "<button type='button' class='btn btn-primary' id='btn-open-prod-side' data-comp-id='produk-btn-tambah'>+ Tambah Produk</button>" +
+                  "<button type='button' class='btn' data-comp-id='produk-btn-refresh' data-refresh-sim='Data produk disegarkan.'>Segarkan</button>" +
+                "</div>" +
+              "</div>" +
+
+              "<div class='produk-filter-grid' data-comp-id='produk-filter-bar' data-is-container='true'>" +
+                "<div>" +
+                  "<label class='field-label' for='inp-prod-cari'>Kata Kunci Nama / Kode</label>" +
+                  "<input id='inp-prod-cari' data-comp-id='produk-input-cari' class='input-field' type='text' value='" + escapeAttr(state.produkSearch) + "' placeholder='Cari kode atau nama produk...' />" +
+                "</div>" +
+                "<div>" +
+                  "<label class='field-label' for='sel-filter-jenis'>Filter Kategori</label>" +
+                  "<select id='sel-filter-jenis' data-comp-id='produk-cmb-filter' class='select-field'>" +
+                    "<option value='SEMUA' " + (state.produkFilterJenis === "SEMUA" ? "selected" : "") + ">Semua Jenis</option>" +
+                    "<option value='MAKANAN' " + (state.produkFilterJenis === "MAKANAN" ? "selected" : "") + ">Makanan</option>" +
+                    "<option value='MINUMAN' " + (state.produkFilterJenis === "MINUMAN" ? "selected" : "") + ">Minuman</option>" +
+                    "<option value='ELEKTRONIK' " + (state.produkFilterJenis === "ELEKTRONIK" ? "selected" : "") + ">Elektronik</option>" +
+                  "</select>" +
+                "</div>" +
+                "<button type='button' class='btn' data-comp-id='produk-btn-cari' data-refresh-sim='Menjalankan ProdukController.cariProduk().'>Cari</button>" +
+              "</div>" +
+
+              tableArea +
+            "</div>" +
+            sidePanelHtml +
+          "</div>"
+        );
+      }
+
+      /* --- 5E. MANAJEMEN PENGGUNA VIEW --- */
+      function renderPenggunaContent() {
+        const selUser = SEED_USERS.find(function (u) { return u.id === state.selectedUserId; }) || SEED_USERS[0];
+        const rows = state.uiState === "empty" ? [] : SEED_USERS;
+
+        let tableHtml = "";
+        if (state.uiState === "loading") {
+          tableHtml = "<div class='state-box'>Memuat daftar akun pengguna aktif via SwingWorker...</div>";
+        } else if (state.uiState === "error") {
+          tableHtml = "<div class='state-box error-box'>Aksi Ditolak: Tidak dapat menghapus satu-satunya akun Admin aktif di sistem.</div>";
+        } else if (rows.length === 0) {
+          tableHtml = "<div class='state-box'>Belum ada data pengguna untuk ditampilkan.</div>";
+        } else {
+          tableHtml =
+            "<div class='table-scroll' data-comp-id='pengguna-jtable'>" +
+              "<table class='swing-table'>" +
+                "<thead><tr><th class='text-center'>ID</th><th>Username</th><th>Nama Lengkap</th><th>Role</th></tr></thead>" +
+                "<tbody>" +
+                  rows.map(function (u) {
+                    const isSel = u.id === selUser.id && state.userSideOpen;
+                    const bCls = u.role === "Admin" ? "badge-minuman" : "badge-kasir";
+                    return (
+                      "<tr class='" + (isSel ? "selected-row" : "") + "' data-select-user='" + u.id + "'>" +
+                        "<td class='text-center mono'>" + u.id + "</td>" +
+                        "<td class='mono'><strong>" + escapeHtml(u.username) + "</strong></td>" +
+                        "<td>" + escapeHtml(u.namaLengkap) + "</td>" +
+                        "<td><span class='badge " + bCls + "'>" + escapeHtml(u.role) + "</span></td>" +
+                      "</tr>"
+                    );
+                  }).join("") +
+                "</tbody>" +
+              "</table>" +
+            "</div>";
+        }
+
+        const sideHtml = !state.userSideOpen ? "" : (
+          "<div class='rounded-card' data-comp-id='pengguna-side-card' data-is-container='true'>" +
+            "<span class='wireframe-tag'>sideCard Form Pengguna</span>" +
+            "<div style='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;'>" +
+              "<strong>Ubah Pengguna (" + escapeHtml(selUser.username) + ")</strong>" +
+              "<button type='button' class='btn' id='btn-close-user-side' data-comp-id='pengguna-btn-close-side'>Tutup</button>" +
+            "</div>" +
+            "<div data-comp-id='pengguna-form' data-is-container='true'>" +
+              "<div style='margin-bottom:10px;'>" +
+                "<label class='field-label' for='inp-u-name'>Username *</label>" +
+                "<input id='inp-u-name' data-comp-id='pengguna-input-user' class='input-field' type='text' value='" + escapeAttr(selUser.username) + "' />" +
+              "</div>" +
+              "<div style='margin-bottom:10px;'>" +
+                "<label class='field-label' for='inp-u-full'>Nama Lengkap *</label>" +
+                "<input id='inp-u-full' data-comp-id='pengguna-input-nama' class='input-field' type='text' value='" + escapeAttr(selUser.namaLengkap) + "' />" +
+              "</div>" +
+              "<fieldset data-comp-id='pengguna-role-group' data-is-container='true' style='border:1px solid var(--border-soft); border-radius:8px; padding:8px 12px; margin:0 0 10px;'>" +
+                "<legend style='font-size:0.8rem; font-weight:700; padding:0 4px;'>Role Akses (JRadioButton + ButtonGroup)</legend>" +
+                "<div style='display:flex; gap:12px;'>" +
+                  "<label for='rb-admin' data-comp-id='pengguna-rb-admin' style='display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px; border-radius:6px; font-size:0.85rem;'>" +
+                    "<input id='rb-admin' type='radio' name='roleRadio' value='Admin' " + (state.userRoleRadio === "Admin" ? "checked" : "") + " /> Admin" +
+                  "</label>" +
+                  "<label for='rb-kasir' data-comp-id='pengguna-rb-kasir' style='display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px; border-radius:6px; font-size:0.85rem;'>" +
+                    "<input id='rb-kasir' type='radio' name='roleRadio' value='Kasir' " + (state.userRoleRadio === "Kasir" ? "checked" : "") + " /> Kasir" +
+                  "</label>" +
+                "</div>" +
+              "</fieldset>" +
+              "<div data-comp-id='pengguna-pass-panel' data-is-container='true' style='margin-bottom:12px;'>" +
+                "<label class='field-label' for='inp-u-pass'>Password Baru (Bcrypt pgcrypto)</label>" +
+                "<div style='display:flex; gap:6px;'>" +
+                  "<input id='inp-u-pass' data-comp-id='pengguna-input-pass' class='input-field' type='" + (state.userShowPass ? "text" : "password") + "' placeholder='Kosongkan jika tidak diganti' />" +
+                  "<button type='button' class='btn' id='btn-user-eye' data-comp-id='pengguna-btn-eye'>" + (state.userShowPass ? "Sembunyi" : "Lihat") + "</button>" +
+                "</div>" +
+              "</div>" +
+              "<div data-comp-id='pengguna-form-actions' data-is-container='true' style='display:flex; justify-content:space-between; gap:6px; flex-wrap:wrap;'>" +
+                "<button type='button' class='btn btn-danger' id='btn-del-user' data-comp-id='pengguna-btn-hapus'>Hapus</button>" +
+                "<div style='display:flex; gap:6px;'>" +
+                  "<button type='button' class='btn' id='btn-cancel-user' data-comp-id='pengguna-btn-batal'>Batal</button>" +
+                  "<button type='button' class='btn btn-primary' data-comp-id='pengguna-btn-simpan' data-refresh-sim='Data akun pengguna berhasil diperbarui.'>Simpan</button>" +
+                "</div>" +
+              "</div>" +
+            "</div>" +
+          "</div>"
+        );
+
+        return (
+          "<div class='split-view" + (!state.userSideOpen ? " full-center" : "") + "' data-comp-id='pengguna-view' data-is-container='true'>" +
+            "<div class='rounded-card' data-comp-id='pengguna-table-card' data-is-container='true'>" +
+              "<div data-comp-id='pengguna-toolbar' data-is-container='true' style='display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;'>" +
+                "<strong>Daftar Akun Pengguna</strong>" +
+                "<div style='display:flex; gap:6px;'>" +
+                  "<button type='button' class='btn btn-primary' id='btn-open-user-side' data-comp-id='pengguna-btn-tambah'>+ Tambah Pengguna</button>" +
+                  "<button type='button' class='btn' data-comp-id='pengguna-btn-refresh' data-refresh-sim='Daftar pengguna disegarkan.'>Segarkan</button>" +
+                "</div>" +
+              "</div>" +
+              tableHtml +
+            "</div>" +
+            sideHtml +
+          "</div>"
+        );
+      }
+
+      /* --- 5F. RIWAYAT TRANSAKSI VIEW --- */
+      function renderRiwayatContent() {
+        const kw = state.riwayatSearch.trim().toLowerCase();
+        const list = state.uiState === "empty"
+          ? []
+          : SEED_HISTORY.filter(function (t) {
+              return !kw || t.id.toLowerCase().includes(kw) || t.kasir.toLowerCase().includes(kw);
+            });
+
+        const trx = list[state.selectedTrxIndex] || list[0] || null;
+        let sub = 0;
+        let pjk = 0;
+        if (trx) {
+          trx.items.forEach(function (it) {
+            sub += it.harga * it.qty;
+            pjk += it.pajakSatuan * it.qty;
+          });
+        }
+        const grand = sub + pjk;
+
+        return (
+          "<div class='split-view' data-comp-id='riwayat-view' data-is-container='true'>" +
+            "<div class='rounded-card' data-comp-id='riwayat-list-card' data-is-container='true'>" +
+              "<div style='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;'>" +
+                "<div><strong>Riwayat Transaksi</strong> <span style='font-size:0.76rem; color:var(--text-muted);'>[Contoh Simulasi Seed]</span></div>" +
+                "<button type='button' class='btn' data-comp-id='riwayat-btn-refresh' data-refresh-sim='Riwayat transaksi disegarkan.'>Segarkan</button>" +
+              "</div>" +
+
+              "<div data-comp-id='riwayat-filter' data-is-container='true' style='margin-bottom:12px;'>" +
+                "<div class='riwayat-date-grid'>" +
+                  "<div><label class='field-label' for='dp-r-awal'>Dari</label><input id='dp-r-awal' data-comp-id='riwayat-dp-awal' class='input-field' type='date' value='2026-11-01' /></div>" +
+                  "<div><label class='field-label' for='dp-r-akhir'>Sampai</label><input id='dp-r-akhir' data-comp-id='riwayat-dp-akhir' class='input-field' type='date' value='2026-11-24' /></div>" +
+                  "<button type='button' class='btn btn-primary' data-comp-id='riwayat-btn-tampil' data-refresh-sim='Filter rentang tanggal diterapkan.'>Tampilkan</button>" +
+                  "<button type='button' class='btn' id='btn-reset-riwayat' data-comp-id='riwayat-btn-reset'>Reset</button>" +
+                "</div>" +
+                "<label class='field-label' for='inp-r-cari'>Cari ID Transaksi / Nama Kasir</label>" +
+                "<input id='inp-r-cari' data-comp-id='riwayat-input-cari' class='input-field' type='text' value='" + escapeAttr(state.riwayatSearch) + "' placeholder='Ketik ID TRX atau nama kasir...' />" +
+              "</div>" +
+
+              (state.uiState === "loading"
+                ? "<div class='state-box'>Memuat halaman riwayat transaksi (LIMIT 10 OFFSET 0)...</div>"
+                : state.uiState === "error"
+                ? "<div class='state-box error-box'>Filter Tanggal Tidak Valid: Tanggal awal tidak boleh melebihi tanggal akhir.</div>"
+                : list.length === 0
+                ? "<div class='state-box'>Tidak ada transaksi pada periode atau kata kunci ini.</div>"
+                : (
+                  "<div>" +
+                    "<div class='table-scroll' data-comp-id='riwayat-table'>" +
+                      "<table class='swing-table'>" +
+                        "<thead><tr><th>ID Transaksi</th><th>Tanggal</th><th>Kasir</th><th class='text-center'>Item</th><th class='text-right'>Grand Total</th></tr></thead>" +
+                        "<tbody>" +
+                          list.map(function (t, idx) {
+                            const tot = t.items.reduce(function (a, i) { return a + (i.harga + i.pajakSatuan) * i.qty; }, 0);
+                            return (
+                              "<tr class='" + (trx && trx.id === t.id ? "selected-row" : "") + "' data-select-trx='" + idx + "'>" +
+                                "<td class='mono'><strong>" + escapeHtml(t.id) + "</strong></td>" +
+                                "<td>" + escapeHtml(t.tanggal) + "</td>" +
+                                "<td>" + escapeHtml(t.kasir) + "</td>" +
+                                "<td class='text-center'>" + t.items.length + " item</td>" +
+                                "<td class='text-right'><strong>" + formatRupiah(tot) + "</strong></td>" +
+                              "</tr>"
+                            );
+                          }).join("") +
+                        "</tbody>" +
+                      "</table>" +
+                    "</div>" +
+                    "<div data-comp-id='riwayat-pagination' data-is-container='true' style='display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.8rem; color:var(--text-muted); flex-wrap:wrap; gap:6px;'>" +
+                      "<span>Halaman 1 dari 1 (" + list.length + " transaksi)</span>" +
+                      "<div style='display:flex; gap:6px;'>" +
+                        "<button type='button' class='btn' data-comp-id='riwayat-btn-prev' aria-disabled='true'>Sebelumnya</button>" +
+                        "<button type='button' class='btn' data-comp-id='riwayat-btn-next' aria-disabled='true'>Selanjutnya</button>" +
+                      "</div>" +
+                    "</div>" +
+                  "</div>"
+                )
+              ) +
+            "</div>" +
+
+            "<div class='rounded-card' data-comp-id='riwayat-detail' data-is-container='true'>" +
+              "<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>" +
+                "<strong>Detail Transaksi</strong>" +
+                "<span class='badge " + (trx ? "badge-success" : "badge-minuman") + "' data-comp-id='riwayat-status-badge'>" + (trx ? "LUNAS" : "Pilih baris") + "</span>" +
+              "</div>" +
+              (trx
+                ? (
+                  "<div data-comp-id='riwayat-identitas-box' style='font-size:0.82rem; padding:10px; border-radius:8px; background:var(--bg-page); border:1px solid var(--border-soft); margin-bottom:10px;'>" +
+                    "<div><strong>ID:</strong> <span class='mono'>" + escapeHtml(trx.id) + "</span></div>" +
+                    "<div><strong>Waktu:</strong> " + escapeHtml(trx.tanggal) + "</div>" +
+                    "<div><strong>Kasir:</strong> " + escapeHtml(trx.kasir) + "</div>" +
+                  "</div>" +
+                  "<div class='table-scroll' data-comp-id='riwayat-detail-table' style='margin-bottom:10px;'>" +
+                    "<table class='swing-table'>" +
+                      "<thead><tr><th>Produk</th><th class='text-center'>Qty</th><th class='text-right'>Subtotal</th></tr></thead>" +
+                      "<tbody>" +
+                        trx.items.map(function (it) {
+                          return "<tr><td>" + escapeHtml(it.nama) + "</td><td class='text-center'>" + it.qty + "</td><td class='text-right'>" + formatRupiah(it.harga * it.qty) + "</td></tr>";
+                        }).join("") +
+                      "</tbody>" +
+                    "</table>" +
+                  "</div>" +
+                  "<div data-comp-id='riwayat-ringkasan-nilai' style='font-size:0.82rem; margin-bottom:12px; padding:4px; border-radius:8px;'>" +
+                    "<div style='display:flex; justify-content:space-between;'><span>Subtotal</span><strong>" + formatRupiah(sub) + "</strong></div>" +
+                    "<div style='display:flex; justify-content:space-between;'><span>Total Pajak</span><strong>" + formatRupiah(pjk) + "</strong></div>" +
+                    "<div style='display:flex; justify-content:space-between; font-size:0.95rem; margin-top:4px;'><strong>Grand Total</strong><strong>" + formatRupiah(grand) + "</strong></div>" +
+                  "</div>" +
+                  "<button type='button' class='btn btn-primary' style='width:100%;' id='btn-reprint-receipt' data-comp-id='riwayat-btn-cetak'>Cetak Struk (ReceiptSupport)</button>"
+                )
+                : "<div class='state-box'>Pilih salah satu baris transaksi di sebelah kiri untuk melihat rincian nota.</div>"
+              ) +
+            "</div>" +
+          "</div>"
+        );
+      }
+
+      /* --- 5G. LAPORAN PENJUALAN VIEW --- */
+      function renderLaporanContent() {
+        const list = state.uiState === "empty" ? [] : SEED_HISTORY;
+        let totalOmzet = 0;
+        let totalPajak = 0;
+        list.forEach(function (t) {
+          t.items.forEach(function (i) {
+            totalOmzet += (i.harga + i.pajakSatuan) * i.qty;
+            totalPajak += i.pajakSatuan * i.qty;
+          });
+        });
+
+        return (
+          "<div data-comp-id='laporan-view' data-is-container='true'>" +
+            "<div class='rounded-card' data-comp-id='laporan-filter' data-is-container='true'>" +
+              "<div style='display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;'>" +
+                "<div><strong>Laporan Penjualan</strong> <span style='font-size:0.78rem; color:var(--text-muted);'>[Contoh Simulasi Seed]</span></div>" +
+                "<button type='button' class='btn' data-comp-id='laporan-btn-refresh' data-refresh-sim='Laporan penjualan diperbarui.'>Segarkan</button>" +
+              "</div>" +
+              "<div class='laporan-filter-grid'>" +
+                "<div><label class='field-label' for='dp-l-awal'>Tanggal Awal</label><input id='dp-l-awal' data-comp-id='laporan-dp-awal' class='input-field' type='date' value='2026-11-23' /></div>" +
+                "<div><label class='field-label' for='dp-l-akhir'>Tanggal Akhir</label><input id='dp-l-akhir' data-comp-id='laporan-dp-akhir' class='input-field' type='date' value='2026-11-24' /></div>" +
+                "<button type='button' class='btn btn-primary' data-comp-id='laporan-btn-tampil' data-refresh-sim='Menampilkan rekap periode terpilih.'>Tampilkan Laporan</button>" +
+              "</div>" +
+            "</div>" +
+
+            "<div class='kpi-grid' data-comp-id='laporan-kpi' data-is-container='true'>" +
+              "<div class='rounded-card' data-comp-id='laporan-kpi-trx'>" +
+                "<div style='font-size:0.8rem; font-weight:700; color:var(--text-muted);'>Jumlah Transaksi</div>" +
+                "<div style='font-size:1.45rem; font-weight:700; margin:4px 0;'>" + list.length + "</div>" +
+                "<div style='font-size:0.76rem; color:var(--text-muted);'>Transaksi periode terpilih</div>" +
+              "</div>" +
+              "<div class='rounded-card' data-comp-id='laporan-kpi-omzet'>" +
+                "<div style='font-size:0.8rem; font-weight:700; color:var(--text-muted);'>Total Omzet</div>" +
+                "<div style='font-size:1.45rem; font-weight:700; margin:4px 0;'>" + formatRupiah(totalOmzet) + "</div>" +
+                "<div style='font-size:0.76rem; color:var(--text-muted);'>Akumulasi grand total</div>" +
+              "</div>" +
+              "<div class='rounded-card' data-comp-id='laporan-kpi-pajak'>" +
+                "<div style='font-size:0.8rem; font-weight:700; color:var(--text-muted);'>Total Pajak</div>" +
+                "<div style='font-size:1.45rem; font-weight:700; margin:4px 0;'>" + formatRupiah(totalPajak) + "</div>" +
+                "<div style='font-size:0.76rem; color:var(--text-muted);'>Akumulasi pajak terkumpul</div>" +
+              "</div>" +
+            "</div>" +
+
+            "<div class='rounded-card' data-comp-id='laporan-table-card' data-is-container='true' style='margin-bottom:12px;'>" +
+              "<div style='margin-bottom:10px;'><strong>Rincian Penjualan Harian</strong></div>" +
+              (state.uiState === "loading"
+                ? "<div class='state-box'>Menyusun rekap harian LaporanPenjualan...</div>"
+                : state.uiState === "error"
+                ? "<div class='state-box error-box'>Periode Tidak Valid: Tanggal awal tidak boleh melebihi tanggal akhir.</div>"
+                : list.length === 0
+                ? "<div class='state-box'>Belum ada transaksi pada rentang tanggal yang dipilih.</div>"
+                : (
+                  "<div class='table-scroll' data-comp-id='laporan-jtable'>" +
+                    "<table class='swing-table'>" +
+                      "<thead><tr><th>Tanggal</th><th class='text-center'>Jumlah Transaksi</th><th class='text-right'>Total Omzet</th><th class='text-right'>Total Pajak</th></tr></thead>" +
+                      "<tbody>" +
+                        list.map(function (t) {
+                          const omz = t.items.reduce(function (a, i) { return a + (i.harga + i.pajakSatuan) * i.qty; }, 0);
+                          const pjk = t.items.reduce(function (a, i) { return a + i.pajakSatuan * i.qty; }, 0);
+                          return "<tr><td><strong>" + escapeHtml(t.tglHarian) + "</strong></td><td class='text-center'>1</td><td class='text-right'>" + formatRupiah(omz) + "</td><td class='text-right'>" + formatRupiah(pjk) + "</td></tr>";
+                        }).join("") +
+                      "</tbody>" +
+                    "</table>" +
+                  "</div>"
+                )
+              ) +
+            "</div>" +
+
+            "<div data-comp-id='laporan-footer' data-is-container='true' style='display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; padding:4px;'>" +
+              "<span style='font-size:0.82rem; color:var(--text-muted);'>Periode: 23 Nov 2026 s/d 24 Nov 2026 • " + list.length + " transaksi ditemukan.</span>" +
+              "<button type='button' class='btn btn-teal' id='btn-open-a4' data-comp-id='laporan-btn-cetak'>Cetak / Pratinjau PDF (LaporanPrinter)</button>" +
+            "</div>" +
+          "</div>"
+        );
+      }
+
+      /* ========================================================================
+         6. DIALOG MODAL (ReceiptSupport, LaporanPrinter, ModernModal)
+         ======================================================================== */
+      let lastFocusedBeforeModal = null;
+
+      function openModal(htmlContent) {
+        lastFocusedBeforeModal = document.activeElement;
+        const backdrop = document.getElementById("modal-backdrop");
+        const dialog = document.getElementById("modal-dialog");
+        dialog.innerHTML = htmlContent;
+        backdrop.hidden = false;
+
+        const closeBtn = dialog.querySelector("[data-close-modal]");
+        if (closeBtn) closeBtn.focus();
+
+        dialog.querySelectorAll("[data-close-modal]").forEach(function (b) {
+          b.addEventListener("click", closeModal);
+        });
+      }
+
+      function closeModal() {
+        const backdrop = document.getElementById("modal-backdrop");
+        backdrop.hidden = true;
+        if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === "function") {
+          lastFocusedBeforeModal.focus();
+        }
+      }
+
+      function showReceiptModal(trxTitle, linesText) {
+        openModal(
+          "<h2 id='modal-title' style='margin:0 0 4px; font-size:1.1rem;'>JDialog: ReceiptSupport (" + escapeHtml(trxTitle) + ")</h2>" +
+          "<p style='margin:0; font-size:0.82rem; color:var(--text-muted);'>Menampilkan output <code class='mono'>Transaksi.cetak()</code> dari interface <code class='mono'>Printable</code> di dalam <code class='mono'>JTextArea</code> monospaced.</p>" +
+          "<pre class='receipt-pre'>" + escapeHtml(linesText) + "</pre>" +
+          "<div style='display:flex; justify-content:flex-end; gap:8px;'>" +
+            "<button type='button' class='btn' id='btn-print-sim'>Kirim ke PrinterJob</button>" +
+            "<button type='button' class='btn btn-primary' data-close-modal='1'>Selesai (Esc)</button>" +
+          "</div>"
+        );
+        const btnPrintSim = document.getElementById("btn-print-sim");
+        if (btnPrintSim) {
+          btnPrintSim.addEventListener("click", function () {
+            closeModal();
+            showToast("Struk Dikirim", "Struk berhasil dikirim ke antrean cetak Windows Spooler.");
+          });
+        }
+      }
+
+      function showLaporanPreviewModal() {
+        const teksLaporan =
+          "====================================================\n" +
+          "                      SI-RITEL\n" +
+          "                 LAPORAN PENJUALAN\n" +
+          "====================================================\n" +
+          "Periode : 23-11-2026 s/d 24-11-2026\n" +
+          "----------------------------------------------------\n" +
+          "23-11-2026 | 1 Transaksi | Rp 51.750 | Pajak Rp 6.750\n" +
+          "24-11-2026 | 1 Transaksi | Rp 41.380 | Pajak Rp 3.380\n" +
+          "----------------------------------------------------\n" +
+          "TOTAL OMZET : Rp 93.130\n" +
+          "TOTAL PAJAK : Rp 10.130\n" +
+          "====================================================";
+
+        openModal(
+          "<h2 id='modal-title' style='margin:0 0 4px; font-size:1.1rem;'>JDialog: LaporanPrinter (Pratinjau A4 &amp; Printable)</h2>" +
+          "<p style='margin:0; font-size:0.82rem; color:var(--text-muted);'>Menggambar halaman A4 via <code class='mono'>java.awt.print.Printable</code> dan menyediakan tombol salin teks <code class='mono'>LaporanPenjualan.cetak()</code>.</p>" +
+          "<pre class='receipt-pre'>" + escapeHtml(teksLaporan) + "</pre>" +
+          "<div style='display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;'>" +
+            "<button type='button' class='btn' id='btn-copy-lap'>Salin Teks</button>" +
+            "<button type='button' class='btn btn-teal' data-close-modal='1'>Tutup Pratinjau</button>" +
+          "</div>"
+        );
+        const btnCopy = document.getElementById("btn-copy-lap");
+        if (btnCopy) {
+          btnCopy.addEventListener("click", function () {
+            if (navigator.clipboard) navigator.clipboard.writeText(teksLaporan);
+            closeModal();
+            showToast("Teks Laporan Disalin", "Output LaporanPenjualan.cetak() disalin ke clipboard.");
+          });
+        }
+      }
+
+      function showConfirmModal(title, message, onConfirmMsg) {
+        openModal(
+          "<h2 id='modal-title' style='margin:0 0 6px; font-size:1.1rem;'>JDialog: ModernModal.confirm - " + escapeHtml(title) + "</h2>" +
+          "<p style='margin:0 0 16px; font-size:0.88rem;'>" + escapeHtml(message) + "</p>" +
+          "<p style='margin:0 0 14px; font-size:0.78rem; color:var(--text-muted);'>Komponen: <code class='mono'>ModernModal</code> di atas backdrop gelap <code class='mono'>JLayeredPane</code> (pengganti <code class='mono'>JOptionPane</code> polos).</p>" +
+          "<div style='display:flex; justify-content:flex-end; gap:8px;'>" +
+            "<button type='button' class='btn' data-close-modal='1'>Batal</button>" +
+            "<button type='button' class='btn btn-danger' id='btn-modal-ok'>Ya, Lanjutkan</button>" +
+          "</div>"
+        );
+        const okBtn = document.getElementById("btn-modal-ok");
+        if (okBtn) {
+          okBtn.addEventListener("click", function () {
+            closeModal();
+            showToast("Aksi Dikonfirmasi", onConfirmMsg);
+          });
+        }
+      }
+
+      function showToast(title, msg) {
+        state.toast = { title: title, msg: msg };
+        renderStage();
+      }
+
+      /* ========================================================================
+         7. EVENT BINDING PADA ELEMEN SIMULASI
+         ======================================================================== */
+      function bindStageEvents() {
+        const stage = document.getElementById("swing-stage");
+
+        /* Klik atau fokus (Tab) pada komponen apa saja -> langsung tampilkan hierarki sampai komponen itu */
+        stage.querySelectorAll("[data-comp-id]").forEach(function (el) {
+          el.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            updateInspector(el.getAttribute("data-comp-id"));
+          });
+          if (el.matches("button, input, select")) {
+            el.addEventListener("focus", function () {
+              updateInspector(el.getAttribute("data-comp-id"));
+            });
+          }
+        });
+
+        const btnCloseToast = document.getElementById("btn-close-toast");
+        if (btnCloseToast) {
+          btnCloseToast.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            state.toast = null;
+            renderStage();
+          });
+        }
+
+        /* Navigasi Sidebar MainFrame */
+        stage.querySelectorAll("[data-swing-nav]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const target = btn.getAttribute("data-swing-nav");
+            if (target === state.page) {
+              updateInspector("main-nav-btn");
+            } else {
+              state.page = target;
+              state.inspectedId = target + "-view";
+              renderStage();
+            }
+          });
+        });
+
+        /* Tombol Segarkan / Simpan simulasi */
+        stage.querySelectorAll("[data-refresh-sim]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const cid = btn.getAttribute("data-comp-id");
+            if (cid) state.inspectedId = cid;
+            showToast("Berhasil", btn.getAttribute("data-refresh-sim"));
+          });
+        });
+
+        /* Logout */
+        const btnLogout = document.getElementById("btn-swing-logout");
+        if (btnLogout) {
+          btnLogout.addEventListener("click", function () {
+            state.page = "login";
+            state.inspectedId = "login-frame";
+            renderStage();
+          });
+        }
+
+        /* Login form */
+        const loginForm = document.getElementById("sim-login-form");
+        if (loginForm) {
+          const inpU = document.getElementById("inp-login-user");
+          const inpP = document.getElementById("inp-login-pass");
+          const btnEye = document.getElementById("btn-toggle-login-pass");
+
+          inpU.addEventListener("input", function () {
+            state.loginUser = inpU.value;
+            state.loginError = "";
+          });
+          inpP.addEventListener("input", function () {
+            state.loginPass = inpP.value;
+            state.loginError = "";
+          });
+          btnEye.addEventListener("click", function () {
+            state.loginShowPass = !state.loginShowPass;
+            state.inspectedId = "login-pass-eye";
+            renderStage();
+          });
+
+          loginForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            if (!inpU.value.trim()) {
+              state.loginError = "Username wajib diisi";
+              state.inspectedId = "login-alert";
+              renderStage();
+              return;
+            }
+            if (!inpP.value.trim()) {
+              state.loginError = "Password wajib diisi";
+              state.inspectedId = "login-alert";
+              renderStage();
+              return;
+            }
+            state.role = inpU.value.trim().toLowerCase() === "kasir1" ? "Kasir" : "Admin";
+            document.getElementById("role-select").value = state.role;
+            state.loginError = "";
+            state.page = "kasir";
+            state.inspectedId = "main-frame";
+            showToast("Login Berhasil", "Masuk sebagai role " + state.role + ".");
+          });
+        }
+
+        /* Kasir interactions */
+        const inpKasirCari = document.getElementById("inp-kasir-cari");
+        if (inpKasirCari) {
+          inpKasirCari.addEventListener("input", function () {
+            state.kasirSearch = inpKasirCari.value;
+            state.inspectedId = "kasir-search";
+            renderStage();
+            const again = document.getElementById("inp-kasir-cari");
+            if (again) {
+              again.focus();
+              again.setSelectionRange(again.value.length, again.value.length);
+            }
+          });
+        }
+
+        stage.querySelectorAll("[data-kasir-kat]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            state.kasirKategori = btn.getAttribute("data-kasir-kat");
+            state.inspectedId = "kasir-chip-btn";
+            renderStage();
+          });
+        });
+
+        stage.querySelectorAll("[data-add-cart]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const pid = Number(btn.getAttribute("data-add-cart"));
+            const prod = SEED_PRODUCTS.find(function (x) { return x.id === pid; });
+            const maxStok = getStokProduk(prod);
+            const existing = state.cart.find(function (c) { return c.produkId === pid; });
+            const nextQty = (existing ? existing.qty : 0) + 1;
+            if (nextQty > maxStok) {
+              openModal(
+                "<h2 id='modal-title' style='margin:0 0 6px; font-size:1.05rem;'>StokTidakCukupException (Sisa: 0)</h2>" +
+                "<p style='margin:0 0 14px; font-size:0.86rem;'>Stok produk '" + escapeHtml(prod.nama) + "' tidak mencukupi melebihi stok batch aktif (" + maxStok + " unit).</p>" +
+                "<div style='display:flex; justify-content:flex-end;'><button type='button' class='btn btn-primary' data-close-modal='1'>Mengerti</button></div>"
+              );
+              return;
+            }
+            if (existing) existing.qty = nextQty;
+            else state.cart.push({ produkId: pid, qty: 1 });
+            state.inspectedId = "kasir-prod-btn-add";
+            renderStage();
+          });
+        });
+
+        stage.querySelectorAll("[data-cart-delta]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const parts = btn.getAttribute("data-cart-delta").split(":");
+            const pid = Number(parts[0]);
+            const delta = Number(parts[1]);
+            const idx = state.cart.findIndex(function (c) { return c.produkId === pid; });
+            if (idx >= 0) {
+              const prod = SEED_PRODUCTS.find(function (x) { return x.id === pid; });
+              const next = state.cart[idx].qty + delta;
+              if (next <= 0) state.cart.splice(idx, 1);
+              else if (next <= getStokProduk(prod)) state.cart[idx].qty = next;
+              state.inspectedId = delta < 0 ? "kasir-cart-qty-minus" : "kasir-cart-qty-plus";
+              renderStage();
+            }
+          });
+        });
+
+        const inpBayar = document.getElementById("inp-kasir-bayar");
+        if (inpBayar) {
+          inpBayar.addEventListener("input", function () {
+            state.uangBayar = inpBayar.value;
+            state.inspectedId = "kasir-input-bayar";
+            renderStage();
+            const again = document.getElementById("inp-kasir-bayar");
+            if (again) {
+              again.focus();
+              again.setSelectionRange(again.value.length, again.value.length);
+            }
+          });
+        }
+
+        const btnClearCart = document.getElementById("btn-clear-cart");
+        if (btnClearCart) {
+          btnClearCart.addEventListener("click", function () {
+            showConfirmModal("Bersihkan Keranjang", "Kosongkan seluruh item dari keranjang saat ini?", "Keranjang dikosongkan.");
+          });
+        }
+
+        const btnCancelTrx = document.getElementById("btn-cancel-trx");
+        if (btnCancelTrx) {
+          btnCancelTrx.addEventListener("click", function () {
+            state.cart = [];
+            state.inspectedId = "kasir-btn-batal";
+            renderStage();
+          });
+        }
+
+        const btnPayTrx = document.getElementById("btn-pay-trx");
+        if (btnPayTrx) {
+          btnPayTrx.addEventListener("click", function () {
+            let sub = 0;
+            let pjk = 0;
+            const lines = [
+              "====================================",
+              "             SI-RITEL",
+              "          NOTA PENJUALAN",
+              "====================================",
+              "ID Transaksi : TRX-20261124221500-1402",
+              "Kasir        : " + (state.role === "Admin" ? "Budi Santoso" : "Siti Aminah"),
+              "------------------------------------"
+            ];
+            state.cart.forEach(function (c) {
+              const p = SEED_PRODUCTS.find(function (x) { return x.id === c.produkId; });
+              const s = p.harga * c.qty;
+              const pk = hitungPajakProduk(p) * c.qty;
+              sub += s;
+              pjk += pk;
+              lines.push(p.nama);
+              lines.push(c.qty + " x " + formatRupiah(p.harga) + " = " + formatRupiah(s));
+              lines.push("Pajak: " + formatRupiah(pk));
+            });
+            const grand = sub + pjk;
+            const byr = parseInt(String(state.uangBayar).replace(/[^0-9]/g, ""), 10) || grand;
+            lines.push("------------------------------------");
+            lines.push("Subtotal : " + formatRupiah(sub));
+            lines.push("Pajak    : " + formatRupiah(pjk));
+            lines.push("Total    : " + formatRupiah(grand));
+            lines.push("Bayar    : " + formatRupiah(byr));
+            lines.push("Kembali  : " + formatRupiah(byr - grand));
+            lines.push("====================================");
+            showReceiptModal("TRX-20261124221500-1402", lines.join("\n"));
+          });
+        }
+
+        /* ManajemenProduk interactions */
+        const inpProdCari = document.getElementById("inp-prod-cari");
+        if (inpProdCari) {
+          inpProdCari.addEventListener("input", function () {
+            state.produkSearch = inpProdCari.value;
+            state.inspectedId = "produk-input-cari";
+            renderStage();
+            const again = document.getElementById("inp-prod-cari");
+            if (again) {
+              again.focus();
+              again.setSelectionRange(again.value.length, again.value.length);
+            }
+          });
+        }
+
+        const selFilterJenis = document.getElementById("sel-filter-jenis");
+        if (selFilterJenis) {
+          selFilterJenis.addEventListener("change", function () {
+            state.produkFilterJenis = selFilterJenis.value;
+            state.inspectedId = "produk-cmb-filter";
+            renderStage();
+          });
+        }
+
+        stage.querySelectorAll("[data-select-prod]").forEach(function (tr) {
+          tr.addEventListener("click", function () {
+            const pid = Number(tr.getAttribute("data-select-prod"));
+            const p = SEED_PRODUCTS.find(function (x) { return x.id === pid; });
+            if (p) {
+              state.selectedProdukId = p.id;
+              state.produkSideOpen = true;
+              state.formKode = p.kode;
+              state.formNama = p.nama;
+              state.formJenis = p.jenis;
+              state.formHarga = p.harga;
+              if (p.beratGram) state.formBerat = p.beratGram;
+              if (p.volumeMl) state.formVolume = p.volumeMl;
+              state.formDingin = Boolean(p.isDingin);
+              if (p.bulanGaransi !== null) state.formGaransi = p.bulanGaransi;
+              state.inspectedId = "produk-jtable";
+              renderStage();
+            }
+          });
+        });
+
+        const btnCloseProdSide = document.getElementById("btn-close-prod-side");
+        if (btnCloseProdSide) {
+          btnCloseProdSide.addEventListener("click", function () {
+            state.produkSideOpen = false;
+            state.inspectedId = "produk-view";
+            renderStage();
+          });
+        }
+
+        const btnCancelProd = document.getElementById("btn-cancel-prod");
+        if (btnCancelProd) {
+          btnCancelProd.addEventListener("click", function () {
+            state.produkSideOpen = false;
+            state.inspectedId = "produk-view";
+            renderStage();
+          });
+        }
+
+        const btnOpenProdSide = document.getElementById("btn-open-prod-side");
+        if (btnOpenProdSide) {
+          btnOpenProdSide.addEventListener("click", function () {
+            state.produkSideOpen = true;
+            state.inspectedId = "produk-btn-tambah";
+            renderStage();
+          });
+        }
+
+        stage.querySelectorAll("[data-prod-tab]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            state.produkSideTab = btn.getAttribute("data-prod-tab");
+            state.inspectedId = state.produkSideTab === "DETAIL" ? "produk-tab-detail-btn" : "produk-tab-batch-btn";
+            renderStage();
+          });
+        });
+
+        const inpProdKode = document.getElementById("inp-prod-kode");
+        if (inpProdKode) {
+          inpProdKode.addEventListener("input", function () { state.formKode = inpProdKode.value; });
+        }
+
+        const inpProdNama = document.getElementById("inp-prod-nama");
+        if (inpProdNama) {
+          inpProdNama.addEventListener("input", function () { state.formNama = inpProdNama.value; });
+        }
+
+        const selProdJenis = document.getElementById("sel-prod-jenis");
+        if (selProdJenis) {
+          selProdJenis.addEventListener("change", function () {
+            state.formJenis = selProdJenis.value;
+            state.inspectedId = "produk-cmb-jenis";
+            renderStage();
+          });
+        }
+
+        const inpProdHarga = document.getElementById("inp-prod-harga");
+        if (inpProdHarga) {
+          inpProdHarga.addEventListener("input", function () {
+            state.formHarga = Number(inpProdHarga.value) || 0;
+            state.inspectedId = "produk-input-harga";
+            renderStage();
+            const again = document.getElementById("inp-prod-harga");
+            if (again) again.focus();
+          });
+        }
+
+        const spnBerat = document.getElementById("spn-berat");
+        if (spnBerat) {
+          spnBerat.addEventListener("input", function () {
+            state.formBerat = Math.max(1, Number(spnBerat.value) || 1);
+          });
+        }
+
+        const spnVolume = document.getElementById("spn-volume");
+        if (spnVolume) {
+          spnVolume.addEventListener("input", function () {
+            state.formVolume = Math.max(1, Number(spnVolume.value) || 1);
+          });
+        }
+
+        const chkDingin = document.getElementById("chk-dingin");
+        if (chkDingin) {
+          chkDingin.addEventListener("change", function () {
+            state.formDingin = chkDingin.checked;
+            state.inspectedId = "produk-chk-dingin";
+            renderStage();
+          });
+        }
+
+        const spnGaransi = document.getElementById("spn-garansi");
+        if (spnGaransi) {
+          spnGaransi.addEventListener("input", function () {
+            state.formGaransi = Math.max(0, Number(spnGaransi.value) || 0);
+            state.inspectedId = "produk-spn-garansi";
+            renderStage();
+            const again = document.getElementById("spn-garansi");
+            if (again) again.focus();
+          });
+        }
+
+        const inpBatchStok = document.getElementById("inp-batch-stok");
+        if (inpBatchStok) {
+          inpBatchStok.addEventListener("input", function () {
+            state.formBatchStok = Math.max(1, Number(inpBatchStok.value) || 1);
+          });
+        }
+
+        const btnDelProd = document.getElementById("btn-del-prod");
+        if (btnDelProd) {
+          btnDelProd.addEventListener("click", function () {
+            showConfirmModal(
+              "Hapus Produk",
+              "Yakin ingin menghapus produk terpilih? Jika sudah memiliki riwayat transaksi, produk diarsipkan dengan hybrid soft-delete (is_active = FALSE).",
+              "Produk dinonaktifkan dari katalog aktif (riwayat struk tetap utuh)."
+            );
+          });
+        }
+
+        const btnDelBatch = document.getElementById("btn-del-batch");
+        if (btnDelBatch) {
+          btnDelBatch.addEventListener("click", function () {
+            showConfirmModal("Hapus Batch Stok", "Yakin ingin menghapus batch stok terpilih?", "Batch stok berhasil dihapus.");
+          });
+        }
+
+        /* ManajemenPengguna interactions */
+        stage.querySelectorAll("[data-select-user]").forEach(function (tr) {
+          tr.addEventListener("click", function () {
+            const uid = Number(tr.getAttribute("data-select-user"));
+            const u = SEED_USERS.find(function (x) { return x.id === uid; });
+            if (u) {
+              state.selectedUserId = u.id;
+              state.userRoleRadio = u.role;
+              state.userSideOpen = true;
+              state.inspectedId = "pengguna-jtable";
+              renderStage();
+            }
+          });
+        });
+
+        const btnCloseUserSide = document.getElementById("btn-close-user-side");
+        if (btnCloseUserSide) {
+          btnCloseUserSide.addEventListener("click", function () {
+            state.userSideOpen = false;
+            state.inspectedId = "pengguna-view";
+            renderStage();
+          });
+        }
+
+        const btnCancelUser = document.getElementById("btn-cancel-user");
+        if (btnCancelUser) {
+          btnCancelUser.addEventListener("click", function () {
+            state.userSideOpen = false;
+            state.inspectedId = "pengguna-view";
+            renderStage();
+          });
+        }
+
+        const btnOpenUserSide = document.getElementById("btn-open-user-side");
+        if (btnOpenUserSide) {
+          btnOpenUserSide.addEventListener("click", function () {
+            state.userSideOpen = true;
+            state.inspectedId = "pengguna-btn-tambah";
+            renderStage();
+          });
+        }
+
+        stage.querySelectorAll("input[name='roleRadio']").forEach(function (rb) {
+          rb.addEventListener("change", function () {
+            state.userRoleRadio = rb.value;
+            updateInspector(rb.value === "Admin" ? "pengguna-rb-admin" : "pengguna-rb-kasir");
+          });
+        });
+
+        const btnUserEye = document.getElementById("btn-user-eye");
+        if (btnUserEye) {
+          btnUserEye.addEventListener("click", function () {
+            state.userShowPass = !state.userShowPass;
+            state.inspectedId = "pengguna-btn-eye";
+            renderStage();
+          });
+        }
+
+        const btnDelUser = document.getElementById("btn-del-user");
+        if (btnDelUser) {
+          btnDelUser.addEventListener("click", function () {
+            showConfirmModal("Hapus Pengguna", "Yakin ingin menghapus akun pengguna terpilih?", "Status pengguna diperbarui.");
+          });
+        }
+
+        /* RiwayatTransaksi interactions */
+        const inpRCari = document.getElementById("inp-r-cari");
+        if (inpRCari) {
+          inpRCari.addEventListener("input", function () {
+            state.riwayatSearch = inpRCari.value;
+            state.inspectedId = "riwayat-input-cari";
+            renderStage();
+            const again = document.getElementById("inp-r-cari");
+            if (again) {
+              again.focus();
+              again.setSelectionRange(again.value.length, again.value.length);
+            }
+          });
+        }
+
+        const btnResetRiwayat = document.getElementById("btn-reset-riwayat");
+        if (btnResetRiwayat) {
+          btnResetRiwayat.addEventListener("click", function () {
+            state.riwayatSearch = "";
+            state.inspectedId = "riwayat-btn-reset";
+            showToast("Filter Direset", "Menampilkan transaksi bulan berjalan.");
+          });
+        }
+
+        stage.querySelectorAll("[data-select-trx]").forEach(function (tr) {
+          tr.addEventListener("click", function () {
+            state.selectedTrxIndex = Number(tr.getAttribute("data-select-trx"));
+            state.inspectedId = "riwayat-table";
+            renderStage();
+          });
+        });
+
+        const btnReprint = document.getElementById("btn-reprint-receipt");
+        if (btnReprint) {
+          btnReprint.addEventListener("click", function () {
+            const t = SEED_HISTORY[state.selectedTrxIndex] || SEED_HISTORY[0];
+            showReceiptModal(
+              t.id,
+              "====================================\n" +
+              "             SI-RITEL\n" +
+              "          NOTA PENJUALAN\n" +
+              "====================================\n" +
+              "ID Transaksi : " + t.id + "\n" +
+              "Tanggal      : " + t.tanggal + "\n" +
+              "Kasir        : " + t.kasir + "\n" +
+              "------------------------------------\n" +
+              t.items.map(function (i) {
+                return i.nama + "\n" + i.qty + " x " + formatRupiah(i.harga) + " = " + formatRupiah(i.harga * i.qty);
+              }).join("\n") +
+              "\n===================================="
+            );
+          });
+        }
+
+        /* Laporan A4 Preview */
+        const btnOpenA4 = document.getElementById("btn-open-a4");
+        if (btnOpenA4) {
+          btnOpenA4.addEventListener("click", showLaporanPreviewModal);
+        }
+      }
+
+      /* ========================================================================
+         8. GLOBAL CONTROLS
+         ======================================================================== */
+      document.querySelectorAll("[data-goto-page]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          state.page = btn.getAttribute("data-goto-page");
+          state.inspectedId = state.page === "login" ? "login-frame" : state.page + "-view";
+          renderStage();
+        });
+      });
+
+      document.getElementById("role-select").addEventListener("change", function (e) {
+        state.role = e.target.value;
+        renderStage();
+      });
+
+      document.getElementById("state-select").addEventListener("change", function (e) {
+        state.uiState = e.target.value;
+        renderStage();
+      });
+
+      const btnWireframe = document.getElementById("btn-wireframe");
+      btnWireframe.addEventListener("click", function () {
+        state.wireframe = !state.wireframe;
+        btnWireframe.setAttribute("aria-pressed", String(state.wireframe));
+        btnWireframe.textContent = "Batas Layout: " + (state.wireframe ? "Aktif" : "Mati");
+        renderStage();
+      });
+
+      const btnTheme = document.getElementById("btn-theme");
+      btnTheme.addEventListener("click", function () {
+        state.theme = state.theme === "light" ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", state.theme);
+        btnTheme.setAttribute("aria-pressed", String(state.theme === "dark"));
+        btnTheme.textContent = "Tema: " + (state.theme === "dark" ? "Gelap" : "Terang");
+      });
+
+      document.getElementById("btn-demo-modal").addEventListener("click", function () {
+        showConfirmModal(
+          "Contoh Konfirmasi",
+          "Setiap aksi destruktif pada SI-RITEL wajib meminta persetujuan pengguna terlebih dahulu melalui ModernModal.confirm(...).",
+          "Contoh konfirmasi ModernModal selesai dijalankan."
+        );
+      });
+
+      document.getElementById("btn-demo-toast").addEventListener("click", function () {
+        showToast("ToastManager (ToastType.SUCCESS)", "Notifikasi ringan non-blocking di pojok kanan atas JLayeredPane.");
+      });
+
+      document.getElementById("modal-backdrop").addEventListener("click", function (e) {
+        if (e.target.id === "modal-backdrop") closeModal();
+      });
+
+      document.addEventListener("keydown", function (e) {
+        const backdrop = document.getElementById("modal-backdrop");
+        if (e.key === "Escape" && !backdrop.hidden) {
+          e.preventDefault();
+          closeModal();
+        }
+      });
+
+      function bagSvg(size) {
+        return (
+          "<svg width='" + size + "' height='" + size + "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" +
+            "<rect x='4' y='7' width='16' height='13' rx='3'></rect>" +
+            "<path d='M8 7a4 4 0 0 1 8 0'></path>" +
+            "<path d='M9 12a3 3 0 0 0 6 0'></path>" +
+          "</svg>"
+        );
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function escapeAttr(str) {
+        return escapeHtml(str).replace(/'/g, "&#39;");
+      }
+
+      renderStage();
+    })();
+  </script>
+</body>
+</html>
