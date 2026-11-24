@@ -65,7 +65,7 @@ Mengacu pada [docs/AGENTS.md](docs/AGENTS.md) dan [docs/Java_Class_Schema_Archit
 
 - **Modul 1 (Fondasi, Auth & User):** `DatabaseConnection`, `Main`, `Pengguna`, `PenggunaDAO`, `AuthController`, `LoginView`, `MainFrame`, `ManajemenPenggunaView`
 - **Modul 2 (Katalog Produk, Polimorfisme & Batch):** `Produk`, `Makanan`, `Minuman`, `Elektronik`, `BatchProduk`, `ProdukDAO`, `ProdukController`, `ManajemenProdukView`
-- **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`
+- **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `TransaksiRingkas`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`
 
 ---
 

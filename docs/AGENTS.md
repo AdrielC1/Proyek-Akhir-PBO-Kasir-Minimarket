@@ -12,8 +12,8 @@ File ini berisi konteks arsitektur, aturan bisnis, standar kode, dan batasan pro
 * **Database:** PostgreSQL dengan driver `pgJDBC` (`org.postgresql.Driver`).
 * **Arsitektur:** Strict **MVC + DAO** (`model`, `dao`, `controller`, `view`, `config`, `exception`).
 * **Referensi Skema:**
-  * Skema SQL lengkap ada di `docs/database_schema.md`.
-  * Struktur paket dan tanda tangan kelas ada di `docs/java_class_schema.md`.
+  * Skema SQL lengkap ada di `docs/Database_Schema.md`.
+  * Struktur paket dan tanda tangan kelas ada di `docs/Java_Class_Schema_Architecture.md`.
 
 ---
 
@@ -92,4 +92,4 @@ Saat mengembangkan fitur, jaga batasan tanggung jawab tiap modul agar tidak terj
 
 * **Modul 1 (Fondasi, Auth & User):** `DatabaseConnection`, `Main`, `Pengguna`, `PenggunaDAO`, `AuthController`, `LoginView`, `MainFrame`, `ManajemenPenggunaView`.
 * **Modul 2 (Katalog Produk, Polimorfisme & Batch):** `Produk`, `Makanan`, `Minuman`, `Elektronik`, `BatchProduk`, `ProdukDAO`, `ProdukController`, `ManajemenProdukView`.
-* **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`.
+* **Modul 3 (Kasir, Riwayat & Laporan):** `Printable`, `StokTidakCukupException`, `ItemTransaksi`, `Transaksi`, `TransaksiRingkas`, `LaporanPenjualan`, `TransaksiDAO`, `TransaksiController`, `KasirView`, `RiwayatTransaksiView`, `LaporanPenjualanView`.
